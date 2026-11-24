@@ -70,3 +70,5 @@ T3 Extend supports LAN pairing, Tailscale (HTTPS port 8443), a self-hosted serve
 ## License
 
 [MIT](./LICENSE). Copyright in upstream T3 Code belongs to T3 Tools Inc. The fork's changes use the same license. Third-party components bundled with the build, and their licenses, are listed in [NOTICE](./NOTICE).
+
+The MIT license covers the source code only. It does not grant rights to T3 Tools Inc.'s trademarks or branding; see [TRADEMARK.md](./TRADEMARK.md). T3 Extend is an unofficial fork.

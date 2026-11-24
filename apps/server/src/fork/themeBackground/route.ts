@@ -3,6 +3,7 @@ import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 
+import { SIGNED_URL_ROUTE_OPTIONS } from "../../http.ts";
 import { requestUrl } from "../../requestUrl.ts";
 import {
   THEME_BACKGROUND_UPLOAD_ROUTE_PREFIX,
@@ -42,4 +43,5 @@ export const layerThemeBackgroundUploadRoute = HttpRouter.add(
       ? yield* HttpServerResponse.json({ hash: stored.hash })
       : HttpServerResponse.text(stored.detail, { status: stored.status });
   }),
+  SIGNED_URL_ROUTE_OPTIONS,
 );

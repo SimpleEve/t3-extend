@@ -444,7 +444,9 @@ function SegmentTriggers({
                 className="absolute inset-y-0 right-0 opacity-20"
                 style={{
                   width: `${Math.min(100 - remaining, refillPercent)}%`,
-                  backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 1px, transparent 1px 5px)`,
+                  // A bare 45° gradient repeats every 5√2px, so some stripes rasterize thinner; a whole-pixel tile doesn't.
+                  backgroundImage: `repeating-linear-gradient(135deg, transparent 0 1px, ${color} 1px 2px, transparent 2px 50%)`,
+                  backgroundSize: "7px 7px",
                 }}
               />
             ) : null}
@@ -625,7 +627,7 @@ function PoolWindowCard({
   readonly label?: string | null | undefined;
   readonly description?: string | undefined;
 }) {
-  const nextRefill = pool.resets.find((reset) => reset.restoresPercent > 0);
+  const nextRefill = pool.resets.find((reset) => reset.at > now && reset.restoresPercent > 0);
   return (
     <div
       className="grid items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 p-3 md:grid-cols-[11rem_minmax(0,1fr)]" // fork: a smaller card

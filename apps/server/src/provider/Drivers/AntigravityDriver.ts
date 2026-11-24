@@ -4,8 +4,10 @@ import {
   defaultInstanceIdForDriver,
   ProviderDriverKind,
   ProviderSetupError,
+  RuntimeMode,
   settingsSecretLiteral,
 } from "@t3tools/contracts";
+import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { resolveSelfInvocation } from "@t3tools/shared/nodeRuntime";
 import {
@@ -19,6 +21,7 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
+import * as Option from "effect/Option";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
@@ -114,6 +117,11 @@ const isNodeRuntimeUnavailableError = Schema.is(NodeRuntimeUnavailableError);
 const isAcpRequestError = Schema.is(AcpErrors.AcpRequestError);
 const isProviderSetupError = Schema.is(ProviderSetupError);
 const isAcpErrorDetails = Schema.is(Schema.Struct({ details: Schema.String }));
+const RememberedRuntimeModes = Schema.fromJsonString(
+  Schema.Struct({ authMethod: Schema.String, modes: Schema.Array(RuntimeMode) }),
+);
+const decodeRememberedRuntimeModes = Schema.decodeUnknownOption(RememberedRuntimeModes);
+const encodeRememberedRuntimeModes = Schema.encodeSync(RememberedRuntimeModes);
 const REFRESH_FAILED =
   "Could not refresh Antigravity models. The previous model list is unchanged.";
 const PYTHON_SOCKS_REQUIRED = "python-socks is required to use a SOCKS proxy";
@@ -246,6 +254,18 @@ export const AntigravityDriver: ProviderDriver<
             Effect.provideService(Digest.Digest, digest),
           )
         : undefined;
+    // Only a session reports whether agy offers Auto, so keep the last answer across restarts.
+    const runtimeModesPath = path.join(profileDirectory, "t3-runtime-modes.json");
+    const rememberedRuntimeModes = yield* fileSystem.readFileString(runtimeModesPath).pipe(
+      Effect.map((contents) =>
+        decodeRememberedRuntimeModes(contents).pipe(
+          Option.filter((saved) => saved.authMethod === auth.authMethod),
+          Option.map((saved) => saved.modes),
+          Option.getOrUndefined,
+        ),
+      ),
+      Effect.orElseSucceed(() => undefined),
+    );
     for (const directory of [
       directories.runtimeTemp,
       path.join(profileDirectory, "antigravity-acp", "tmp"),
@@ -753,6 +773,16 @@ export const AntigravityDriver: ProviderDriver<
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
       // fork: the saved Google accounts of a separate sign-in.
       ...(accountPool ? { accounts: antigravityServerAccounts(accountPool) } : {}),
+      ...(rememberedRuntimeModes ? { rememberedRuntimeModes } : {}),
+      rememberRuntimeModes: (modes) =>
+        writeFileStringAtomically({
+          filePath: runtimeModesPath,
+          contents: encodeRememberedRuntimeModes({ authMethod: auth.authMethod, modes }),
+        }).pipe(
+          Effect.provideService(FileSystem.FileSystem, fileSystem),
+          Effect.provideService(Path.Path, path),
+          Effect.catch(() => Effect.logWarning("Could not save Antigravity permission modes.")),
+        ),
       supportsTextGeneration: isAntigravityTextGenerationAvailable(profileDirectory).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
         Effect.provideService(Path.Path, path),

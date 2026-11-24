@@ -78,6 +78,7 @@ import * as DesktopUpdatePolicy from "./updates/DesktopUpdatePolicy.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as BrowserImport from "./preview/BrowserImport/BrowserImport.ts";
 import * as LinuxBrowserSecret from "./preview/BrowserImport/LinuxBrowserSecret.ts";
+import * as AppleSpeech from "./speech/AppleSpeech.ts";
 import * as BrowserSession from "./preview/BrowserSession.ts";
 import * as DesktopBrowserHost from "./preview/DesktopBrowserHost.ts";
 import * as LoopbackTunnel from "./preview/LoopbackTunnel.ts";
@@ -165,6 +166,7 @@ const layerDesktopFoundation = Layer.mergeAll(
   DesktopRendererHistory.layer,
   DesktopSelfHost.layer, // fork: self-hosted connection
   DesktopBackgroundService.layer, // fork: background service
+  AppleSpeech.layer,
 ).pipe(Layer.provideMerge(layerDesktopEnvironment));
 
 const layerDesktopSsh = layerDesktopSshEnvironment.pipe(
