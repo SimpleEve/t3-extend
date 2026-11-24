@@ -135,7 +135,6 @@ export const layer: Layer.Layer<ThreadForkServiceV2> = Layer.succeed(
         lastSnoozeWakeAt: null,
         pinnedAt: null,
         pinOrderKey: null,
-        bookmarks: [], // fork: a bookmark marks the source thread's own messages
         activeOrderKey: null,
         autoSettleDisabledAt: null,
         // A guest link belongs to the thread it was made for.

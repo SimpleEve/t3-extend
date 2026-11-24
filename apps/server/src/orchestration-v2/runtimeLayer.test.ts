@@ -7790,14 +7790,40 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
         excerpt: "Remember this answer.",
       };
       yield* TestClock.adjust("1 minute");
-      yield* orchestrator.dispatch({ ...add, commandId: CommandId.make("bookmark-add") });
-      const added = (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks ?? [];
+      const addResult = yield* orchestrator.dispatch({
+        ...add,
+        commandId: CommandId.make("bookmark-add"),
+      });
+      const added = (yield* orchestrator.getThreadProjection(threadId)).bookmarks ?? [];
       assert.lengthOf(added, 1);
       assert.equal(added[0]?.id, bookmarkId);
       assert.isNotNull(added[0]?.messageCreatedAt);
       assert.deepEqual(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkPreviews, [
         { id: bookmarkId, label: "Remember this answer." },
       ]);
+
+      // Other thread events never carry bookmarks: only the bookmark's own event holds one.
+      assert.deepEqual(
+        addResult.storedEvents.map((entry) => entry.event.type),
+        ["thread.bookmark-changed"],
+      );
+      assert.deepEqual(addResult.storedEvents[0]?.event.payload, {
+        kind: "upsert",
+        bookmark: added[0]!,
+      });
+      const renameResult = yield* orchestrator.dispatch({
+        type: "thread.metadata.update",
+        commandId: CommandId.make("bookmark-metadata-update"),
+        threadId,
+        title: "Bookmarks, renamed",
+      });
+      assert.isAbove(renameResult.storedEvents.length, 0);
+      for (const entry of renameResult.storedEvents) {
+        assert.notProperty(entry.event.payload, "bookmarks");
+      }
+      assert.deepEqual((yield* orchestrator.getThreadProjection(threadId)).bookmarks, added);
+      const renamedAt = shellOf(yield* orchestrator.getShellSnapshot()).updatedAt;
+      yield* TestClock.adjust("1 minute");
 
       // A second device pressing the same button, or a retry under a new command id, adds nothing.
       yield* orchestrator.dispatch({ ...add, commandId: CommandId.make("bookmark-add-again") });
@@ -7806,10 +7832,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
         bookmarkId: ThreadBookmarkId.make("bookmark-1-twin"),
         commandId: CommandId.make("bookmark-add-twin"),
       });
-      assert.lengthOf(
-        (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks ?? [],
-        1,
-      );
+      assert.lengthOf((yield* orchestrator.getThreadProjection(threadId)).bookmarks ?? [], 1);
 
       const missingMessage = yield* orchestrator
         .dispatch({
@@ -7839,7 +7862,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
         title: "  The answer  ",
         note: "for the review",
       });
-      const edited = (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks?.[0];
+      const edited = (yield* orchestrator.getThreadProjection(threadId)).bookmarks?.[0];
       assert.equal(edited?.title, "The answer");
       assert.equal(edited?.note, "for the review");
       assert.equal(
@@ -7860,10 +7883,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
         threadId,
         bookmarkId,
       });
-      assert.lengthOf(
-        (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks ?? [],
-        0,
-      );
+      assert.lengthOf((yield* orchestrator.getThreadProjection(threadId)).bookmarks ?? [], 0);
       assert.isUndefined(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkCount);
 
       // Undo re-adds the bookmark under its own id and creation time.
@@ -7873,7 +7893,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
         createdAt: added[0]!.createdAt,
         title: "The answer",
       });
-      const restored = (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks?.[0];
+      const restored = (yield* orchestrator.getThreadProjection(threadId)).bookmarks?.[0];
       assert.equal(restored?.id, bookmarkId);
       assert.equal(restored?.createdAt, added[0]!.createdAt);
       assert.equal(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkCount, 1);
@@ -7881,7 +7901,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
       // Bookmarks are not activity, so the thread keeps its place in thread lists.
       assert.equal(
         DateTime.toEpochMillis(shellOf(yield* orchestrator.getShellSnapshot()).updatedAt),
-        DateTime.toEpochMillis(before.updatedAt),
+        DateTime.toEpochMillis(renamedAt),
       );
     }),
   );

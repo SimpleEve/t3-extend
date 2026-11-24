@@ -88,11 +88,7 @@ import { expandAssistantCitationsForProvider } from "@t3tools/shared/assistantCi
 import { modelSwitchSince } from "./modelSwitch.ts";
 import { contextBoundaryOrdinal, isScheduledFreshRun } from "./contextBoundary.ts";
 import { isPlaceholderThreadTitle } from "./placeholderThreadTitle.ts";
-import {
-  decideThreadBookmark,
-  isThreadBookmarkCommand,
-  type ThreadBookmarkDecision,
-} from "./ThreadBookmarks.ts"; // fork: message bookmarks
+import { decideThreadBookmark, isThreadBookmarkCommand } from "./ThreadBookmarks.ts"; // fork: message bookmarks
 import { combinePullRequestWatchWakes, type PullRequestWatchWake } from "./pullRequestWatch.ts";
 import { recordThreadOpen } from "@t3tools/shared/paletteSearch";
 import {
@@ -4908,8 +4904,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       }
       markUnreadVisitedAt = DateTime.subtract(latestRunCompletedAt, { milliseconds: 1 });
     }
-    // fork: message bookmarks. The decision needs the bookmarked message's creation time.
-    let bookmarkDecision: ThreadBookmarkDecision | null = null;
+    // fork: message bookmarks. A bookmark is its own event, not a new copy of the thread.
     if (isThreadBookmarkCommand(command)) {
       const messageCreatedAt =
         command.type === "thread.bookmark.add"
@@ -4921,19 +4916,35 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               }),
             )
           : null;
-      bookmarkDecision = decideThreadBookmark({
-        thread,
+      const decision = decideThreadBookmark({
+        threadId: command.threadId,
+        bookmarks: yield* projectionStore
+          .getThreadBookmarks(command.threadId)
+          .pipe(mapDispatchError(command)),
         command,
         messageCreatedAt,
         now: DateTime.formatIso(now),
       });
-      if (bookmarkDecision._tag === "Rejected") {
+      if (decision._tag === "Rejected") {
         return yield* new OrchestratorDispatchError({
           commandId: command.commandId,
           commandType: command.type,
-          cause: bookmarkDecision.reason,
+          cause: decision.reason,
         });
       }
+      if (decision._tag === "Changed") {
+        yield* emit(
+          events,
+          command,
+        )({
+          type: "thread.bookmark-changed",
+          threadId: command.threadId,
+          providerInstanceId: thread.providerInstanceId,
+          occurredAt: now,
+          payload: decision.change,
+        });
+      }
+      return;
     }
     const updatedThread: OrchestrationV2AppThread = (() => {
       switch (command.type) {
@@ -5069,10 +5080,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               : current.filter((tag) => tag !== command.tag),
           };
         }
-        case "thread.bookmark.add":
-        case "thread.bookmark.update":
-        case "thread.bookmark.remove":
-          return bookmarkDecision?._tag === "Updated" ? bookmarkDecision.thread : thread; // fork: message bookmarks
         case "thread.mark-unread": {
           // Retire the wake before rewinding the visit, preserving its settlement timer.
           const snoozeExpired =
@@ -5507,7 +5514,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       });
       return;
     }
-    if (bookmarkDecision?._tag === "Unchanged") return; // fork: message bookmarks
     const eventType = (() => {
       switch (command.type) {
         case "thread.archive":
@@ -5534,10 +5540,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           return "thread.active-reordered" as const;
         case "thread.tag.set":
           return "thread.tags-updated" as const;
-        case "thread.bookmark.add":
-        case "thread.bookmark.update":
-        case "thread.bookmark.remove":
-          return "thread.bookmarks-updated" as const; // fork: message bookmarks
         case "thread.mark-unread":
           return "thread.marked-unread" as const;
         case "thread.metadata.update":

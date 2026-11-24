@@ -1,5 +1,10 @@
 import type { ProjectThreadAwarenessV2Input } from "@t3tools/shared/agentAwareness";
-import { applyOrchestrationV2ThreadVisit, pendingGuestMessageCount } from "@t3tools/contracts";
+import {
+  applyOrchestrationV2ThreadVisit,
+  applyThreadBookmarkChange,
+  pendingGuestMessageCount,
+  type ThreadBookmark,
+} from "@t3tools/contracts"; // fork: message bookmarks
 import { applyThreadPullRequestLinkUpdate } from "../sourceControl/threadPullRequests.ts";
 import { projectTurnItemForWire } from "./WireProjection.ts";
 import * as Stream from "effect/Stream";
@@ -110,6 +115,12 @@ import {
 } from "./deferredCommandMessage.ts";
 import { readableSearchText } from "./messageSearchIndex.ts";
 import { threadBookmarkShellFields } from "./ThreadBookmarks.ts"; // fork: message bookmarks
+import {
+  ensureThreadBookmarkTable,
+  readThreadBookmarks,
+  readThreadBookmarkShellFields,
+  writeThreadBookmarkChange,
+} from "./ThreadBookmarkStore.ts"; // fork: message bookmarks
 import {
   isFoldableWorkItem,
   isThreadHistoryUserTurn,
@@ -727,6 +738,10 @@ export interface ProjectionStoreV2Shape {
   readonly getThreadProjection: (
     threadId: ThreadId,
   ) => Effect.Effect<OrchestrationV2ThreadProjection, ProjectionStoreV2Error>;
+  /** fork: message bookmarks. A thread's bookmarks in conversation order, without the rest of it. */
+  readonly getThreadBookmarks: (
+    threadId: ThreadId,
+  ) => Effect.Effect<ReadonlyArray<ThreadBookmark>, ProjectionStoreV2Error>;
   readonly getRuntimeRecoveryProjection: (
     threadId: ThreadId,
   ) => Effect.Effect<ProjectionRuntimeRecoveryState, ProjectionStoreV2Error>;
@@ -1038,6 +1053,12 @@ export function applyToProjection(
         ...projection,
         thread: applyThreadPullRequestLinkUpdate(projection.thread, event.payload),
       };
+    // fork: message bookmarks. Not activity: the thread row and its updatedAt stay as they are.
+    case "thread.bookmark-changed":
+      return {
+        ...projection,
+        bookmarks: applyThreadBookmarkChange(projection.bookmarks ?? [], event.payload),
+      };
     case "thread.created":
     case "thread.archived":
     case "thread.unarchived":
@@ -1063,7 +1084,6 @@ export function applyToProjection(
     // Reordering and PR refreshes preserve the orchestrator's activity timestamp.
     case "thread.active-reordered":
     case "thread.tags-updated":
-    case "thread.bookmarks-updated": // fork: message bookmarks
     case "thread.pull-request-synced":
     case "thread.issue-synced":
       return {
@@ -1992,7 +2012,7 @@ export function threadShellFromProjection(
     autoSettleDisabledAt: projection.thread.autoSettleDisabledAt ?? null,
     pinOrderKey: projection.thread.pinOrderKey ?? null,
     ...(projection.thread.tags?.length ? { tags: projection.thread.tags } : {}),
-    ...threadBookmarkShellFields(projection.thread.bookmarks), // fork: message bookmarks
+    ...threadBookmarkShellFields(projection.bookmarks), // fork: message bookmarks
     lastVisitedAt: projection.thread.lastVisitedAt,
     opens: projection.thread.opens ?? null,
     titleRegeneration: projection.thread.titleRegeneration ?? null,
@@ -2216,6 +2236,9 @@ function visibleItemCountForShell(input: {
 function shellFromState(input: {
   readonly state: ShellThreadState;
   readonly visibleItemCount: number;
+  readonly bookmarks?:
+    | Pick<OrchestrationV2ThreadShell, "bookmarkCount" | "bookmarkPreviews">
+    | undefined; // fork: message bookmarks
 }): OrchestrationV2ThreadShell {
   return {
     createdBy: input.state.thread.createdBy,
@@ -2291,7 +2314,7 @@ function shellFromState(input: {
     autoSettleDisabledAt: input.state.thread.autoSettleDisabledAt ?? null,
     pinOrderKey: input.state.thread.pinOrderKey ?? null,
     ...(input.state.thread.tags?.length ? { tags: input.state.thread.tags } : {}),
-    ...threadBookmarkShellFields(input.state.thread.bookmarks), // fork: message bookmarks
+    ...input.bookmarks, // fork: message bookmarks
     lastVisitedAt: input.state.thread.lastVisitedAt,
     opens: input.state.thread.opens ?? null,
     titleRegeneration: input.state.thread.titleRegeneration ?? null,
@@ -2325,6 +2348,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
   ProjectionStoreV2,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    yield* ensureThreadBookmarkTable(sql).pipe(Effect.orDie); // fork: message bookmarks
 
     // SQLite uses the partial conversation index of migration 082 only for this exact predicate.
     const CONVERSATION_INDEX_EXCLUDED_TYPES = sql.literal(
@@ -2451,6 +2475,9 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             yield* writeThreadTouches(sql, new Map([[rewrittenThreadId, deferredUpdatedAt]]));
           }
           switch (event.type) {
+            case "thread.bookmark-changed": // fork: message bookmarks
+              yield* writeThreadBookmarkChange(sql, event.threadId, event.payload);
+              break;
             case "thread.pull-request-link-updated": {
               const thread = yield* getThread(event.threadId);
               yield* apply({
@@ -2483,7 +2510,6 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             case "thread.pin-reordered":
             case "thread.active-reordered":
             case "thread.tags-updated":
-            case "thread.bookmarks-updated": // fork: message bookmarks
             case "thread.visited":
             case "thread.marked-unread":
             case "thread.metadata-updated":
@@ -3325,7 +3351,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             event.type !== "thread.pin-reordered" &&
             event.type !== "thread.active-reordered" &&
             event.type !== "thread.tags-updated" &&
-            event.type !== "thread.bookmarks-updated" && // fork: message bookmarks
+            event.type !== "thread.bookmark-changed" && // fork: message bookmarks
             event.type !== "thread.visited" &&
             event.type !== "thread.visit-recorded" &&
             event.type !== "thread.marked-unread" &&
@@ -4679,6 +4705,8 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           for (const row of rows) messageOrdinals.set(row.message_id, row.ordinal);
         }
         const orderedMessages = sortMessagesByTurnItemOrder(messages, turnItems, messageOrdinals);
+        // fork: message bookmarks. Only a full read carries them; they have their own table.
+        const bookmarks = fields === undefined ? yield* readThreadBookmarks(sql, threadId) : [];
         const projection = {
           thread,
           runs,
@@ -4697,6 +4725,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           contextHandoffs,
           contextTransfers,
           visibleTurnItems: [],
+          ...(bookmarks.length > 0 ? { bookmarks } : {}), // fork: message bookmarks
           updatedAt: thread.updatedAt,
         } satisfies OrchestrationV2ThreadProjection;
         return projection;
@@ -5581,6 +5610,11 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               : new ProjectionStoreReadError({ threadId, cause }),
           ),
         );
+
+    const getThreadBookmarks: ProjectionStoreV2Shape["getThreadBookmarks"] = (threadId) =>
+      readThreadBookmarks(sql, threadId).pipe(
+        Effect.mapError((cause) => new ProjectionStoreReadError({ threadId, cause })),
+      ); // fork: message bookmarks
 
     const getRuntimeRecoveryProjection: ProjectionStoreV2Shape["getRuntimeRecoveryProjection"] =
       Effect.fn("ProjectionStore.getRuntimeRecoveryProjection")(
@@ -9165,6 +9199,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         sequenceRows,
         providerThreadRows,
         pendingTurnItemRows,
+        bookmarkFieldsByThreadId, // fork: message bookmarks
       ] = yield* Effect.all([
         readForThreadIds(selectShellRunRows, forkSourceIds),
         readForThreadIds(selectShellRunItemCounts, forkSourceIds),
@@ -9186,6 +9221,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             ),
           ),
         ),
+        readThreadBookmarkShellFields(sql, threadIds), // fork: message bookmarks
       ]);
       return {
         targetThreadIds,
@@ -9196,6 +9232,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         sequenceRows,
         providerThreadRows,
         pendingTurnItemRows,
+        bookmarkFieldsByThreadId, // fork: message bookmarks
       };
     });
 
@@ -9208,6 +9245,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       sequenceRows,
       providerThreadRows,
       pendingTurnItemRows,
+      bookmarkFieldsByThreadId, // fork: message bookmarks
     }: Effect.Success<ReturnType<typeof readShellSnapshotRows>>) {
       const { runsByThreadId, itemCountsByThreadId } = runMapsByThreadId({
         runRows,
@@ -9237,6 +9275,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               threadId: state.thread.id,
               statesByThreadId,
             }),
+            bookmarks: bookmarkFieldsByThreadId.get(state.thread.id), // fork: message bookmarks
           }),
         );
 
@@ -9684,6 +9723,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               shellItemCountRows,
               providerThreadRows,
               pendingTurnItemRows,
+              bookmarkFieldsByThreadId, // fork: message bookmarks
             ] = yield* Effect.all([
               forkSourceIds.length === 0
                 ? Effect.succeed([] as ReadonlyArray<ShellRunRow>)
@@ -9701,6 +9741,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     : [],
                 ),
               ),
+              readThreadBookmarkShellFields(sql, [threadId]), // fork: message bookmarks
             ]);
             const { runsByThreadId, itemCountsByThreadId } = runMapsByThreadId({
               runRows,
@@ -9728,6 +9769,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             return shellFromState({
               state,
               visibleItemCount: visibleItemCountForShell({ threadId, statesByThreadId }),
+              bookmarks: bookmarkFieldsByThreadId.get(threadId), // fork: message bookmarks
             });
           }),
         )
@@ -9762,6 +9804,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       getThreadWorktreePaths: readOnReader(getThreadWorktreePaths),
       getOpenRemoteDelegatedTasks: getOpenRemoteDelegatedTasks.pipe(NodeSqliteClient.readOnly),
       getThreadProjection: readOnReader(getThreadProjection),
+      getThreadBookmarks: readOnReader(getThreadBookmarks), // fork: message bookmarks
       getTurnStartContext: readOnReader(getTurnStartContext),
       getTurnStartHistory: readOnReader(getTurnStartHistory),
       getRuntimeRecoveryProjection: readOnReader(getRuntimeRecoveryProjection),

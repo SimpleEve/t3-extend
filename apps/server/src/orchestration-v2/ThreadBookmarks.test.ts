@@ -4,7 +4,6 @@ import {
   THREAD_BOOKMARK_MAX_PER_THREAD,
   ThreadBookmarkId,
   ThreadId,
-  type OrchestrationV2AppThread,
   type ThreadBookmark,
 } from "@t3tools/contracts";
 
@@ -16,8 +15,6 @@ import {
 
 const threadId = ThreadId.make("thread-1");
 const now = "2026-11-24T12:00:00.000Z";
-const thread = (bookmarks?: ReadonlyArray<ThreadBookmark>) =>
-  ({ id: threadId, ...(bookmarks === undefined ? {} : { bookmarks }) }) as OrchestrationV2AppThread;
 const stored = (id: string, patch: Partial<ThreadBookmark> = {}): ThreadBookmark => ({
   id: ThreadBookmarkId.make(id),
   messageId: MessageId.make("message-1"),
@@ -45,30 +42,37 @@ const messageCreatedAt = "2026-11-24T10:00:00.000Z";
 describe("decideThreadBookmark", () => {
   it("snapshots the message's creation time and keeps a selection's range", () => {
     const decision = decideThreadBookmark({
-      thread: thread(),
+      threadId,
+      bookmarks: [],
       command: add({ kind: "selection", excerpt: "ell", selectionStart: 1, selectionEnd: 4 }),
       messageCreatedAt,
       now,
     });
-    expect(decision._tag === "Updated" && decision.thread.bookmarks).toEqual([
-      expect.objectContaining({
-        id: "new",
-        kind: "selection",
-        selectionStart: 1,
-        selectionEnd: 4,
-        messageCreatedAt,
-        createdAt: now,
-      }),
-    ]);
+    expect(decision).toEqual({
+      _tag: "Changed",
+      change: {
+        kind: "upsert",
+        bookmark: expect.objectContaining({
+          id: "new",
+          kind: "selection",
+          selectionStart: 1,
+          selectionEnd: 4,
+          messageCreatedAt,
+          createdAt: now,
+        }),
+      },
+    });
   });
 
   it("refuses a message the thread does not hold, an empty range, and a full thread", () => {
     expect(
-      decideThreadBookmark({ thread: thread(), command: add(), messageCreatedAt: null, now })._tag,
+      decideThreadBookmark({ threadId, bookmarks: [], command: add(), messageCreatedAt: null, now })
+        ._tag,
     ).toBe("Rejected");
     expect(
       decideThreadBookmark({
-        thread: thread(),
+        threadId,
+        bookmarks: [],
         command: add({ kind: "selection", selectionStart: 4, selectionEnd: 4 }),
         messageCreatedAt,
         now,
@@ -79,7 +83,8 @@ describe("decideThreadBookmark", () => {
     );
     expect(
       decideThreadBookmark({
-        thread: thread(full),
+        threadId,
+        bookmarks: full,
         command: add({ excerpt: "Another" }),
         messageCreatedAt,
         now,
@@ -88,21 +93,24 @@ describe("decideThreadBookmark", () => {
   });
 
   it("leaves a repeated add, and a remove of a gone bookmark, unchanged", () => {
-    const held = thread([stored("old")]);
+    const held = [stored("old")];
     expect(
       decideThreadBookmark({
-        thread: held,
+        threadId,
+        bookmarks: held,
         command: add({ bookmarkId: ThreadBookmarkId.make("old") }),
         messageCreatedAt,
         now,
       })._tag,
     ).toBe("Unchanged");
-    expect(decideThreadBookmark({ thread: held, command: add(), messageCreatedAt, now })._tag).toBe(
-      "Unchanged",
-    );
+    expect(
+      decideThreadBookmark({ threadId, bookmarks: held, command: add(), messageCreatedAt, now })
+        ._tag,
+    ).toBe("Unchanged");
     expect(
       decideThreadBookmark({
-        thread: held,
+        threadId,
+        bookmarks: held,
         command: {
           type: "thread.bookmark.remove",
           threadId,
@@ -115,10 +123,11 @@ describe("decideThreadBookmark", () => {
   });
 
   it("clears a title or note set to blank and ignores an update that changes nothing", () => {
-    const held = thread([stored("old", { title: "Title", note: "Note" })]);
+    const held = [stored("old", { title: "Title", note: "Note" })];
     const update = (patch: Record<string, unknown>) =>
       decideThreadBookmark({
-        thread: held,
+        threadId,
+        bookmarks: held,
         command: {
           type: "thread.bookmark.update",
           threadId,
@@ -129,8 +138,13 @@ describe("decideThreadBookmark", () => {
         now,
       });
     const cleared = update({ title: "   " });
-    expect(cleared._tag === "Updated" && cleared.thread.bookmarks?.[0]?.title).toBeNull();
-    expect(cleared._tag === "Updated" && cleared.thread.bookmarks?.[0]?.note).toBe("Note");
+    expect(cleared).toEqual({
+      _tag: "Changed",
+      change: {
+        kind: "upsert",
+        bookmark: expect.objectContaining({ id: "old", title: null, note: "Note" }),
+      },
+    });
     expect(update({ title: "Title" })._tag).toBe("Unchanged");
   });
 });

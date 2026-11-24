@@ -1,8 +1,12 @@
+import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  StoredThreadBookmarks,
+  THREAD_BOOKMARK_EXCERPT_MAX_LENGTH,
   THREAD_BOOKMARK_PREVIEW_COUNT,
   ThreadBookmarkId,
+  applyThreadBookmarkChange,
   compareThreadBookmarks,
   threadBookmarkLabel,
   threadBookmarkPreviews,
@@ -65,5 +69,34 @@ describe("thread bookmarks", () => {
     expect(threadBookmarkPreviews([...many].reverse()).map((preview) => preview.id)).toEqual(
       many.slice(0, THREAD_BOOKMARK_PREVIEW_COUNT).map((entry) => entry.id),
     );
+  });
+
+  it("drops only the stored bookmark it cannot read, and keeps the rest in place", () => {
+    const decode = Schema.decodeUnknownSync(StoredThreadBookmarks);
+    const tooLong = bookmark("too-long", {
+      excerpt: "x".repeat(THREAD_BOOKMARK_EXCERPT_MAX_LENGTH + 1),
+    });
+    const readable = [bookmark("a"), bookmark("b", { title: "Kept", note: "My note" })];
+    const decoded = decode([readable[0], tooLong, { id: "garbage" }, null, readable[1]]);
+    expect(decoded.map((entry) => entry.id)).toEqual(readable.map((entry) => entry.id));
+    expect(decoded[1]?.note).toBe("My note");
+    expect(decode([])).toEqual([]);
+  });
+
+  it("upserts in place and removes by id", () => {
+    const first = bookmark("a");
+    const second = bookmark("b");
+    const edited = { ...first, title: "Edited" };
+    expect(
+      applyThreadBookmarkChange([first, second], { kind: "upsert", bookmark: edited }),
+    ).toEqual([edited, second]);
+    expect(
+      applyThreadBookmarkChange([first], { kind: "upsert", bookmark: second }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual([first.id, second.id]);
+    expect(
+      applyThreadBookmarkChange([first, second], { kind: "remove", bookmarkId: first.id }),
+    ).toEqual([second]);
   });
 });

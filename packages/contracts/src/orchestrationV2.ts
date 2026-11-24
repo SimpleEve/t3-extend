@@ -48,6 +48,7 @@ import { StoredThreadTags, ThreadTag } from "./threadTags.ts";
 import {
   StoredThreadBookmarks,
   ThreadBookmarkAddFields,
+  ThreadBookmarkChange,
   ThreadBookmarkId,
   ThreadBookmarkPreview,
   ThreadBookmarkUpdateFields,
@@ -531,7 +532,6 @@ export const OrchestrationV2AppThread = Schema.Struct({
   activeOrderKey: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   /** Absent on threads written before tags existed; read as empty. */
   tags: Schema.optional(StoredThreadTags),
-  bookmarks: Schema.optional(StoredThreadBookmarks), // fork: message bookmarks
   lastVisitedAt: Schema.NullOr(Schema.DateTimeUtc).pipe(
     Schema.withDecodingDefault(Effect.succeed(null)),
   ),
@@ -2054,7 +2054,6 @@ export const OrchestrationV2DomainEvent = Schema.Union([
       "thread.pin-reordered",
       "thread.active-reordered",
       "thread.tags-updated",
-      "thread.bookmarks-updated", // fork: message bookmarks
       "thread.visited",
       "thread.marked-unread",
       "thread.metadata-updated",
@@ -2077,6 +2076,12 @@ export const OrchestrationV2DomainEvent = Schema.Union([
     ...OrchestrationV2EventBase.fields,
     type: Schema.Literal("thread.visit-recorded"),
     payload: OrchestrationV2ThreadVisit,
+  }),
+  // fork: message bookmarks
+  Schema.Struct({
+    ...OrchestrationV2EventBase.fields,
+    type: Schema.Literal("thread.bookmark-changed"),
+    payload: ThreadBookmarkChange,
   }),
   Schema.Struct({
     ...OrchestrationV2EventBase.fields,
@@ -2210,6 +2215,7 @@ export const OrchestrationV2ThreadProjection = Schema.Struct({
       item: ForwardCompatibleUnion(OrchestrationV2TurnItem.members, "type"),
     })),
   ),
+  bookmarks: Schema.optional(StoredThreadBookmarks), // fork: message bookmarks
   updatedAt: Schema.DateTimeUtc,
 });
 export type OrchestrationV2ThreadProjection = typeof OrchestrationV2ThreadProjection.Type;
@@ -3005,7 +3011,6 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
       "thread.pin-reordered",
       "thread.active-reordered",
       "thread.tags-updated",
-      "thread.bookmarks-updated", // fork: message bookmarks
       "thread.visited",
       "thread.marked-unread",
       "thread.pull-request-synced",
@@ -3028,6 +3033,12 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
     ...OrchestrationV2JsonEventBaseFields,
     type: Schema.Literal("thread.visit-recorded"),
     payload: OrchestrationV2ThreadVisitJson,
+  }),
+  // fork: message bookmarks
+  Schema.Struct({
+    ...OrchestrationV2JsonEventBaseFields,
+    type: Schema.Literal("thread.bookmark-changed"),
+    payload: ThreadBookmarkChange,
   }),
   Schema.Struct({
     ...OrchestrationV2JsonEventBaseFields,

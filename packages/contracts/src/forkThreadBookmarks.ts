@@ -1,14 +1,16 @@
-import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import { ASSISTANT_CITATION_CONTEXT_LENGTH } from "./assistantCitations.ts";
 import { MessageId, NonNegativeInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 // fork: a bookmark marks one message, or a passage inside it, so it can be found again. It lives on
-// the thread like tags do, so every device sees it. The excerpt is a snapshot: a bookmark outlives
-// the message it points at, which a rollback or a compaction can remove.
+// the thread, so every device sees it. The excerpt is a snapshot: a bookmark outlives the message it
+// points at, which a rollback or a compaction can remove. Bookmarks have their own event and table;
+// no other thread event carries them.
 
-/** Bookmarks ride on every thread event's payload, so both limits keep that payload small. */
+/** One bookmark is one event and one row, so these limits bound that, not every thread event. */
 export const THREAD_BOOKMARK_EXCERPT_MAX_LENGTH = 10_000;
 export const THREAD_BOOKMARK_TITLE_MAX_LENGTH = 200;
 export const THREAD_BOOKMARK_NOTE_MAX_LENGTH = 4_000;
@@ -64,10 +66,47 @@ export const ThreadBookmark = Schema.Struct({
 });
 export type ThreadBookmark = typeof ThreadBookmark.Type;
 
-/** Bookmarks read back from storage or a peer. Lenient so a later rule never fails a whole thread. */
-export const StoredThreadBookmarks = Schema.Array(ThreadBookmark).pipe(
-  Schema.catchDecoding(() => Effect.succeedSome([])),
+const decodeBookmarkOption = Schema.decodeUnknownOption(ThreadBookmark);
+
+/**
+ * Bookmarks read back from storage or a peer, one by one: a bookmark a later rule can no longer
+ * read is dropped on its own, and the rest of the thread's bookmarks stay.
+ */
+export const StoredThreadBookmarks = Schema.Array(Schema.Unknown).pipe(
+  Schema.decodeTo(
+    Schema.Array(ThreadBookmark),
+    SchemaTransformation.transform<
+      ReadonlyArray<(typeof ThreadBookmark)["Encoded"]>,
+      ReadonlyArray<unknown>
+    >({
+      decode: (raw) =>
+        raw.filter((entry) => Option.isSome(decodeBookmarkOption(entry))) as ReadonlyArray<
+          (typeof ThreadBookmark)["Encoded"]
+        >,
+      encode: (bookmarks) => bookmarks,
+    }),
+  ),
 );
+
+/** What one bookmark command changes; the event carries this and never the whole list. */
+export const ThreadBookmarkChange = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("upsert"), bookmark: ThreadBookmark }),
+  Schema.Struct({ kind: Schema.Literal("remove"), bookmarkId: ThreadBookmarkId }),
+]);
+export type ThreadBookmarkChange = typeof ThreadBookmarkChange.Type;
+
+/** Apply a change to a thread's bookmarks; an upsert of a known id replaces it in place. */
+export function applyThreadBookmarkChange(
+  bookmarks: ReadonlyArray<ThreadBookmark>,
+  change: ThreadBookmarkChange,
+): ReadonlyArray<ThreadBookmark> {
+  if (change.kind === "remove") {
+    return bookmarks.filter((bookmark) => bookmark.id !== change.bookmarkId);
+  }
+  return bookmarks.some((bookmark) => bookmark.id === change.bookmark.id)
+    ? bookmarks.map((bookmark) => (bookmark.id === change.bookmark.id ? change.bookmark : bookmark))
+    : [...bookmarks, change.bookmark];
+}
 
 /** What the sidebar summary carries per bookmark; the full text stays in the thread detail. */
 export const ThreadBookmarkPreview = Schema.Struct({
@@ -112,10 +151,21 @@ export function threadBookmarkLabel(
     : `${characters.slice(0, maxLength).join("").trimEnd()}…`;
 }
 
+type ThreadBookmarkOrderKey = {
+  readonly id: string;
+  readonly messageId: string;
+  readonly messageCreatedAt: string;
+  readonly createdAt: string;
+  readonly selectionStart?: number | undefined;
+};
+
 const compareText = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
 /** Conversation order: the message's position, then where the selection starts in it. */
-export function compareThreadBookmarks(left: ThreadBookmark, right: ThreadBookmark): number {
+export function compareThreadBookmarks(
+  left: ThreadBookmarkOrderKey,
+  right: ThreadBookmarkOrderKey,
+): number {
   return (
     compareText(left.messageCreatedAt, right.messageCreatedAt) ||
     compareText(left.messageId, right.messageId) ||

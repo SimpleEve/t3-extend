@@ -30,7 +30,7 @@ export function createThreadBookmarkAtoms(details: ThreadDetails) {
     let ordered = NO_BOOKMARKS;
     return Atom.make((get) => {
       const next =
-        ref === null ? undefined : get(details.quietThreadAtom(ref))?.projection.thread.bookmarks;
+        ref === null ? undefined : get(details.quietThreadAtom(ref))?.projection.bookmarks;
       if (next === raw) return ordered;
       raw = next;
       ordered = orderedThreadBookmarks(next);

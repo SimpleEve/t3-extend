@@ -1,4 +1,5 @@
 import { ThreadId } from "@t3tools/contracts";
+import { clearThreadBookmarks } from "../ThreadBookmarkStore.ts"; // fork: message bookmarks
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -120,6 +121,7 @@ export const layer: Layer.Layer<
           yield* sql`DELETE FROM orchestration_v2_projection_run_attempts`;
           yield* sql`DELETE FROM orchestration_v2_projection_runs`;
           yield* sql`DELETE FROM orchestration_v2_projection_threads`;
+          yield* clearThreadBookmarks(sql); // fork: message bookmarks
           yield* sql`DELETE FROM orchestration_v2_turn_item_positions`;
 
           const pageSize = 500;

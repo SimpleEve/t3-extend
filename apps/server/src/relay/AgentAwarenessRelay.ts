@@ -119,7 +119,7 @@ export function shouldPublishAgentAwarenessEvent(
     case "thread.pin-reordered":
     case "thread.active-reordered":
     case "thread.tags-updated":
-    case "thread.bookmarks-updated": // fork: message bookmarks
+    case "thread.bookmark-changed": // fork: message bookmarks
     case "thread.visited":
     case "thread.visit-recorded":
     case "thread.marked-unread":

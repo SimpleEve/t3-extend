@@ -1,13 +1,14 @@
 import {
   THREAD_BOOKMARK_MAX_PER_THREAD,
   threadBookmarkPreviews,
-  type OrchestrationV2AppThread,
   type OrchestrationV2ServerCommand,
   type ThreadBookmark,
+  type ThreadBookmarkChange,
+  type ThreadId,
 } from "@t3tools/contracts";
 
-// fork: message bookmarks. The decision is a pure function of the thread, so the orchestrator
-// only has to look up the bookmarked message and emit the event.
+// fork: message bookmarks. The decision is a pure function of the thread's bookmarks, so the
+// orchestrator only has to read them, look up the bookmarked message, and emit the event.
 
 export type ThreadBookmarkCommand = Extract<
   OrchestrationV2ServerCommand,
@@ -24,23 +25,23 @@ export const isThreadBookmarkCommand = (
   command.type === "thread.bookmark.remove";
 
 export type ThreadBookmarkDecision =
-  | { readonly _tag: "Updated"; readonly thread: OrchestrationV2AppThread }
+  | { readonly _tag: "Changed"; readonly change: ThreadBookmarkChange }
   /** Nothing to change: an add repeated by retry or a second device, or a remove of a gone one. */
   | { readonly _tag: "Unchanged" }
   | { readonly _tag: "Rejected"; readonly reason: string };
 
 export function decideThreadBookmark(input: {
-  readonly thread: OrchestrationV2AppThread;
+  readonly threadId: ThreadId;
+  readonly bookmarks: ReadonlyArray<ThreadBookmark>;
   readonly command: ThreadBookmarkCommand;
   /** The bookmarked message's creation time, or null when the thread has no such message. */
   readonly messageCreatedAt: string | null;
   readonly now: string;
 }): ThreadBookmarkDecision {
-  const { thread, command, now } = input;
-  const bookmarks = thread.bookmarks ?? [];
-  const withBookmarks = (next: ReadonlyArray<ThreadBookmark>): ThreadBookmarkDecision => ({
-    _tag: "Updated",
-    thread: { ...thread, bookmarks: next },
+  const { threadId, bookmarks, command, now } = input;
+  const upsert = (bookmark: ThreadBookmark): ThreadBookmarkDecision => ({
+    _tag: "Changed",
+    change: { kind: "upsert", bookmark },
   });
   switch (command.type) {
     case "thread.bookmark.add": {
@@ -50,7 +51,7 @@ export function decideThreadBookmark(input: {
       if (input.messageCreatedAt === null) {
         return {
           _tag: "Rejected",
-          reason: `Message ${command.messageId} is not in thread ${thread.id}.`,
+          reason: `Message ${command.messageId} is not in thread ${threadId}.`,
         };
       }
       if (command.kind === "selection" && !selectionRangeIsValid(command)) {
@@ -71,32 +72,29 @@ export function decideThreadBookmark(input: {
           reason: `A thread holds at most ${THREAD_BOOKMARK_MAX_PER_THREAD} bookmarks.`,
         };
       }
-      return withBookmarks([
-        ...bookmarks,
-        {
-          id: command.bookmarkId,
-          messageId: command.messageId,
-          kind: command.kind,
-          excerpt: command.excerpt,
-          ...(command.kind === "selection" && command.selectionStart !== undefined
-            ? { selectionStart: command.selectionStart }
-            : {}),
-          ...(command.kind === "selection" && command.selectionEnd !== undefined
-            ? { selectionEnd: command.selectionEnd }
-            : {}),
-          ...(command.kind === "selection" && command.selectionPrefix !== undefined
-            ? { selectionPrefix: command.selectionPrefix }
-            : {}),
-          ...(command.kind === "selection" && command.selectionSuffix !== undefined
-            ? { selectionSuffix: command.selectionSuffix }
-            : {}),
-          title: command.title ?? null,
-          note: command.note ?? null,
-          messageCreatedAt: input.messageCreatedAt,
-          createdAt: command.createdAt ?? now,
-          updatedAt: now,
-        },
-      ]);
+      return upsert({
+        id: command.bookmarkId,
+        messageId: command.messageId,
+        kind: command.kind,
+        excerpt: command.excerpt,
+        ...(command.kind === "selection" && command.selectionStart !== undefined
+          ? { selectionStart: command.selectionStart }
+          : {}),
+        ...(command.kind === "selection" && command.selectionEnd !== undefined
+          ? { selectionEnd: command.selectionEnd }
+          : {}),
+        ...(command.kind === "selection" && command.selectionPrefix !== undefined
+          ? { selectionPrefix: command.selectionPrefix }
+          : {}),
+        ...(command.kind === "selection" && command.selectionSuffix !== undefined
+          ? { selectionSuffix: command.selectionSuffix }
+          : {}),
+        title: command.title ?? null,
+        note: command.note ?? null,
+        messageCreatedAt: input.messageCreatedAt,
+        createdAt: command.createdAt ?? now,
+        updatedAt: now,
+      });
     }
     case "thread.bookmark.update": {
       const current = bookmarks.find((bookmark) => bookmark.id === command.bookmarkId);
@@ -106,17 +104,13 @@ export function decideThreadBookmark(input: {
       const title = command.title === undefined ? current.title : blankToNull(command.title);
       const note = command.note === undefined ? current.note : blankToNull(command.note);
       if (title === current.title && note === current.note) return { _tag: "Unchanged" };
-      return withBookmarks(
-        bookmarks.map((bookmark) =>
-          bookmark.id === current.id ? { ...bookmark, title, note, updatedAt: now } : bookmark,
-        ),
-      );
+      return upsert({ ...current, title, note, updatedAt: now });
     }
     case "thread.bookmark.remove": {
       if (!bookmarks.some((bookmark) => bookmark.id === command.bookmarkId)) {
         return { _tag: "Unchanged" };
       }
-      return withBookmarks(bookmarks.filter((bookmark) => bookmark.id !== command.bookmarkId));
+      return { _tag: "Changed", change: { kind: "remove", bookmarkId: command.bookmarkId } };
     }
   }
 }
