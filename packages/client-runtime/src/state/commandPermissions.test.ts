@@ -155,6 +155,33 @@ describe("command permissions", () => {
     }),
   );
 
+  // fork: reading another Antigravity account's quota needs the same grant as changing the accounts.
+  it.effect(
+    "requires the destination provider grant to refresh the other Antigravity accounts",
+    () =>
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const refresh = createCommandPermissions(runtime, WS_METHODS.providerAuthRefreshAccounts);
+        registry.set(sessions(env), AsyncResult.success(grant(true)));
+        expect(registry.get(refresh.permissionAtom(env))).toBe(false);
+        expect((yield* refresh.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+        registry.set(
+          sessions(env),
+          AsyncResult.success({
+            ...grant(false),
+            scopes: [AuthProvidersManageScope],
+            permissions: [AuthProvidersManageScope],
+          }),
+        );
+        expect(registry.get(refresh.permissionAtom(env))).toBe(true);
+        yield* refresh.authorize(registry, env);
+        registry.set(sessions(other), AsyncResult.success(grant(false)));
+        expect(registry.get(refresh.permissionAtom(other))).toBe(false);
+      }),
+  );
+
   it.effect.each([
     { method: WS_METHODS.serverRunStorageCleanup, scope: AuthSettingsWriteScope },
     { method: WS_METHODS.serverReclaimDatabaseSpace, scope: AuthEnvironmentMaintainScope },

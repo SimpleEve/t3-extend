@@ -117,6 +117,8 @@ export interface AntigravityAuthOptions<
   // fork: an instance that keeps several saved accounts. Each runs with agy stopped.
   readonly selectMethod?: (methodId: string) => Effect.Effect<void, ProviderSetupError>;
   readonly removeMethod?: (methodId: string) => Effect.Effect<void, ProviderSetupError>;
+  // fork: reads the quota of accounts that are not in use. Agy keeps running; it never reads their slots.
+  readonly refreshAccounts?: (methodId?: string) => Effect.Effect<void, ProviderSetupError>;
   /** Undefined when the runtime signs in through ACP `authenticate` and T3's browser helper. */
   readonly codeLogin?: (input: {
     readonly onAuthorizationUrl: (url: string) => Effect.Effect<void, AcpErrors.AcpError>;
@@ -635,6 +637,7 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
             stopSessions: Effect.Effect<void, ProviderSetupError> = Effect.void,
           ) => changeAccounts("removeMethod", stopSessions, options.removeMethod!(methodId)),
         }),
+    ...(options.refreshAccounts === undefined ? {} : { refreshAccounts: options.refreshAccounts }),
     logout: Effect.fn("AntigravityAuth.logout")(function* (stopSessions) {
       if (options.logoutBlockedMessage !== undefined) {
         return yield* setupError("logout", options.logoutBlockedMessage); // fork:

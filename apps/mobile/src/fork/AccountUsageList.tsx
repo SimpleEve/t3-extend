@@ -2,6 +2,7 @@
 // Keeps what the segment card has: the pooled share with its pace and next refill, a pace tick on
 // every bar, the refill shading, reset credits, and a tap through to the account's details.
 import { useNavigation } from "@react-navigation/native";
+import { accountRefreshTarget } from "@t3tools/client-runtime/fork/antigravityAccounts/refresh";
 import {
   accountUsageGroups,
   accountUsageRows,
@@ -13,6 +14,7 @@ import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/prov
 import {
   paceRemainingPercent,
   remainingPercent,
+  type LimitAccount,
   type LimitPool,
   type LimitPoolWindow,
 } from "@t3tools/shared/usageLimits";
@@ -27,6 +29,13 @@ import { cn } from "../lib/cn";
 import { AccountChip, PACE_LABEL } from "./accountChip";
 import { refillLabel, resetLabels } from "../features/usage/UsageLimitsSection";
 import { useT } from "../hooks/useT";
+import {
+  ProbeFailureNote,
+  RefreshAccountButton,
+  RefreshAllAccountsButton,
+  useAccountUsageRefresh,
+  type AccountUsageRefresh,
+} from "./RefreshAccountUsage";
 
 function Bar({
   remaining,
@@ -162,27 +171,39 @@ function AccountCell({
 function PooledBlock({
   windows,
   groups,
-  count,
+  accounts,
   color,
   now,
+  refresh,
 }: {
   readonly windows: ReadonlyArray<LimitPoolWindow>;
   readonly groups: ReadonlyArray<AccountUsageGroup>;
-  readonly count: number;
+  readonly accounts: ReadonlyArray<LimitAccount>;
   readonly color: string;
   readonly now: number;
+  readonly refresh: AccountUsageRefresh;
 }) {
   const gt = useGT();
+  const t = useT();
   const m = useMessages();
+  const count = accounts.length;
   return (
     <View className="gap-2 bg-subtle px-4 py-3">
       <View className="gap-0.5">
-        <Text className="text-sm font-t3-medium text-foreground">
-          {gt("All accounts", { $context: "usage pooled over every saved account" })}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text className="text-sm font-t3-medium text-foreground">
+            {gt("All accounts", { $context: "usage pooled over every saved account" })}
+          </Text>
+          <RefreshAllAccountsButton accounts={accounts} controller={refresh} />
+        </View>
         <Text className="text-xs text-foreground-muted">
           {gt("{count, plural, one {{count} account} other {{count} accounts}}", { count })}
         </Text>
+        {refresh.failed ? (
+          <Text accessibilityRole="alert" className="text-xs text-danger-foreground">
+            {t("Could not start the refresh. Try again.")}
+          </Text>
+        ) : null}
       </View>
       <View className="gap-2">
         {groups.map((group) => (
@@ -237,6 +258,7 @@ function AccountBlock({
   color,
   now,
   environmentIds,
+  refresh,
 }: {
   readonly row: AccountUsageRow;
   readonly groups: ReadonlyArray<AccountUsageGroup>;
@@ -246,6 +268,7 @@ function AccountBlock({
   readonly color: string;
   readonly now: number;
   readonly environmentIds: readonly string[] | null;
+  readonly refresh: AccountUsageRefresh;
 }) {
   const gt = useGT();
   const t = useT();
@@ -259,6 +282,7 @@ function AccountBlock({
       ? null
       : formatReadAgo(row.readAgoMs, m);
   const accent = normalizeProviderAccentColor(account.accentColor) ?? color;
+  const refreshTarget = accountRefreshTarget(account);
   return (
     <View className="gap-2 px-4 py-3">
       <View className="gap-0.5">
@@ -280,8 +304,12 @@ function AccountBlock({
               </Text>
             </View>
           ) : null}
+          {refreshTarget === null ? null : (
+            <RefreshAccountButton target={refreshTarget} controller={refresh} />
+          )}
         </View>
         {note ? <Text className="text-xs text-foreground-muted">{note}</Text> : null}
+        <ProbeFailureNote account={account} />
       </View>
       {row.unread ? null : (
         <View className={cn("gap-2", (spent || row.readAgoMs !== null) && "opacity-70")}>
@@ -334,14 +362,16 @@ export function AccountUsageList({
 }) {
   const { columns, windows, rows } = accountUsageRows(pool, now);
   const groups = accountUsageGroups(columns);
+  const refresh = useAccountUsageRefresh();
   return (
     <View className="overflow-hidden rounded-[24px] border-continuous bg-grouped-card">
       <PooledBlock
         windows={windows}
         groups={groups}
-        count={pool.accounts.length}
+        accounts={pool.accounts}
         color={color}
         now={now}
+        refresh={refresh}
       />
       {rows.map((row, index) => (
         <View key={row.account.key} className="border-t border-border-subtle">
@@ -354,6 +384,7 @@ export function AccountUsageList({
             color={color}
             now={now}
             environmentIds={environmentIds}
+            refresh={refresh}
           />
         </View>
       ))}

@@ -122,15 +122,17 @@ function quotaWindow(
   kind: ServerProviderUsageWindow["kind"] = "other",
   windowDurationMins?: number,
 ): ServerProviderUsageWindow | undefined {
-  if (quota.remainingFraction === undefined || !Number.isFinite(quota.remainingFraction)) {
-    return undefined;
-  }
   const resetsAt = iso(quota.resetTime);
+  const hasFraction =
+    quota.remainingFraction !== undefined && Number.isFinite(quota.remainingFraction);
+  // fork: proto3 JSON leaves out a zero, so a window that names its reset but no remaining share is
+  // spent. Dropping it would let a partial reading look like quota is back.
+  if (!hasFraction && resetsAt === undefined) return undefined;
   return {
     id,
     label,
     kind,
-    usedPercent: (1 - Math.max(0, Math.min(1, quota.remainingFraction))) * 100,
+    usedPercent: hasFraction ? (1 - Math.max(0, Math.min(1, quota.remainingFraction!))) * 100 : 100,
     ...(resetsAt ? { resetsAt } : {}),
     ...(windowDurationMins === undefined ? {} : { windowDurationMins }),
   };

@@ -50,6 +50,7 @@ import {
   ProviderAuthStartInput,
   ProviderAuthRemoveMethodInput,
   ProviderAuthSelectMethodInput, // fork:
+  ProviderAuthRefreshAccountsInput, // fork:
   ProviderAuthRespondInput,
   ProviderInstallCancelInput,
   ProviderInstallState,
@@ -490,6 +491,7 @@ export const WS_METHODS = {
   providerAuthCancel: "provider.auth.cancel",
   providerAuthRemoveMethod: "provider.auth.removeMethod",
   providerAuthSelectMethod: "provider.auth.selectMethod", // fork:
+  providerAuthRefreshAccounts: "provider.auth.refreshAccounts", // fork:
   providerAuthLogout: "provider.auth.logout",
   providerAuthSubscribe: "provider.auth.subscribe",
   providerInstallStart: "provider.install.start",
@@ -817,6 +819,13 @@ const WsProviderAuthRemoveMethodRpc = Rpc.make(WS_METHODS.providerAuthRemoveMeth
 const WsProviderAuthSelectMethodRpc = Rpc.make(WS_METHODS.providerAuthSelectMethod, {
   payload: ProviderAuthSelectMethodInput,
   success: ProviderAuthState,
+  error: ProviderSetupRpcError,
+});
+
+// fork:
+const WsProviderAuthRefreshAccountsRpc = Rpc.make(WS_METHODS.providerAuthRefreshAccounts, {
+  payload: ProviderAuthRefreshAccountsInput,
+  success: Schema.Void,
   error: ProviderSetupRpcError,
 });
 
@@ -2338,6 +2347,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsProviderAuthCancelRpc,
   WsProviderAuthRemoveMethodRpc,
   WsProviderAuthSelectMethodRpc, // fork:
+  WsProviderAuthRefreshAccountsRpc, // fork:
   WsProviderAuthLogoutRpc,
   WsProviderAuthSubscribeRpc,
   WsProviderInstallStartRpc,

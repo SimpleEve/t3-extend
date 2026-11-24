@@ -90,6 +90,11 @@ import {
   makeAntigravityAccountPool,
   type AntigravityAccountPoolError,
 } from "../antigravityAccountPool.ts"; // fork:
+import {
+  makeAntigravityAccountProber,
+  makeAntigravityAccountReader,
+  startAntigravityBackgroundProbe,
+} from "../antigravityBackgroundProbe.ts"; // fork:
 import { antigravityServerAccounts } from "../antigravityAccountRotation.ts"; // fork:
 import { makeAntigravityUsageLimitRecovery } from "../antigravityAccountRotation.ts"; // fork:
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
@@ -630,6 +635,9 @@ export const AntigravityDriver: ProviderDriver<
               accountChange("selectMethod", accountPool.select(methodId)),
             removeMethod: (methodId: string) =>
               accountChange("removeMethod", accountPool.remove(methodId)),
+            // fork: reading another account never touches the one agy runs on, so nothing stops.
+            refreshAccounts: (methodId?: string) =>
+              Effect.suspend(() => accountProber!.refresh(methodId)),
           }
         : {}),
       usesBrowser: antigravityAuthUsesBrowser(auth.authMethod),
@@ -683,19 +691,49 @@ export const AntigravityDriver: ProviderDriver<
       platform: cliLoginSource.platform ?? (yield* HostProcess.Platform),
       spawner,
     }); // fork:
+    // fork: T3's own Google requests leave through the same proxy as agy.
+    const proxyDispatcher = yield* makeAntigravityProxyDispatcher(settings.networkProxy);
     const usage = yield* makeAntigravityUsageProbe({
       profileDirectory,
       authMethod: auth.authMethod,
       sharedLogin, // fork:
       readCliLogin: cliLoginRead && cliLoginSource.share(cliLoginRead), // fork:
-      // fork: T3's own Google requests leave through the same proxy as agy.
-      proxyDispatcher: yield* makeAntigravityProxyDispatcher(settings.networkProxy),
+      proxyDispatcher,
     }).pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
       Effect.provideService(Digest.Digest, digest),
       Effect.provideService(HttpClient.HttpClient, httpClient),
     );
+    // fork: the saved accounts that are not in use are read in the background, and on request.
+    const accountProber = accountPool
+      ? yield* makeAntigravityAccountProber({
+          instanceId,
+          pool: accountPool,
+          read: yield* makeAntigravityAccountReader({
+            // The lease a real session holds, so a reinstall cannot remove the binary in use.
+            acquireExecutablePath: installation
+              .acquire(settings.binaryPath, processEnvironment)
+              .pipe(Effect.map((executable) => executable.executablePath)),
+            baseEnv: processEnvironment,
+            auth,
+            userHome,
+            tempRoot: directories.runtimeTemp,
+            proxyDispatcher,
+          }).pipe(
+            Effect.provideService(FileSystem.FileSystem, fileSystem),
+            Effect.provideService(Path.Path, path),
+            Effect.provideService(Digest.Digest, digest),
+            Effect.provideService(SecureRandom.SecureRandom, random),
+            Effect.provideService(HttpClient.HttpClient, httpClient),
+            Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+          ),
+          // The provider is made below; the account list is republished once per finished read.
+          onProbed: Effect.suspend(() => provider.onAccountsChanged),
+          // A manual refresh stops with the instance, so it never outlives its proxy or pool.
+          lifetime: yield* Effect.scope,
+        })
+      : undefined;
     const provider = yield* makeAntigravityProvider(settings, {
       environment: processEnvironment,
       stampIdentity: classifyModels,
@@ -733,6 +771,9 @@ export const AntigravityDriver: ProviderDriver<
           }),
       ),
     );
+    if (accountProber) {
+      yield* startAntigravityBackgroundProbe({ enabled, settings, prober: accountProber });
+    }
     const defaultModel = currentCatalog.pipe(Effect.map((catalog) => catalog?.defaultChatModel));
     const orchestrationAdapter = yield* makeAntigravityAdapterV2({
       instanceId,

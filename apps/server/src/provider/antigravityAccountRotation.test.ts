@@ -12,6 +12,7 @@ import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import { makeAntigravityAccountPool } from "./antigravityAccountPool.ts";
 import {
   makeAntigravityUsageLimitRecovery,
+  antigravityServerAccounts,
   maskAntigravityEmail,
   withoutLiveReadingCopy,
 } from "./antigravityAccountRotation.ts";
@@ -125,4 +126,27 @@ describe("Antigravity provider account list", () => {
     expect(kept(withoutLiveReadingCopy(saved, unreadable))).toEqual([true, true]);
     expect(kept(withoutLiveReadingCopy(saved, reading("fp-other")))).toEqual([true, true]);
   });
+});
+
+describe("the accounts a snapshot lists", () => {
+  it.effect("carries why the last background read of an account failed, until one works", () =>
+    Effect.gen(function* () {
+      const { pool } = yield* fixture(["a@example.com", "b@example.com"]);
+      const [a] = yield* pool.list;
+      yield* TestClock.adjust(HOUR);
+      const lease = (yield* pool.beginProbe(
+        (yield* pool.list).find((entry) => !entry.current)!.id,
+      ))!;
+      yield* pool.finishProbe(lease, { _tag: "Failed", reason: "expired" });
+      const listed = yield* antigravityServerAccounts(pool);
+      expect(listed.find((account) => account.id === lease.id)?.usageProbeFailure).toEqual({
+        at: DateTime.formatIso(DateTime.makeUnsafe(HOUR)),
+        reason: "expired",
+      });
+      expect(listed.find((account) => account.id === a!.id)?.usageProbeFailure).toBeUndefined();
+      // Only an account that is not in use can be read on request; the client shows the button on that.
+      expect(listed.find((account) => account.id === lease.id)?.refreshable).toBe(true);
+      expect(listed.find((account) => account.current)?.refreshable).toBeUndefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
 });

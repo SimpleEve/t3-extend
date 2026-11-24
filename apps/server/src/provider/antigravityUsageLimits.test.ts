@@ -288,6 +288,9 @@ describe("Antigravity subscription limits", () => {
               remainingFraction: 1.01,
               resetTime: "2026-10-21T15:16:04Z",
             },
+            // fork: proto3 JSON leaves a zero out, so a reset with no share left means spent.
+            { bucketId: "omitted-zero", window: "5h", resetTime: "2026-10-21T15:16:04Z" },
+            { bucketId: "nothing-known", window: "5h" },
             {
               bucketId: "empty-description",
               window: "5h",
@@ -298,13 +301,16 @@ describe("Antigravity subscription limits", () => {
           ],
         },
       });
-      expect((yield* probe).windows.map(({ id, resetsAt }) => ({ id, resetsAt }))).toEqual([
+      const { windows } = yield* probe;
+      expect(windows.map(({ id, resetsAt }) => ({ id, resetsAt }))).toEqual([
         { id: "described", resetsAt: "2026-10-21T15:16:04.000Z" },
         { id: "empty-description", resetsAt: "2026-10-21T15:16:04.000Z" },
+        { id: "omitted-zero", resetsAt: "2026-10-21T15:16:04.000Z" },
         { id: "overfull", resetsAt: "2026-10-21T15:16:04.000Z" },
         { id: "spent", resetsAt: "2026-10-21T15:16:04.000Z" },
         { id: "distant", resetsAt: "2026-10-28T12:16:04.000Z" },
       ]);
+      expect(windows.find((window) => window.id === "omitted-zero")?.usedPercent).toBe(100);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
@@ -656,27 +662,38 @@ describe("Antigravity subscription limits", () => {
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
-  it.effect("skips disabled and missing fractions and clamps valid percentages", () =>
-    Effect.gen(function* () {
-      const { probe } = yield* fixture({
-        summary: {
-          buckets: [
-            { bucketId: "disabled", remainingFraction: 0, disabled: true },
-            { bucketId: "missing", resetTime: "2026-10-10T12:00:00Z" },
-            { bucketId: "gemini-5h", window: "5h", remainingFraction: 2, resetTime: "invalid" },
-          ],
-        },
-      });
-      expect((yield* probe).windows).toEqual([
-        {
-          id: "gemini-5h",
-          kind: "session",
-          label: "Gemini · 5-hour",
-          usedPercent: 0,
-          windowDurationMins: 300,
-        },
-      ]);
-    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  // fork: a missing fraction with a reset time is a spent window (proto3 omits a zero), not a gap.
+  it.effect(
+    "skips disabled and unknown buckets, counts an omitted fraction as spent, and clamps",
+    () =>
+      Effect.gen(function* () {
+        const { probe } = yield* fixture({
+          summary: {
+            buckets: [
+              { bucketId: "disabled", remainingFraction: 0, disabled: true },
+              { bucketId: "missing", resetTime: "2026-10-10T12:00:00Z" },
+              { bucketId: "unknown" },
+              { bucketId: "gemini-5h", window: "5h", remainingFraction: 2, resetTime: "invalid" },
+            ],
+          },
+        });
+        expect((yield* probe).windows).toEqual([
+          {
+            id: "gemini-5h",
+            kind: "session",
+            label: "Gemini · 5-hour",
+            usedPercent: 0,
+            windowDurationMins: 300,
+          },
+          {
+            id: "missing",
+            kind: "other",
+            label: "missing · Quota",
+            usedPercent: 100,
+            resetsAt: "2026-10-10T12:00:00.000Z",
+          },
+        ]);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
   it.effect("returns a safe failure when OAuth refresh fails", () =>

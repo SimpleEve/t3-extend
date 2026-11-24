@@ -1,6 +1,7 @@
 // fork: Usage > Limits for an Antigravity pool of several Google accounts, one compact row each.
 // Everything the segment card shows is kept: the pooled share with its pace and next refill, a pace
 // tick on every bar, the refill hatching, reset credits, and the segment popover on each cell.
+import { accountRefreshTarget } from "@t3tools/client-runtime/fork/antigravityAccounts/refresh";
 import {
   accountUsageGroups,
   accountUsageRows,
@@ -38,6 +39,13 @@ import { Badge } from "../components/ui/badge";
 import { PopoverTrigger } from "../components/ui/popover";
 import { useT } from "../hooks/useT";
 import { cn } from "../lib/utils";
+import {
+  ProbeFailureNote,
+  RefreshAccountButton,
+  RefreshAllAccountsButton,
+  useAccountUsageRefresh,
+  type AccountUsageRefresh,
+} from "./RefreshAccountUsage";
 
 function CellBar({
   remaining,
@@ -231,24 +239,38 @@ const ROW_GRID =
 function PooledRow({
   windows,
   groups,
-  count,
+  accounts,
   color,
+  refresh,
 }: {
   readonly windows: ReadonlyArray<LimitPoolWindow>;
   readonly groups: ReadonlyArray<AccountUsageGroup>;
-  readonly count: number;
+  readonly accounts: ReadonlyArray<LimitAccount>;
   readonly color: string;
+  readonly refresh: AccountUsageRefresh;
 }) {
   const gt = useGT();
+  const t = useT();
+  const count = accounts.length;
   return (
     <li className={cn(ROW_GRID, "bg-muted/30")}>
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm font-medium text-foreground">
-          {gt("All accounts", { $context: "usage pooled over every saved account" })}
-        </span>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="text-sm font-medium text-foreground">
+            {gt("All accounts", { $context: "usage pooled over every saved account" })}
+          </span>
+          <span className="shrink-0">
+            <RefreshAllAccountsButton accounts={accounts} controller={refresh} />
+          </span>
+        </div>
         <span className="text-2xs text-muted-foreground tabular-nums">
           {gt("{count, plural, one {{count} account} other {{count} accounts}}", { count })}
         </span>
+        {refresh.failed ? (
+          <span role="status" className="text-2xs text-destructive">
+            {t("Could not start the refresh. Try again.")}
+          </span>
+        ) : null}
       </div>
       <div className={GROUPS_GRID}>
         {groups.map((group) => (
@@ -295,6 +317,7 @@ function AccountUsageRowItem({
   position,
   color,
   now,
+  refresh,
 }: {
   readonly row: AccountUsageRow;
   readonly groups: ReadonlyArray<AccountUsageGroup>;
@@ -303,6 +326,7 @@ function AccountUsageRowItem({
   readonly position: number;
   readonly color: string;
   readonly now: number;
+  readonly refresh: AccountUsageRefresh;
 }) {
   const gt = useGT();
   const t = useT();
@@ -316,6 +340,7 @@ function AccountUsageRowItem({
       ? null
       : formatReadAgo(row.readAgoMs, m);
   const accent = normalizeProviderAccentColor(account.accentColor) ?? color;
+  const refreshTarget = accountRefreshTarget(account);
   return (
     <li className={cn(ROW_GRID, spent && "bg-muted/30")}>
       <div className="flex min-w-0 flex-col gap-0.5">
@@ -334,8 +359,18 @@ function AccountUsageRowItem({
               {gt("Current", { $context: "the account in use" })}
             </Badge>
           ) : null}
+          {refreshTarget === null ? null : (
+            <span className="shrink-0">
+              <RefreshAccountButton
+                target={refreshTarget}
+                controller={refresh}
+                label={t("Refresh this account")}
+              />
+            </span>
+          )}
         </div>
         {note ? <span className="text-2xs text-muted-foreground tabular-nums">{note}</span> : null}
+        <ProbeFailureNote account={account} />
       </div>
       <div
         className={cn(
@@ -384,9 +419,16 @@ export function AccountUsageList({
 }) {
   const { columns, windows, rows } = accountUsageRows(pool, now);
   const groups = accountUsageGroups(columns);
+  const refresh = useAccountUsageRefresh();
   return (
     <ul className="@container/accounts flex flex-col divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
-      <PooledRow windows={windows} groups={groups} count={pool.accounts.length} color={color} />
+      <PooledRow
+        windows={windows}
+        groups={groups}
+        accounts={pool.accounts}
+        color={color}
+        refresh={refresh}
+      />
       {rows.map((row, index) => (
         <AccountUsageRowItem
           key={row.account.key}
@@ -397,6 +439,7 @@ export function AccountUsageList({
           position={index + 1}
           color={color}
           now={now}
+          refresh={refresh}
         />
       ))}
     </ul>

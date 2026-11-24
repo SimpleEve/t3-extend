@@ -10,7 +10,7 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 
-import { makeAntigravityAccountPool } from "./antigravityAccountPool.ts";
+import { makeAntigravityAccountPool, type AntigravityAccount } from "./antigravityAccountPool.ts";
 
 const HOUR = 3_600_000;
 
@@ -533,4 +533,333 @@ describe("Antigravity account pool usage snapshots", () => {
       ).toBeNull();
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
+
+  // fork: reading the accounts that are not in use, in the background and on request.
+  describe("background reads of saved accounts", () => {
+    /** A pool of a (saved) and b (in use); a's slot is what a background read lends. */
+    const twoAccounts = Effect.fn("AntigravityAccountPoolTest.twoAccounts")(function* () {
+      const base = yield* fixture();
+      yield* base.agyWrites(token("a@example.com"));
+      yield* base.addAccount("b@example.com");
+      const [a, b] = yield* base.pool.list;
+      return { ...base, a: a!, b: b! };
+    });
+    const renewed = (email: string) => token(email, "renewed");
+
+    it.effect("lends only an account that is saved and not in use", () =>
+      Effect.gen(function* () {
+        const { pool, a, b } = yield* twoAccounts();
+        expect(yield* pool.beginProbe(b.id)).toBeUndefined();
+        expect(yield* pool.beginProbe("0123456789abcdef")).toBeUndefined();
+        expect(yield* pool.beginProbe("../escape")).toBeUndefined();
+        const lease = yield* pool.beginProbe(a.id);
+        expect(lease).toEqual({ id: a.id, token: token("a@example.com") });
+        // One read of an account at a time.
+        expect(yield* pool.beginProbe(a.id)).toBeUndefined();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("lends nothing while a sign-in is being added or nothing is in use", () =>
+      Effect.gen(function* () {
+        const { pool, a, b, agyWrites } = yield* twoAccounts();
+        yield* pool.beginAdd;
+        expect(yield* pool.beginProbe(a.id)).toBeUndefined();
+        expect(yield* pool.beginProbe(b.id)).toBeUndefined();
+        // `agy --login` has written the new account, but the pool has not taken it in yet.
+        yield* agyWrites(token("c@example.com"));
+        expect(yield* pool.beginProbe(a.id)).toBeUndefined();
+        yield* pool.settleAdd;
+        expect(yield* pool.beginProbe(a.id)).toBeDefined();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("saves the renewed token into the slot it came from, and the reading beside it", () =>
+      Effect.gen(function* () {
+        const { pool, a, b, slotText, readCurrent, fs, path, acp } = yield* twoAccounts();
+        const lease = (yield* pool.beginProbe(a.id))!;
+        const result = yield* pool.finishProbe(lease, {
+          _tag: "Read",
+          token: renewed("a@example.com"),
+          limits: reading(42),
+        });
+        expect(result).toBe("saved");
+        expect(yield* slotText(a.id)).toBe(renewed("a@example.com"));
+        // The account in use and its slot are untouched.
+        expect(yield* readCurrent()).toBe(token("b@example.com"));
+        expect(yield* slotText(b.id)).toBe(token("b@example.com"));
+        const after = yield* pool.list;
+        expect(after.find((account) => account.id === a.id)).toMatchObject({
+          usageLimits: reading(42),
+          probe: { failures: 0, failure: null },
+        });
+        // Written through a temp file that is gone, so no reader sees half a token.
+        expect(
+          yield* fs.exists(path.join(acp, "accounts", a.id, "antigravity-oauth-token.t3-tmp")),
+        ).toBe(false);
+        // It can be lent again.
+        expect(yield* pool.beginProbe(a.id)).toBeDefined();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("refuses a renewed token that belongs to another account", () =>
+      Effect.gen(function* () {
+        const { pool, a, slotText } = yield* twoAccounts();
+        const lease = (yield* pool.beginProbe(a.id))!;
+        const result = yield* pool.finishProbe(lease, {
+          _tag: "Read",
+          token: renewed("b@example.com"),
+          limits: reading(42),
+        });
+        expect(result).toBe("failed");
+        expect(yield* slotText(a.id)).toBe(token("a@example.com"));
+        const listed = (yield* pool.list).find((account) => account.id === a.id);
+        expect(listed?.usageLimits).toBeNull();
+        expect(listed?.probe.failure?.reason).toBe("failed");
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("discards the answer when the account became the one in use meanwhile", () =>
+      Effect.gen(function* () {
+        const { pool, a, slotText, readCurrent, fs, path, acp } = yield* twoAccounts();
+        const lease = (yield* pool.beginProbe(a.id))!;
+        yield* pool.select(a.id);
+        const result = yield* pool.finishProbe(lease, {
+          _tag: "Read",
+          token: renewed("a@example.com"),
+          limits: reading(42),
+        });
+        expect(result).toBe("discarded");
+        expect(yield* readCurrent()).toBe(token("a@example.com"));
+        expect(yield* slotText(a.id)).toBe(token("a@example.com"));
+        expect(yield* fs.exists(path.join(acp, "accounts", a.id, "usage.json"))).toBe(false);
+        expect((yield* pool.list).find((account) => account.id === a.id)?.usageLimits).toBeNull();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("discards the answer when its slot changed, or the account or the pool went", () =>
+      Effect.gen(function* () {
+        const { pool, a, b, agyWrites, slotText, fs, path, acp } = yield* twoAccounts();
+        // The account was in use and left again with a token agy refreshed.
+        const first = (yield* pool.beginProbe(a.id))!;
+        yield* pool.select(a.id);
+        yield* agyWrites(token("a@example.com", "agy-refreshed"));
+        yield* pool.select(b.id);
+        expect(
+          yield* pool.finishProbe(first, {
+            _tag: "Read",
+            token: renewed("a@example.com"),
+            limits: reading(1),
+          }),
+        ).toBe("discarded");
+        expect(yield* slotText(a.id)).toContain("agy-refreshed");
+        // The account was removed.
+        const second = (yield* pool.beginProbe(a.id))!;
+        yield* pool.remove(a.id);
+        expect(
+          yield* pool.finishProbe(second, {
+            _tag: "Read",
+            token: renewed("a@example.com"),
+            limits: reading(1),
+          }),
+        ).toBe("discarded");
+        expect(yield* fs.exists(path.join(acp, "accounts", a.id))).toBe(false);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("discards the answer after sign-out and leaves nothing behind", () =>
+      Effect.gen(function* () {
+        const { pool, a, fs, path, acp } = yield* twoAccounts();
+        const lease = (yield* pool.beginProbe(a.id))!;
+        yield* pool.clear;
+        expect(
+          yield* pool.finishProbe(lease, {
+            _tag: "Read",
+            token: renewed("a@example.com"),
+            limits: reading(1),
+          }),
+        ).toBe("discarded");
+        expect(yield* fs.exists(path.join(acp, "accounts"))).toBe(false);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("keeps the old token and reading on a failure, and counts it", () =>
+      Effect.gen(function* () {
+        const { pool, a, slotText } = yield* twoAccounts();
+        const ok = (yield* pool.beginProbe(a.id))!;
+        yield* pool.finishProbe(ok, {
+          _tag: "Read",
+          token: renewed("a@example.com"),
+          limits: reading(30),
+        });
+        yield* TestClock.adjust(5 * 60_000);
+        const bad = (yield* pool.beginProbe(a.id))!;
+        expect(yield* pool.finishProbe(bad, { _tag: "Failed", reason: "expired" })).toBe("failed");
+        expect(yield* slotText(a.id)).toBe(renewed("a@example.com"));
+        const listed = (yield* pool.list).find((account) => account.id === a.id)!;
+        expect(listed.usageLimits).toEqual(reading(30));
+        expect(listed.probe).toEqual({
+          lastAttemptAt: 5 * 60_000,
+          failures: 1,
+          failure: { at: 5 * 60_000, reason: "expired" },
+        });
+        // A read that works wipes the failure.
+        const again = (yield* pool.beginProbe(a.id))!;
+        yield* pool.finishProbe(again, {
+          _tag: "Read",
+          token: renewed("a@example.com"),
+          limits: reading(31),
+        });
+        expect((yield* pool.list).find((account) => account.id === a.id)?.probe.failures).toBe(0);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("still saves a token that was renewed when the quota could not be read", () =>
+      Effect.gen(function* () {
+        const { pool, a, slotText } = yield* twoAccounts();
+        const lease = (yield* pool.beginProbe(a.id))!;
+        expect(
+          yield* pool.finishProbe(lease, {
+            _tag: "Renewed",
+            token: renewed("a@example.com"),
+            reason: "unavailable",
+          }),
+        ).toBe("failed");
+        expect(yield* slotText(a.id)).toBe(renewed("a@example.com"));
+        expect(
+          (yield* pool.list).find((account) => account.id === a.id)?.probe.failure?.reason,
+        ).toBe("unavailable");
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    /** a runs out while in use (its last reading `during`), then b is in use again. */
+    const spentAccount = Effect.fn("AntigravityAccountPoolTest.spentAccount")(function* (
+      during?: ServerProviderUsageLimits,
+    ) {
+      const base = yield* twoAccounts();
+      yield* base.pool.select(base.a.id);
+      if (during !== undefined) yield* base.pool.observeUsage(Effect.succeed(during));
+      yield* base.pool.markExhausted(10 * HOUR);
+      yield* base.pool.select(base.b.id);
+      const spent = () =>
+        base.pool.list.pipe(
+          Effect.map(
+            (accounts) => accounts.find((account) => account.id === base.a.id)?.exhaustedUntil,
+          ),
+        );
+      const read = Effect.fn("AntigravityAccountPoolTest.read")(function* (
+        limits: ServerProviderUsageLimits,
+      ) {
+        const lease = (yield* base.pool.beginProbe(base.a.id))!;
+        yield* base.pool.finishProbe(lease, { _tag: "Read", token: lease.token, limits });
+      });
+      return { ...base, spent, read };
+    });
+    /** A reading with a Gemini window and a Claude & GPT window, `used` percent each. */
+    const bothGroups = (gemini: number, claude: number): ServerProviderUsageLimits => ({
+      checkedAt: "2026-01-01T00:00:00.000Z",
+      windows: [
+        { ...reading(gemini).windows[0]! },
+        {
+          id: "3p-5h",
+          kind: "session",
+          label: "Claude & GPT (shared) · 5-hour",
+          usedPercent: claude,
+          windowDurationMins: 300,
+        },
+      ],
+    });
+
+    it.effect("clears a spent mark when the new reading shows quota back, and only then", () =>
+      Effect.gen(function* () {
+        const { spent, read } = yield* spentAccount(reading(30));
+        expect(yield* spent()).toBe(10 * HOUR);
+        yield* read(reading(100));
+        expect(yield* spent()).toBe(10 * HOUR);
+        yield* read(reading(20));
+        expect(yield* spent()).toBeNull();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    // fork: a reading that lacks a window says nothing about it, so it cannot bring the account back.
+    it.effect("keeps a spent mark when the new reading is missing a window the old one had", () =>
+      Effect.gen(function* () {
+        const { spent, read } = yield* spentAccount(bothGroups(40, 100));
+        // Only Gemini comes back, at 10%: the Claude & GPT window that ran out is not in it.
+        yield* read(reading(10));
+        expect(yield* spent()).toBe(10 * HOUR);
+        // A window that is still spent keeps it, and one that is complete and under 100% clears it.
+        yield* read(bothGroups(10, 100));
+        expect(yield* spent()).toBe(10 * HOUR);
+        yield* read(bothGroups(10, 60));
+        expect(yield* spent()).toBeNull();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("does not count a window of another kind as the one that ran out", () =>
+      Effect.gen(function* () {
+        const { spent, read } = yield* spentAccount(bothGroups(40, 100));
+        const other = bothGroups(10, 10);
+        yield* read({
+          ...other,
+          windows: [other.windows[0]!, { ...other.windows[1]!, kind: "weekly" }],
+        });
+        expect(yield* spent()).toBe(10 * HOUR);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("keeps a spent mark when there is no earlier reading to compare with", () =>
+      Effect.gen(function* () {
+        const { spent, read } = yield* spentAccount();
+        yield* read(reading(5));
+        expect(yield* spent()).toBe(10 * HOUR);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    it.effect("gives a cancelled lease back with no verdict, and ignores a stale one", () =>
+      Effect.gen(function* () {
+        const { pool, a } = yield* twoAccounts();
+        const first = (yield* pool.beginProbe(a.id))!;
+        yield* pool.cancelProbe(first);
+        expect((yield* pool.list).find((account) => account.id === a.id)?.probe).toEqual({
+          lastAttemptAt: null,
+          failures: 0,
+          failure: null,
+        });
+        const second = (yield* pool.beginProbe(a.id))!;
+        // A cancel of the old lease must not free the new one.
+        yield* pool.cancelProbe(first);
+        expect(yield* pool.beginProbe(a.id)).toBeUndefined();
+        yield* pool.cancelProbe(second);
+        expect(yield* pool.beginProbe(a.id)).toBeDefined();
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+
+    // fork: a restart must not start the backoff over, and a sign-in that works again ends it.
+    it.effect("remembers how the reads went across a restart, until the account runs again", () =>
+      Effect.gen(function* () {
+        const { pool, a, b, acp, path } = yield* twoAccounts();
+        yield* TestClock.adjust(5 * 60_000);
+        const lease = (yield* pool.beginProbe(a.id))!;
+        yield* pool.finishProbe(lease, { _tag: "Failed", reason: "expired" });
+        const probeOf = (list: ReadonlyArray<AntigravityAccount>) =>
+          list.find((account) => account.id === a.id)?.probe;
+        const expected = {
+          lastAttemptAt: 5 * 60_000,
+          failures: 1,
+          failure: { at: 5 * 60_000, reason: "expired" },
+        };
+        expect(probeOf(yield* pool.list)).toEqual(expected);
+        const restarted = yield* makeAntigravityAccountPool(path.dirname(acp));
+        expect(probeOf(yield* restarted.list)).toEqual(expected);
+        // While the account is in use it carries no history; once it has been in use, none comes back.
+        yield* restarted.select(a.id);
+        expect(probeOf(yield* restarted.list)?.failures).toBe(0);
+        yield* restarted.select(b.id);
+        expect(probeOf(yield* restarted.list)?.failures).toBe(0);
+        expect(
+          probeOf(yield* (yield* makeAntigravityAccountPool(path.dirname(acp))).list)?.failures,
+        ).toBe(0);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+    );
+  });
 });

@@ -41,7 +41,17 @@ export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "li
         ...(account.exhaustedUntil === null
           ? {}
           : { exhaustedUntil: DateTime.formatIso(DateTime.makeUnsafe(account.exhaustedUntil)) }),
+        // The account in use is read live; every other one can be read on request.
+        ...(account.current ? {} : { refreshable: true }),
         ...(account.usageLimits === null ? {} : { usageLimits: account.usageLimits }),
+        ...(account.probe.failure === null
+          ? {}
+          : {
+              usageProbeFailure: {
+                at: DateTime.formatIso(DateTime.makeUnsafe(account.probe.failure.at)),
+                reason: account.probe.failure.reason,
+              },
+            }),
       })),
     ),
   );

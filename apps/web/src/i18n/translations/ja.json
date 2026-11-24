@@ -9050,6 +9050,8 @@
   "3b3771b44f5375e6": "Separate sign-in",
   "38db29797008e07a": "Switch accounts when quota runs out",
   "64288854e2ea95fa": "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
+  "d661ed75e0417a74": "他のアカウントをバックグラウンドで確認",
+  "14feb09decd98a26": "Google アカウントを別々にサインインし、保存済みアカウントが複数ある場合向けです。約 45 分ごとに、使用中でない保存済みアカウントを T3 が更新してクォータを読み取り、記憶している値を最新に保ちます。agy を短時間起動しますが、クォータは消費しません。オフにすると、使用状況の「更新」だけが他のアカウントを読み取ります。",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
   "d118c06deaf33a65": "起動引数",
