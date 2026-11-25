@@ -763,7 +763,7 @@ describe("reading a saved account with agy", () => {
         expect(started).toMatchObject({
           fileStorage: "1",
           acpFileStorage: "1",
-          autoUpdate: "1",
+          autoUpdate: "true",
           ssh: true,
           browser: true,
           // The instance's proxy reaches agy, and the saved token it is handed is private.
