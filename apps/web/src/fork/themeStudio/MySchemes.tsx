@@ -52,7 +52,11 @@ function SchemeRow({
             onChange={(event) => setRenaming(event.currentTarget.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") commitRename();
-              if (event.key === "Escape") {
+              if (
+                event.key === "Escape" &&
+                !event.nativeEvent.isComposing &&
+                event.keyCode !== 229
+              ) {
                 event.stopPropagation();
                 setRenaming(null);
               }

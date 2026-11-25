@@ -128,7 +128,11 @@ export const make = Effect.gen(function* () {
   const hostEnvironment = yield* HostProcess.Environment;
   const awaitingShellConsent = hostEnvironment.T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING === "1";
   const enabledByDefault = false; // fork: opt-in only
-  const enabledAtStartup = Option.getOrElse(telemetryConfig.enabled, () => enabledByDefault);
+  // fork: with no startup value, wait for the desktop's shell profile, where an opt-in lives.
+  const enabledAtStartup = Option.getOrElse(
+    telemetryConfig.enabled,
+    () => awaitingShellConsent || enabledByDefault,
+  );
   // A managed policy can switch analytics off over the environment, never on.
   const policyAllows =
     ManagedPolicy.deniedBy(yield* ManagedPolicy.ManagedPolicy, "telemetry") === undefined;
