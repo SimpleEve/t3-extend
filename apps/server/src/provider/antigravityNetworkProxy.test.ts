@@ -4,6 +4,7 @@ import type * as NodeNet from "node:net";
 
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import { identity } from "effect/Function";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 
 import {
@@ -13,6 +14,7 @@ import {
 import {
   antigravityNetworkProxyIssue,
   makeAntigravityProxyDispatcher,
+  makeAntigravityProxyFetch,
   parseAntigravityNetworkProxy,
   withAntigravityNetworkProxy,
 } from "./antigravityNetworkProxy.ts";
@@ -147,6 +149,28 @@ const listenOnLoopback = (server: NodeHttp.Server) =>
       }),
   );
 
+const listeningServer = (handler: NodeHttp.RequestListener) =>
+  Effect.gen(function* () {
+    const server = NodeHttp.createServer(handler);
+    const port = yield* listenOnLoopback(server);
+    yield* Effect.addFinalizer(() => Effect.sync(() => server.close()));
+    return port;
+  });
+
+const reply = (response: NodeHttp.ServerResponse, via: string) => {
+  response.setHeader("content-type", "application/json");
+  response.end(JSON.stringify({ via }));
+};
+
+// The request path the usage probe takes: Effect's fetch client, with `fetchWith` as its fetch.
+const getJson = (url: string, fetchWith?: typeof globalThis.fetch) =>
+  HttpClient.HttpClient.pipe(
+    Effect.flatMap((client) => client.execute(HttpClientRequest.get(url))),
+    Effect.flatMap((response) => response.json),
+    fetchWith ? Effect.provideService(FetchHttpClient.Fetch, fetchWith) : identity,
+    Effect.provide(FetchHttpClient.layer),
+  );
+
 describe("Antigravity proxy dispatcher", () => {
   // The whole point of the setting: T3's own request leaves through the proxy, not directly.
   it.live(
@@ -154,26 +178,18 @@ describe("Antigravity proxy dispatcher", () => {
     () =>
       Effect.gen(function* () {
         const forwarded: string[] = [];
-        const proxy = NodeHttp.createServer((request, response) => {
+        const proxyPort = yield* listeningServer((request, response) => {
           forwarded.push(`${request.method} ${request.url}`);
-          response.setHeader("content-type", "application/json");
-          response.end(JSON.stringify({ via: "proxy" }));
+          reply(response, "proxy");
         });
-        const proxyPort = yield* listenOnLoopback(proxy);
-        yield* Effect.addFinalizer(() => Effect.sync(() => proxy.close()));
 
         const dispatcher = yield* makeAntigravityProxyDispatcher(`http://127.0.0.1:${proxyPort}`);
         expect(dispatcher).toBeDefined();
         expect(dispatcher).not.toBeNull();
 
-        const init = { dispatcher } as unknown as RequestInit;
-        const body = yield* HttpClient.HttpClient.pipe(
-          Effect.flatMap((client) =>
-            client.execute(HttpClientRequest.get("http://upstream.invalid/quota")),
-          ),
-          Effect.flatMap((response) => response.json),
-          Effect.provideService(FetchHttpClient.RequestInit, init),
-          Effect.provide(FetchHttpClient.layer),
+        const body = yield* getJson(
+          "http://upstream.invalid/quota",
+          makeAntigravityProxyFetch(dispatcher!),
         );
         expect(body).toEqual({ via: "proxy" });
         expect(forwarded).toEqual(["GET http://upstream.invalid/quota"]);
@@ -181,6 +197,32 @@ describe("Antigravity proxy dispatcher", () => {
         expect(yield* makeAntigravityProxyDispatcher(undefined)).toBeUndefined();
         expect(yield* makeAntigravityProxyDispatcher("not a proxy")).toBeNull();
       }).pipe(Effect.scoped),
+  );
+
+  it.live("reaches the upstream directly, past the proxy, when no proxy is configured", () =>
+    Effect.gen(function* () {
+      const forwarded: string[] = [];
+      const proxyPort = yield* listeningServer((request, response) => {
+        forwarded.push(`${request.method} ${request.url}`);
+        reply(response, "proxy");
+      });
+      const reached: string[] = [];
+      const upstreamPort = yield* listeningServer((request, response) => {
+        reached.push(`${request.method} ${request.url}`);
+        reply(response, "upstream");
+      });
+      const target = `http://127.0.0.1:${upstreamPort}/quota`;
+
+      expect(yield* getJson(target)).toEqual({ via: "upstream" });
+      expect(forwarded).toEqual([]);
+
+      const dispatcher = yield* makeAntigravityProxyDispatcher(`http://127.0.0.1:${proxyPort}`);
+      expect(yield* getJson(target, makeAntigravityProxyFetch(dispatcher!))).toEqual({
+        via: "proxy",
+      });
+      expect(forwarded).toEqual([`GET ${target}`]);
+      expect(reached).toEqual([`GET /quota`]);
+    }).pipe(Effect.scoped),
   );
 
   it.effect("builds a SOCKS5 dispatcher for socks5 and socks5h addresses", () =>

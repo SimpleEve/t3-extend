@@ -103,9 +103,10 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     Effect.sync(() => {
       const init = Context.getOrUndefined(fiber.context, FetchHttpClient.RequestInit);
       expect(init?.redirect).toBe("manual");
-      // fork: every request of a proxied instance carries the proxy's dispatcher.
-      expect((init as { dispatcher?: unknown } | undefined)?.dispatcher).toBe(
-        options.proxyDispatcher ?? undefined,
+      // fork: a proxied instance fetches with the undici that owns its dispatcher; an unproxied one keeps the runtime's fetch.
+      expect((init as { dispatcher?: unknown } | undefined)?.dispatcher).toBeUndefined();
+      expect(fiber.getRef(FetchHttpClient.Fetch) === globalThis.fetch).toBe(
+        !options.proxyDispatcher,
       );
       const body =
         request.body._tag === "Uint8Array" ? new TextDecoder().decode(request.body.body) : "";
