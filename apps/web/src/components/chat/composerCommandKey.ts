@@ -235,7 +235,11 @@ export function composerCommandKeyHandler(input: {
       return applyListEdit(event, listOutdentForTab);
     }
     const { trigger } = resolveActiveComposerTrigger();
-    const menuIsActive = !isLiteralPendingAnswer && trigger !== null;
+    // fork: prompt shortcuts. `:word` with no matching shortcut shows no menu, so its keys act as plain text.
+    const menuIsActive =
+      !isLiteralPendingAnswer &&
+      trigger !== null &&
+      !(trigger.kind === "prompt-shortcut" && composerMenuItemsRef.current.length === 0);
     if (key === "Escape") {
       if (event.isComposing || event.keyCode === 229) return false;
       if (!menuIsActive && promptSuggestion !== null && promptRef.current.length === 0) {

@@ -193,6 +193,8 @@ export interface ComposerPromptEditorProps {
   suggestionListId?: string | undefined;
   activeSuggestionId?: string | undefined;
   isPathQueryActive?: () => boolean;
+  /** fork: prompt shortcuts. Gray text drawn after the caret; it is never part of the document. */
+  ghostText?: string | null;
   containerClassName?: string;
   className?: string;
   placeholderClassName?: string;
@@ -796,6 +798,62 @@ function chipSelectionDecorations({ doc, selection }: EditorState): DecorationSe
   return DecorationSet.create(doc, decorations);
 }
 
+// fork: prompt shortcuts
+const GhostTextPluginKey = new PluginKey<{ text: string; head: number } | null>(
+  "composer-ghost-text",
+);
+
+function createGhostTextElement(text: string): HTMLElement {
+  const element = document.createElement("span");
+  element.className =
+    "pointer-events-none inline-block max-w-[min(100%,28rem)] align-top text-muted-foreground/60 select-none truncate";
+  element.setAttribute("aria-hidden", "true");
+  element.setAttribute("data-composer-ghost-text", "");
+  element.textContent = text;
+  return element;
+}
+
+/**
+ * Draws hint text after the caret as a widget decoration, so the document and its serialization
+ * never change. The hint belongs to one caret position; typing or moving away hides it until the
+ * owner supplies the next one in the same commit.
+ */
+const ComposerGhostTextExtension = Extension.create({
+  name: "composer-ghost-text",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin<{ text: string; head: number } | null>({
+        key: GhostTextPluginKey,
+        state: {
+          init: () => null,
+          apply: (tr, old) => {
+            const next = tr.getMeta(GhostTextPluginKey) as
+              | { text: string; head: number }
+              | null
+              | undefined;
+            return next === undefined ? old : next;
+          },
+        },
+        props: {
+          decorations: (state) => {
+            const ghost = GhostTextPluginKey.getState(state);
+            if (!ghost || !state.selection.empty || state.selection.head !== ghost.head) {
+              return null;
+            }
+            return DecorationSet.create(state.doc, [
+              Decoration.widget(ghost.head, () => createGhostTextElement(ghost.text), {
+                side: 1,
+                key: `ghost:${ghost.text}`,
+                ignoreSelection: true,
+              }),
+            ]);
+          },
+        },
+      }),
+    ];
+  },
+});
+
 type TiptapEditor = NonNullable<ReturnType<typeof useEditor>>;
 
 const SILENT_SELECTION_META = "composerSilentSelection";
@@ -892,6 +950,7 @@ function createComposerExtensions(richText: boolean) {
     ComposerCitationExtension,
     ComposerContextReferenceExtension,
     ComposerChipSelectionExtension,
+    ComposerGhostTextExtension, // fork: prompt shortcuts
     ...(richText
       ? [
           ComposerMarkdownSourceExtension,
@@ -992,6 +1051,7 @@ function ComposerPromptEditorTiptapInner(
     suggestionListId,
     activeSuggestionId,
     isPathQueryActive,
+    ghostText,
     containerClassName,
     className,
     placeholderClassName,
@@ -1802,6 +1862,19 @@ function ComposerPromptEditorTiptapInner(
     isKnownModel,
     value,
   ]);
+
+  // fork: prompt shortcuts
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pushes the ghost hint into the ProseMirror plugin before paint, so a stale hint never shows beside the caret
+  useLayoutEffect(() => {
+    if (!editor || editor.isDestroyed || editor.view.composing) return;
+    const head = editor.state.selection.head;
+    const current = GhostTextPluginKey.getState(editor.state);
+    const next = ghostText ? { text: ghostText, head } : null;
+    if (current?.text === next?.text && current?.head === next?.head) return;
+    editor.view.dispatch(
+      editor.state.tr.setMeta(GhostTextPluginKey, next).setMeta("addToHistory", false),
+    );
+  });
 
   // Reconcile loaded or switched provider skills and models without rebuilding citation node views.
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- replaces skill and model chip nodes in the Tiptap document when the provider skill or model list loads or changes

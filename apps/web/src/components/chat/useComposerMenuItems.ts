@@ -12,6 +12,7 @@ import { useState } from "react";
 import type {
   EnvironmentId,
   ProjectId,
+  PromptShortcut, // fork: prompt shortcuts
   ProviderDriverKind,
   ProviderInstanceId,
   PullRequestListInput,
@@ -25,6 +26,7 @@ import {
   withLinkedComposerPullRequestsFirst,
 } from "@t3tools/shared/composerPullRequestMatches";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
+import { matchPromptShortcuts, promptShortcutSummary } from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
 
 import type { ComposerTrigger } from "../../composer-logic";
 import type { DraftId } from "../../composerDraftStore";
@@ -83,6 +85,7 @@ export function useComposerMenuItems({
   workspaceSkillsScanning,
   questionAttachmentTarget,
   modelMentions,
+  promptShortcuts,
 }: {
   readonly composerTrigger: ComposerTrigger | null;
   readonly environmentId: EnvironmentId;
@@ -106,6 +109,7 @@ export function useComposerMenuItems({
     readonly instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
     readonly modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
   };
+  readonly promptShortcuts: ReadonlyArray<PromptShortcut>;
 }) {
   const gt = useGT();
   const messages = useMessages();
@@ -331,6 +335,16 @@ export function useComposerMenuItems({
       );
       return searchSlashCommandItems(slashCommandItems, query);
     }
+    if (composerTrigger.kind === "prompt-shortcut") {
+      // fork: prompt shortcuts. No match returns nothing, which keeps the menu closed.
+      return matchPromptShortcuts(promptShortcuts, composerTrigger.query).map((shortcut) => ({
+        id: `prompt-shortcut:${shortcut.id}`,
+        type: "prompt-shortcut" as const,
+        shortcut,
+        label: `:${shortcut.name}`,
+        description: promptShortcutSummary(shortcut.content, 120),
+      }));
+    }
     if (composerTrigger.kind === "skill") {
       return searchProviderSkills(selectedProviderSkills, composerTrigger.query).map((skill) => ({
         id: `skill:${selectedProvider}:${skill.name}`,
@@ -444,6 +458,7 @@ export function useComposerMenuItems({
         ? gt("No pull request matches {query}.", { query: composerTrigger.query })
         : gt("No pull requests found in this repository.");
     }
+    if (composerTriggerKind === "prompt-shortcut") return gt("No matching prompt shortcut.");
     return composerTriggerKind === "path"
       ? gt("No matching files or folders.")
       : gt("No matching command.");

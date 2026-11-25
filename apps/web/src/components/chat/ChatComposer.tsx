@@ -57,6 +57,7 @@ import { formatComposerModelMention } from "@t3tools/client-runtime/composer-mod
 import { isPasteAsTextShortcut } from "@t3tools/client-runtime/text-paste";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
+import { promptShortcutGhostText } from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
 import { type FolderDropTarget, folderDropTarget, resolveDroppedFolderPath } from "./folderDrop";
 import { splitTransferredFiles } from "./workspaceFileDrop";
 import { createModelSelection, normalizeModelSlug } from "@t3tools/shared/model";
@@ -1242,9 +1243,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     workspaceSkillsScanning,
     questionAttachmentTarget,
     modelMentions: { instanceEntries: providerInstanceEntries, modelOptionsByInstance },
+    promptShortcuts: settings.promptShortcuts, // fork: prompt shortcuts
   });
 
-  const composerMenuOpen = Boolean(composerTrigger);
+  // fork: prompt shortcuts. A `:word` nothing matches is plain text, so it opens no menu.
+  const composerMenuOpen =
+    Boolean(composerTrigger) &&
+    !(composerTrigger?.kind === "prompt-shortcut" && composerMenuItems.length === 0);
   const composerMenuSearchKey = composerTrigger
     ? `${composerSuggestionListId}:${composerTrigger.kind}:${composerTrigger.query.trim().toLowerCase()}`
     : null;
@@ -1256,6 +1261,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   });
   const activeComposerMenuItem =
     composerMenuItems.find((item) => item.id === activeComposerMenuItemId) ?? null;
+  // fork: prompt shortcuts. Web and desktop hint what Tab will expand; a small screen has no room.
+  const promptShortcutGhost =
+    composerMenuOpen &&
+    !isMobileViewport &&
+    composerTrigger?.kind === "prompt-shortcut" &&
+    activeComposerMenuItem?.type === "prompt-shortcut"
+      ? promptShortcutGhostText(activeComposerMenuItem.shortcut, composerTrigger.query)
+      : null;
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed composer menu state to refs read by editor key handlers
   useLayoutEffect(() => {
@@ -2160,6 +2173,22 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       });
       if (applied) {
         setComposerHighlightedItemId(null);
+      }
+      return;
+    }
+    if (item.type === "prompt-shortcut") {
+      // fork: prompt shortcuts. The saved text goes through the same parsing as typed text, so
+      // `$skill` and `@file` references come back as chips and the result stays editable.
+      if (trigger.kind !== "prompt-shortcut") return;
+      const applied = applyPromptReplacement(
+        trigger.rangeStart,
+        trigger.rangeEnd,
+        item.shortcut.content,
+        { expectedText: snapshot.value.slice(trigger.rangeStart, trigger.rangeEnd) },
+      );
+      if (applied) {
+        setComposerHighlightedItemId(null);
+        resetComposerTrigger(null);
       }
       return;
     }
@@ -3952,6 +3981,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     richTextEnabled={settings.composerRichTextEnabled}
                     literalText={isLiteralPendingAnswer}
                     isPathQueryActive={isPathQueryActiveStable}
+                    ghostText={promptShortcutGhost} // fork: prompt shortcuts
                     value={activePendingProgress ? activePendingProgress.customAnswer : prompt}
                     cursor={composerCursor}
                     contextRecords={composerContextRecords}

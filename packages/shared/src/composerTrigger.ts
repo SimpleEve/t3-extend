@@ -1,6 +1,11 @@
 import { parseMarkdownFileLink } from "./markdownLinks.ts";
 
-export type ComposerTriggerKind = "path" | "pull-request" | "slash-command" | "skill";
+export type ComposerTriggerKind =
+  | "path"
+  | "pull-request"
+  | "slash-command"
+  | "skill"
+  | "prompt-shortcut"; // fork: prompt shortcuts
 export type ComposerSlashCommand = "model" | "plan" | "default";
 
 export interface ComposerTrigger {
@@ -103,6 +108,23 @@ export function detectComposerPullRequestTrigger(token: string, cursor: number) 
   };
 }
 
+/**
+ * fork: prompt shortcuts. `:` or full-width `：` at a token start, followed only by what a shortcut
+ * name can hold (kept in step with PROMPT_SHORTCUT_NAME_PATTERN in contracts). `10:30`, `http://`
+ * and `:)` are not at a token start or carry other characters, so they open nothing.
+ */
+export function detectComposerPromptShortcutTrigger(token: string, cursor: number) {
+  if (token[0] !== ":" && token[0] !== "\uFF1A") return null;
+  const query = token.slice(1);
+  if (!/^[a-z0-9-]*$/i.test(query)) return null;
+  return {
+    kind: "prompt-shortcut" as const,
+    query,
+    rangeStart: cursor - token.length,
+    rangeEnd: cursor,
+  };
+}
+
 export function detectComposerTrigger(
   text: string,
   cursorInput: number,
@@ -138,6 +160,8 @@ export function detectComposerTrigger(
       rangeEnd: cursor,
     };
   }
+  const promptShortcutTrigger = detectComposerPromptShortcutTrigger(token, cursor); // fork: prompt shortcuts
+  if (promptShortcutTrigger) return promptShortcutTrigger;
   if (!token.startsWith("@")) {
     return null;
   }

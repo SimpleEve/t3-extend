@@ -31,6 +31,7 @@ export type SettingsPath =
   | "/settings/chat"
   | "/settings/diffs"
   | "/settings/keybindings"
+  | "/settings/prompt-shortcuts" // fork: prompt shortcuts
   | "/settings/snap-shot"
   | "/settings/providers"
   | "/settings/threads"
@@ -110,6 +111,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/chat": msg("Chat"),
   "/settings/diffs": msg("Diffs & pull requests"),
   "/settings/keybindings": msg("Keybindings"),
+  "/settings/prompt-shortcuts": msg("Prompt shortcuts"), // fork: prompt shortcuts
   "/settings/snap-shot": msg("SnapShots"),
   "/settings/providers": msg("Providers"),
   "/settings/threads": msg("Threads"),
@@ -155,6 +157,7 @@ const ALL_SETTINGS_NAV_GROUPS: ReadonlyArray<SettingsNavGroup> = [
       "/settings/chat",
       "/settings/diffs",
       "/settings/keybindings",
+      "/settings/prompt-shortcuts", // fork: prompt shortcuts
       "/settings/voice",
       "/settings/snap-shot",
     ],
@@ -1155,6 +1158,16 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/scheduled-tasks",
   },
   {
+    // fork: prompt shortcuts
+    id: "prompt-shortcuts",
+    title: msg("Prompt shortcuts"),
+    to: "/settings/prompt-shortcuts",
+    searchTerms: [
+      "prompt shortcuts snippets saved prompts templates colon expand composer",
+      "提示词 快捷方式 快捷 模板 常用提示词 冒号 展开 输入框 保存 新建 删除 编辑",
+    ],
+  },
+  {
     id: "agent-browser-access",
     title: msg("Agent browser access"),
     to: "/settings/browser",
@@ -1573,6 +1586,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/diffs": null,
   "/settings/snap-shot": null,
   "/settings/keybindings": null,
+  "/settings/prompt-shortcuts": null, // fork: prompt shortcuts
   "/settings/providers": null,
   "/settings/threads": null,
   "/settings/browser": null,

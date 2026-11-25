@@ -136,6 +136,38 @@ export const DEFAULT_SNOOZE_PRESETS: ReadonlyArray<SnoozePresetSetting> = [
   { kind: "at", day: "monday", time: "09:00" },
 ];
 
+// fork: prompt shortcuts. Settings reach every client, so the list and each entry stay bounded.
+export const MAX_PROMPT_SHORTCUTS = 200;
+export const MAX_PROMPT_SHORTCUT_CONTENT_LENGTH = 20_000;
+export const MAX_PROMPT_SHORTCUT_NAME_LENGTH = 32;
+export const MAX_PROMPT_SHORTCUT_TITLE_LENGTH = 80;
+/** A name is typed after `:` in the composer, so it carries no punctuation a sentence could contain. */
+export const PROMPT_SHORTCUT_NAME_PATTERN = /^[a-z0-9-]+$/;
+export const PromptShortcutName = Schema.String.check(
+  Schema.isPattern(PROMPT_SHORTCUT_NAME_PATTERN),
+  Schema.isMaxLength(MAX_PROMPT_SHORTCUT_NAME_LENGTH),
+);
+export const PromptShortcut = Schema.Struct({
+  id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64)),
+  name: PromptShortcutName,
+  title: Schema.NullOr(Schema.String.check(Schema.isMaxLength(MAX_PROMPT_SHORTCUT_TITLE_LENGTH))),
+  /** The composer's raw prompt text, so `$skill` and `@file` references come back as chips. */
+  content: Schema.String.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(MAX_PROMPT_SHORTCUT_CONTENT_LENGTH),
+  ),
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+});
+export type PromptShortcut = typeof PromptShortcut.Type;
+export const PromptShortcuts = Schema.Array(PromptShortcut).check(
+  Schema.isMaxLength(MAX_PROMPT_SHORTCUTS),
+  Schema.makeFilter((shortcuts: ReadonlyArray<PromptShortcut>) => {
+    const names = new Set(shortcuts.map((shortcut) => shortcut.name));
+    return names.size === shortcuts.length ? undefined : "Prompt shortcut names must be unique";
+  }),
+);
+
 export const MIN_GLASS_OPACITY = 40;
 export const MAX_GLASS_OPACITY = 100;
 export const GlassOpacity = Schema.Int.check(
@@ -1583,6 +1615,8 @@ export const ServerSettings = Schema.Struct({
   snoozePresets: SnoozePresetSettings.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_SNOOZE_PRESETS)),
   ),
+  /** fork: prompts saved for `:name` in the composer. Per environment, not shared across them. */
+  promptShortcuts: PromptShortcuts.pipe(Schema.withDecodingDefault(Effect.succeed([]))),
   /** Clients hide threads with these tags while `hideTaggedThreads` is on. Bad entries drop alone, so a hand edit cannot reset settings. */
   hiddenThreadTags: Schema.Array(Schema.Unknown).pipe(
     Schema.decodeTo(
@@ -2039,6 +2073,7 @@ export const ServerSettingsPatch = Schema.Struct({
   autoResumeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   snoozeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   snoozePresets: Schema.optionalKey(SnoozePresetSettings),
+  promptShortcuts: Schema.optionalKey(PromptShortcuts), // fork: prompt shortcuts
   hiddenThreadTags: Schema.optionalKey(Schema.Array(Schema.String)),
   hideTaggedThreads: Schema.optionalKey(Schema.Boolean),
   guestSharingEnabled: Schema.optionalKey(Schema.Boolean),

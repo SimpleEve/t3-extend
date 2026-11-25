@@ -21,6 +21,7 @@ import {
   MessageSquareTextIcon,
   MessagesSquareIcon,
   PanelsTopLeftIcon,
+  ZapIcon, // fork: prompt shortcuts
   KeyboardIcon,
   KeyRoundIcon,
   MicIcon,
@@ -102,6 +103,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/diffs": FileDiffIcon,
   "/settings/projects": PanelsTopLeftIcon,
   "/settings/keybindings": KeyboardIcon,
+  "/settings/prompt-shortcuts": ZapIcon, // fork: prompt shortcuts
   "/settings/snap-shot": SnapShotIcon,
   "/settings/providers": BotIcon,
   "/settings/threads": MessagesSquareIcon,

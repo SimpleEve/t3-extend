@@ -19,6 +19,7 @@ import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
 import { CustomSnoozeDialogHost } from "../components/CustomSnoozeDialog";
 import { ThreadBookmarksDialogHost } from "../fork/bookmarks/ThreadBookmarksDialog"; // fork: message bookmarks
+import { PromptShortcutDialogHost } from "../fork/promptShortcuts/PromptShortcutDialog"; // fork: prompt shortcuts
 import { GuestShareDialogHost } from "../components/chat/GuestShareControls";
 import { UseInAnotherAppDialogHost } from "../components/mcp/UseInAnotherAppDialog";
 import { AddProjectToMachineDialogHost } from "../components/AddProjectToMachineDialog";
@@ -201,6 +202,7 @@ function RootRouteBranch() {
       <ConfirmDialogHost />
       <CustomSnoozeDialogHost />
       <ThreadBookmarksDialogHost /> {/* fork: message bookmarks */}
+      <PromptShortcutDialogHost /> {/* fork: prompt shortcuts */}
       <GuestShareDialogHost />
       <ProjectCloneToastCoordinator />
       <ConnectDeviceApprovalCoordinator />
