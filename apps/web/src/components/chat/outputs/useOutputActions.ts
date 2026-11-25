@@ -3,14 +3,21 @@ import type { ContextMenuItem, ScopedThreadRef } from "@t3tools/contracts";
 import type { OutputFile, OutputLink } from "@t3tools/client-runtime/outputs/run";
 
 import { canOpenLinksInApp } from "~/browser/browserLinkTarget";
-import { openUrlInPreview } from "~/browser/openFileInPreview";
+import {
+  isBrowserPreviewFile,
+  openFileInSystemBrowser,
+  openUrlInPreview,
+} from "~/browser/openFileInPreview";
 import { isElectron } from "~/env";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { useT } from "~/hooks/useT";
 import { readLocalApi } from "~/localApi";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { hostEnvironmentIdAtom } from "~/state/primaryEnvironment";
+import { assetEnvironment } from "~/state/assets";
 import { previewEnvironment } from "~/state/preview";
+import { readPreparedConnection } from "~/state/session";
+import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { serverEnvironment } from "~/state/server";
 import { shellEnvironment } from "~/state/shell";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -41,6 +48,10 @@ export function useOutputActions(input: {
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
   const openPreview = useAtomCommand(previewEnvironment.open, { reportFailure: false });
+  const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
+    reportFailure: false,
+    refresh: true,
+  });
 
   const onThisMachine = isUsersOwnMachine({ isElectron, environmentId, hostEnvironmentId });
   const hasFileManager = serverConfig?.availableEditors.includes("file-manager") === true;
@@ -86,6 +97,7 @@ export function useOutputActions(input: {
   const fileActionIds = (file: OutputFile) =>
     outputFileActionIds({
       inWorkspace: previewPathOf(file) !== null,
+      canOpenInSystemBrowser: isElectron && threadRef !== null && isBrowserPreviewFile(file.path),
       onThisMachine,
       hasFileManager,
       canReveal: revealLabel !== undefined,
@@ -96,6 +108,8 @@ export function useOutputActions(input: {
     switch (id) {
       case "preview":
         return t("Preview in side panel");
+      case "browser":
+        return t("Open in default browser");
       case "open":
         return t("Open with default app");
       case "reveal":
@@ -119,6 +133,27 @@ export function useOutputActions(input: {
   const linkMenuItems = (): ContextMenuItem<OutputLinkAction>[] =>
     linkActionIds().map((id) => ({ id, label: linkActionLabel(id) }));
 
+  const openInSystemBrowser = async (file: OutputFile) => {
+    const httpBaseUrl =
+      threadRef === null ? undefined : readPreparedConnection(threadRef.environmentId)?.httpBaseUrl;
+    const result =
+      threadRef === null || httpBaseUrl === undefined
+        ? null
+        : await openFileInSystemBrowser({
+            threadRef,
+            filePath: file.path,
+            workspaceRoot,
+            httpBaseUrl,
+            createAssetUrl,
+          });
+    if (result !== null && result._tag !== "Failure") return;
+    toastManager.add({
+      type: "error",
+      title: t("Could not open file"),
+      description: file.path,
+    });
+  };
+
   const runFileAction = (action: OutputFileAction, file: OutputFile) => {
     switch (action) {
       case "preview": {
@@ -128,6 +163,9 @@ export function useOutputActions(input: {
         }
         return;
       }
+      case "browser":
+        void openInSystemBrowser(file);
+        return;
       case "open":
         void launch(file.path, false);
         return;

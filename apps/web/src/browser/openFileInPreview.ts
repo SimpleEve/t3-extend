@@ -16,6 +16,7 @@ import * as Schema from "effect/Schema";
 import { AsyncResult } from "effect/reactivity";
 
 import { resolveAssetUrl } from "~/assets/assetUrls";
+import { readLocalApi } from "~/localApi";
 import { isPreviewAvailableFor, previewRuntimeFor } from "~/browser/previewRuntime";
 import {
   applyPreviewServerSnapshot,
@@ -111,32 +112,18 @@ export async function openUrlInPreview<E>(input: {
   });
 }
 
-export async function openFileInPreview<AssetError, PreviewError>(input: {
+type CreateFileAssetUrl<AssetError> = (input: {
+  readonly environmentId: EnvironmentId;
+  readonly input: { readonly resource: AssetResource };
+}) => Promise<AtomCommandResult<AssetCreateUrlResult, AssetError>>;
+
+async function fileAssetUrl<AssetError>(input: {
   readonly threadRef: ScopedThreadRef;
   readonly filePath: string;
   readonly workspaceRoot: string | undefined;
   readonly httpBaseUrl: string;
-  readonly createAssetUrl: (input: {
-    readonly environmentId: EnvironmentId;
-    readonly input: { readonly resource: AssetResource };
-  }) => Promise<AtomCommandResult<AssetCreateUrlResult, AssetError>>;
-  readonly openPreview: OpenPreviewMutation<PreviewError>;
-}): Promise<
-  AtomCommandResult<
-    void,
-    AssetError | PreviewError | BrowserPreviewUnavailableError | BrowserSettingsReadError
-  >
-> {
-  if (!isPreviewAvailableFor(input.threadRef.environmentId)) {
-    return AsyncResult.failure(
-      Cause.fail(
-        new BrowserPreviewUnavailableError({
-          message: m(msg("The integrated browser is unavailable in this runtime.")),
-        }),
-      ),
-    );
-  }
-  const hostRef = rightPanelHostRef(input.threadRef);
+  readonly createAssetUrl: CreateFileAssetUrl<AssetError>;
+}): Promise<AtomCommandResult<string, AssetError>> {
   const insideWorkspace =
     mediaFileReference(input.filePath, input.workspaceRoot).relativePath !== undefined;
   const assetResult = await input.createAssetUrl({
@@ -158,9 +145,63 @@ export async function openFileInPreview<AssetError, PreviewError>(input: {
       Cause.die(new Error("The environment returned an invalid asset URL.")),
     );
   }
+  return AsyncResult.success(assetUrl);
+}
+
+export async function openFileInPreview<AssetError, PreviewError>(input: {
+  readonly threadRef: ScopedThreadRef;
+  readonly filePath: string;
+  readonly workspaceRoot: string | undefined;
+  readonly httpBaseUrl: string;
+  readonly createAssetUrl: CreateFileAssetUrl<AssetError>;
+  readonly openPreview: OpenPreviewMutation<PreviewError>;
+}): Promise<
+  AtomCommandResult<
+    void,
+    AssetError | PreviewError | BrowserPreviewUnavailableError | BrowserSettingsReadError
+  >
+> {
+  if (!isPreviewAvailableFor(input.threadRef.environmentId)) {
+    return AsyncResult.failure(
+      Cause.fail(
+        new BrowserPreviewUnavailableError({
+          message: m(msg("The integrated browser is unavailable in this runtime.")),
+        }),
+      ),
+    );
+  }
+  const hostRef = rightPanelHostRef(input.threadRef);
+  const assetUrl = await fileAssetUrl(input);
+  if (assetUrl._tag === "Failure") {
+    return AsyncResult.failure(assetUrl.cause);
+  }
   return openUrlInPreview({
     threadRef: hostRef,
-    url: assetUrl,
+    url: assetUrl.value,
     openPreview: input.openPreview,
   });
+}
+
+// Opens the same signed single-file URL the integrated browser loads, so it behaves identically.
+export async function openFileInSystemBrowser<AssetError>(input: {
+  readonly threadRef: ScopedThreadRef;
+  readonly filePath: string;
+  readonly workspaceRoot: string | undefined;
+  readonly httpBaseUrl: string;
+  readonly createAssetUrl: CreateFileAssetUrl<AssetError>;
+}): Promise<AtomCommandResult<void, AssetError>> {
+  const assetUrl = await fileAssetUrl(input);
+  if (assetUrl._tag === "Failure") {
+    return AsyncResult.failure(assetUrl.cause);
+  }
+  const api = readLocalApi();
+  if (!api) {
+    return AsyncResult.failure(Cause.die(new Error(m(msg("Link opening is unavailable.")))));
+  }
+  try {
+    await api.shell.openExternal(assetUrl.value);
+    return AsyncResult.success(undefined);
+  } catch (cause) {
+    return AsyncResult.failure(Cause.die(cause));
+  }
 }

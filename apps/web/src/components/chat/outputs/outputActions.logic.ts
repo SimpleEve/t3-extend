@@ -1,4 +1,4 @@
-export type OutputFileActionId = "preview" | "open" | "reveal" | "copy";
+export type OutputFileActionId = "preview" | "browser" | "open" | "reveal" | "copy";
 export type OutputLinkActionId = "preview" | "external" | "copy";
 
 /**
@@ -17,9 +17,13 @@ export function isUsersOwnMachine(input: {
   );
 }
 
-/** What a file's menu offers, in order. Preview needs a path the server may read. */
+/**
+ * What a file's menu offers, in order. Preview needs a path the server may read; browser hands an
+ * HTML or PDF file to the desktop's default browser, wherever the server runs.
+ */
 export function outputFileActionIds(input: {
   readonly inWorkspace: boolean;
+  readonly canOpenInSystemBrowser: boolean;
   readonly onThisMachine: boolean;
   readonly hasFileManager: boolean;
   readonly canReveal: boolean;
@@ -27,6 +31,7 @@ export function outputFileActionIds(input: {
   const local = input.onThisMachine && input.hasFileManager;
   return [
     ...(input.inWorkspace ? (["preview"] as const) : []),
+    ...(input.canOpenInSystemBrowser ? (["browser"] as const) : []),
     ...(local ? (["open"] as const) : []),
     ...(local && input.canReveal ? (["reveal"] as const) : []),
     "copy",
