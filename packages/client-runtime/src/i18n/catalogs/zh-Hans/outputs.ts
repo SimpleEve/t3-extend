@@ -4,6 +4,7 @@ export default {
   Links: "链接",
   "More actions for {name}": "{name} 的更多操作",
   "Preview in side panel": "在侧栏预览",
+  "Open in default browser": "在默认浏览器中打开",
   "Open with default app": "用默认应用打开",
   "Preview in browser panel": "在内置浏览器面板预览",
   "Open in external browser": "在外部浏览器打开",

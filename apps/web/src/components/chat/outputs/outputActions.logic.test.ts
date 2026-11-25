@@ -42,9 +42,30 @@ describe("outputFileActionIds", () => {
     ["outside the workspace, remote or browser", false, false, true, true, ["copy"]],
     ["no file manager on the server", true, true, false, true, ["preview", "copy"]],
   ])("%s", (_name, inWorkspace, onThisMachine, hasFileManager, canReveal, expected) => {
-    expect(outputFileActionIds({ inWorkspace, onThisMachine, hasFileManager, canReveal })).toEqual(
-      expected,
-    );
+    expect(
+      outputFileActionIds({
+        inWorkspace,
+        canOpenInSystemBrowser: false,
+        onThisMachine,
+        hasFileManager,
+        canReveal,
+      }),
+    ).toEqual(expected);
+  });
+
+  it.each([
+    ["HTML in the workspace on this machine", true, true, ["preview", "browser", "open", "copy"]],
+    ["HTML on a remote server, outside the workspace", false, false, ["browser", "copy"]],
+  ])("%s", (_name, inWorkspace, onThisMachine, expected) => {
+    expect(
+      outputFileActionIds({
+        inWorkspace,
+        canOpenInSystemBrowser: true,
+        onThisMachine,
+        hasFileManager: true,
+        canReveal: false,
+      }),
+    ).toEqual(expected);
   });
 });
 
