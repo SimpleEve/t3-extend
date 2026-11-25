@@ -189,7 +189,7 @@ export function PromptShortcutContentEditor(props: {
         />
       </div>
       {menuOpen ? (
-        <div className="mt-2">
+        <div className="mt-2 w-0 min-w-full">
           <ComposerCommandMenu
             listId="prompt-shortcut-editor-suggestions"
             items={items}

@@ -115,13 +115,13 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
         <DialogPanel>
           <form
             id="prompt-shortcut-form"
-            className="grid gap-4"
+            className="grid grid-cols-1 gap-4"
             onSubmit={(event) => {
               event.preventDefault();
               void save();
             }}
           >
-            <div className="grid gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5">
               <Label htmlFor="prompt-shortcut-name">
                 <T>Name</T>
               </Label>
@@ -158,7 +158,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
                   : gt("Lowercase letters, numbers and hyphens.")}
               </p>
             </div>
-            <div className="grid gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5">
               <Label htmlFor="prompt-shortcut-title">
                 <T>Title</T>
                 <span className="font-normal text-muted-foreground">
@@ -173,7 +173,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
                 onChange={(event) => setTitle(event.target.value)}
               />
             </div>
-            <div className="grid gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5">
               <Label>
                 <T>Prompt</T>
               </Label>
