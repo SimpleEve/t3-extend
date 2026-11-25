@@ -7,6 +7,7 @@ import * as Digest from "effect/crypto/Digest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import { identity } from "effect/Function"; // fork:
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
@@ -18,6 +19,7 @@ import {
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
 import { CLI_LOGIN_EXPIRY_MARGIN_MS, type AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
+import { makeAntigravityProxyFetch } from "./antigravityNetworkProxy.ts"; // fork:
 
 export function antigravityUserAgent(platform: NodeJS.Platform, architecture: NodeJS.Architecture) {
   return `antigravity/hub/2.24.0 (aidev_client; os_type=${platform}; arch=${architecture}; cl=963137146)`;
@@ -365,13 +367,14 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   // fork: the account of the agy CLI sign-in last seen, keyed by its tokens, so userinfo is asked once.
   let cachedCliAccount: { fingerprint: string; account: string } | undefined;
 
-  // fork: `dispatcher` is undici's own fetch option, outside the DOM type.
-  const requestInit: RequestInit = input.proxyDispatcher
-    ? ({ ...MANUAL_REDIRECT, dispatcher: input.proxyDispatcher } as unknown as RequestInit)
-    : MANUAL_REDIRECT;
+  // fork: a proxied instance fetches with the undici that built its dispatcher, not the runtime's.
+  const proxyFetch = input.proxyDispatcher
+    ? makeAntigravityProxyFetch(input.proxyDispatcher)
+    : undefined;
   const request = (request: HttpClientRequest.HttpClientRequest) =>
     client.execute(request).pipe(
-      Effect.provideService(FetchHttpClient.RequestInit, requestInit),
+      Effect.provideService(FetchHttpClient.RequestInit, MANUAL_REDIRECT),
+      proxyFetch ? Effect.provideService(FetchHttpClient.Fetch, proxyFetch) : identity, // fork:
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap((response) => response.json),
       Effect.timeout("10 seconds"),

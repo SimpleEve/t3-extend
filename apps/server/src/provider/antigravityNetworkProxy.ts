@@ -84,6 +84,24 @@ export function withAntigravityNetworkProxy(
 }
 
 /**
+ * A fetch that sends through `dispatcher`. A dispatcher only works with the undici that built it:
+ * `globalThis.fetch` is the runtime's own copy (Electron 44 bundles undici 7, this package ships 8),
+ * and hands the npm dispatcher a handler it rejects with "invalid onRequestStart method". Dev runs
+ * on a Node whose bundled undici matches, so only the packaged app shows it.
+ */
+export function makeAntigravityProxyFetch(dispatcher: Undici.Dispatcher): typeof globalThis.fetch {
+  const undici = requireUndici("undici") as typeof Undici;
+  return ((input, init) =>
+    undici.fetch(
+      input as Undici.RequestInfo,
+      {
+        ...init,
+        dispatcher,
+      } as Undici.RequestInit,
+    )) as typeof globalThis.fetch;
+}
+
+/**
  * The dispatcher T3's own Google requests use. `undefined` means no proxy is configured; `null`
  * means one is configured but this runtime cannot use it, and requests must not go out directly.
  */

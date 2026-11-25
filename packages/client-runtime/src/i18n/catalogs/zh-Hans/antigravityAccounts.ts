@@ -5,6 +5,7 @@ export default {
     "切换账户会保留正在使用的账户，并加上你登录的这个。新的回合使用正在使用的账户。",
   "Out of quota until {time}": "额度已用完，{time} 恢复",
   "Account {number}": "账户 {number}",
+  "On {count} machines": "在 {count} 台机器上",
   "Use {account}? Running threads on this instance stop, and new turns use this account.":
     "使用 {account}？这个实例上正在运行的对话会停止，之后的回合使用这个账户。",
   "Remove {account}? Running threads on this instance stop. Sign in again to add it back.":

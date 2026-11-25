@@ -8,6 +8,7 @@ import {
   type AccountUsageColumn,
   type AccountUsageGroup,
   type AccountUsageRow,
+  type AccountUsageSection,
 } from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
 import {
@@ -22,7 +23,7 @@ import {
 import { formatReadAgo, formatResetsIn } from "@t3tools/shared/usageLimitsCopy";
 import { useGT, useMessages } from "gt-react";
 import { TicketIcon } from "lucide-react";
-import { type ReactNode, use } from "react";
+import { type ReactNode, use, useId } from "react";
 
 import {
   AccountChip,
@@ -314,7 +315,6 @@ function AccountUsageRowItem({
   groups,
   columns,
   windows,
-  position,
   color,
   now,
   refresh,
@@ -323,7 +323,6 @@ function AccountUsageRowItem({
   readonly groups: ReadonlyArray<AccountUsageGroup>;
   readonly columns: ReadonlyArray<AccountUsageColumn>;
   readonly windows: ReadonlyArray<LimitPoolWindow>;
-  readonly position: number;
   readonly color: string;
   readonly now: number;
   readonly refresh: AccountUsageRefresh;
@@ -332,7 +331,7 @@ function AccountUsageRowItem({
   const t = useT();
   const m = useMessages();
   const { account } = row;
-  const name = account.email ?? t("Account {number}", { number: position });
+  const name = account.email ?? t("Account {number}", { number: row.position });
   const spent = row.exhaustedUntil !== null;
   const note = row.unread
     ? gt("No reading yet")
@@ -408,6 +407,37 @@ function AccountUsageRowItem({
   );
 }
 
+/** Names the machine, or machines, whose accounts follow; the same accounts as one flat list otherwise. */
+function MachineSection({
+  section,
+  children,
+}: {
+  readonly section: AccountUsageSection;
+  readonly children: ReactNode;
+}) {
+  const gt = useGT();
+  const t = useT();
+  const headingId = useId();
+  const count = section.rows.length;
+  return (
+    <li>
+      <section aria-labelledby={headingId}>
+        <div className="flex min-w-0 items-baseline gap-2 border-b border-border/60 bg-muted/60 px-3 py-1.5">
+          <h4 id={headingId} className="min-w-0 truncate text-xs font-medium text-foreground">
+            {section.label}
+          </h4>
+          <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+            {section.shared
+              ? t("On {count} machines", { count: section.machineCount })
+              : gt("{count, plural, one {{count} account} other {{count} accounts}}", { count })}
+          </span>
+        </div>
+        <ul className="flex flex-col divide-y divide-border/60">{children}</ul>
+      </section>
+    </li>
+  );
+}
+
 export function AccountUsageList({
   pool,
   color,
@@ -417,7 +447,7 @@ export function AccountUsageList({
   readonly color: string;
   readonly now: number;
 }) {
-  const { columns, windows, rows } = accountUsageRows(pool, now);
+  const { columns, windows, sections } = accountUsageRows(pool, now);
   const groups = accountUsageGroups(columns);
   const refresh = useAccountUsageRefresh();
   return (
@@ -429,19 +459,27 @@ export function AccountUsageList({
         color={color}
         refresh={refresh}
       />
-      {rows.map((row, index) => (
-        <AccountUsageRowItem
-          key={row.account.key}
-          row={row}
-          groups={groups}
-          columns={columns}
-          windows={windows}
-          position={index + 1}
-          color={color}
-          now={now}
-          refresh={refresh}
-        />
-      ))}
+      {sections.map((section) => {
+        const items = section.rows.map((row) => (
+          <AccountUsageRowItem
+            key={row.account.key}
+            row={row}
+            groups={groups}
+            columns={columns}
+            windows={windows}
+            color={color}
+            now={now}
+            refresh={refresh}
+          />
+        ));
+        return section.label === null ? (
+          items
+        ) : (
+          <MachineSection key={section.key} section={section}>
+            {items}
+          </MachineSection>
+        );
+      })}
     </ul>
   );
 }

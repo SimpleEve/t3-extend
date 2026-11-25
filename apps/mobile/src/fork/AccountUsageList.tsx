@@ -9,6 +9,7 @@ import {
   type AccountUsageColumn,
   type AccountUsageGroup,
   type AccountUsageRow,
+  type AccountUsageSection,
 } from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
 import {
@@ -254,7 +255,6 @@ function AccountBlock({
   groups,
   columns,
   windows,
-  position,
   color,
   now,
   environmentIds,
@@ -264,7 +264,6 @@ function AccountBlock({
   readonly groups: ReadonlyArray<AccountUsageGroup>;
   readonly columns: ReadonlyArray<AccountUsageColumn>;
   readonly windows: ReadonlyArray<LimitPoolWindow>;
-  readonly position: number;
   readonly color: string;
   readonly now: number;
   readonly environmentIds: readonly string[] | null;
@@ -295,7 +294,7 @@ function AccountBlock({
               spent ? "text-foreground-muted" : "text-foreground",
             )}
           >
-            {account.email ?? t("Account {number}", { number: position })}
+            {account.email ?? t("Account {number}", { number: row.position })}
           </Text>
           {row.current ? (
             <View className="rounded bg-subtle-strong px-1.5 py-0.5">
@@ -348,6 +347,28 @@ function AccountBlock({
   );
 }
 
+/** Names the machine, or machines, whose accounts follow. */
+function MachineHeading({ section }: { readonly section: AccountUsageSection }) {
+  const gt = useGT();
+  const t = useT();
+  const count = section.rows.length;
+  return (
+    <View
+      accessibilityRole="header"
+      className="flex-row items-baseline gap-2 border-t border-border-subtle bg-subtle px-4 py-2"
+    >
+      <Text numberOfLines={1} className="min-w-0 shrink text-xs font-t3-medium text-foreground">
+        {section.label}
+      </Text>
+      <Text numberOfLines={1} className="text-xs tabular-nums text-foreground-muted">
+        {section.shared
+          ? t("On {count} machines", { count: section.machineCount })
+          : gt("{count, plural, one {{count} account} other {{count} accounts}}", { count })}
+      </Text>
+    </View>
+  );
+}
+
 export function AccountUsageList({
   pool,
   color,
@@ -359,7 +380,7 @@ export function AccountUsageList({
   readonly now: number;
   readonly environmentIds: readonly string[] | null;
 }) {
-  const { columns, windows, rows } = accountUsageRows(pool, now);
+  const { columns, windows, sections } = accountUsageRows(pool, now);
   const groups = accountUsageGroups(columns);
   const refresh = useAccountUsageRefresh();
   return (
@@ -372,19 +393,23 @@ export function AccountUsageList({
         now={now}
         refresh={refresh}
       />
-      {rows.map((row, index) => (
-        <View key={row.account.key} className="border-t border-border-subtle">
-          <AccountBlock
-            row={row}
-            groups={groups}
-            columns={columns}
-            windows={windows}
-            position={index + 1}
-            color={color}
-            now={now}
-            environmentIds={environmentIds}
-            refresh={refresh}
-          />
+      {sections.map((section) => (
+        <View key={section.key}>
+          {section.label === null ? null : <MachineHeading section={section} />}
+          {section.rows.map((row) => (
+            <View key={row.account.key} className="border-t border-border-subtle">
+              <AccountBlock
+                row={row}
+                groups={groups}
+                columns={columns}
+                windows={windows}
+                color={color}
+                now={now}
+                environmentIds={environmentIds}
+                refresh={refresh}
+              />
+            </View>
+          ))}
         </View>
       ))}
     </View>

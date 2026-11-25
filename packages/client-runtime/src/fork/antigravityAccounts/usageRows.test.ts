@@ -15,6 +15,47 @@ import {
   paceIsMeaningful,
 } from "./usageRows.ts";
 
+const reading = (usedPercent: number) => ({
+  checkedAt: "2026-09-03T11:00:00.000Z",
+  windows: [window("gemini-5h", "Gemini · 5-hour", usedPercent, "2026-09-03T15:00:00.000Z")],
+});
+
+// Two machines: each has an account of its own, and one Google account is saved on both.
+const onMachines = (machines: ReadonlyArray<readonly [string, string, ReadonlyArray<string>]>) => {
+  const [machinePool] = collectLimitPools(
+    collectLimitAccounts(
+      new Map(
+        machines.map(([environmentId, label, emails], machine) => [
+          EnvironmentId.make(environmentId),
+          {
+            entry: { target: { label } },
+            serverConfig: {
+              providers: [
+                {
+                  ...provider,
+                  usageLimits: undefined,
+                  auth: {
+                    status: "authenticated" as const,
+                    accounts: emails.map((email, index) => ({
+                      id: `${machine}${index}`.padEnd(16, "0"),
+                      email,
+                      current: index === 0,
+                      refreshable: true,
+                      usageLimits: reading(20 + machine * 10 + index),
+                    })),
+                  },
+                },
+              ],
+            },
+          },
+        ]),
+      ),
+    ),
+    now,
+  );
+  return accountUsageRows(machinePool!, now);
+};
+
 const now = Date.parse("2026-09-03T12:00:00.000Z");
 const window = (id: string, label: string, usedPercent: number, resetsAt: string) => ({
   id,
@@ -202,5 +243,60 @@ describe("account usage rows", () => {
       null,
       null,
     ]);
+  });
+
+  it("numbers the rows in the order they are listed", () => {
+    expect(accountUsageRows(pool!, now).rows.map((row) => row.position)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("is one unlabelled section while the pool sits on one machine", () => {
+    const { rows, sections } = accountUsageRows(pool!, now);
+    expect(sections).toEqual([{ key: "", label: null, shared: false, machineCount: 1, rows }]);
+  });
+
+  it("splits a pool that spans machines by machine, naming each section after its machines", () => {
+    const { sections, rows } = onMachines([
+      ["env-a", "Laptop", ["mine@example.com", "both@example.com"]],
+      ["env-b", "Desk-Mini", ["mini@example.com", "both@example.com"]],
+    ]);
+    expect(
+      sections.map((section) => [
+        section.label,
+        section.shared,
+        section.rows.map((row) => row.account.email),
+      ]),
+    ).toEqual([
+      ["Desk-Mini", false, ["mini@example.com"]],
+      ["Laptop", false, ["mine@example.com"]],
+      // One Google account is one row, however many machines hold it.
+      ["Desk-Mini, Laptop", true, ["both@example.com"]],
+    ]);
+    expect(sections.map((section) => section.machineCount)).toEqual([1, 1, 2]);
+    expect(sections.flatMap((section) => section.rows)).toHaveLength(rows.length);
+    expect(new Set(rows.map((row) => row.position)).size).toBe(rows.length);
+  });
+
+  it("keeps the account in use first inside its machine", () => {
+    const { sections } = onMachines([
+      ["env-a", "Laptop", ["first@example.com", "second@example.com", "third@example.com"]],
+      ["env-b", "Desk-Mini", ["mini@example.com"]],
+    ]);
+    const laptop = sections.find((section) => section.label === "Laptop")!;
+    expect(laptop.rows.map((row) => [row.account.email, row.current])).toEqual([
+      ["first@example.com", true],
+      ["second@example.com", false],
+      ["third@example.com", false],
+    ]);
+  });
+
+  it("shows no machine headings when every account is on the same single machine, shared or not", () => {
+    const { sections } = onMachines([["env-a", "Laptop", ["a@example.com", "b@example.com"]]]);
+    expect(sections.map((section) => section.label)).toEqual([null]);
+    expect(
+      onMachines([
+        ["env-a", "Laptop", ["a@example.com", "b@example.com"]],
+        ["env-b", "Desk-Mini", []],
+      ]).sections.map((section) => section.label),
+    ).toEqual([null]);
   });
 });
