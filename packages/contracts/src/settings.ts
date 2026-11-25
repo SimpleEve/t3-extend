@@ -136,6 +136,81 @@ export const DEFAULT_SNOOZE_PRESETS: ReadonlyArray<SnoozePresetSetting> = [
   { kind: "at", day: "monday", time: "09:00" },
 ];
 
+// fork: prompt shortcuts. Settings reach every client, so the list and each entry stay bounded.
+export const MAX_PROMPT_SHORTCUTS = 200;
+export const MAX_PROMPT_SHORTCUT_CONTENT_LENGTH = 20_000;
+/** All contents together, so 200 long prompts cannot bloat settings for every connected client. */
+export const MAX_PROMPT_SHORTCUTS_TOTAL_CONTENT_LENGTH = 256_000;
+export const MAX_PROMPT_SHORTCUT_NAME_LENGTH = 32;
+export const MAX_PROMPT_SHORTCUT_TITLE_LENGTH = 80;
+/** A name is typed after `;` in the composer, so it carries no punctuation a sentence could contain. */
+export const PROMPT_SHORTCUT_NAME_PATTERN = /^[a-z0-9-]+$/;
+export const PromptShortcutName = Schema.String.check(
+  Schema.isPattern(PROMPT_SHORTCUT_NAME_PATTERN),
+  Schema.isMaxLength(MAX_PROMPT_SHORTCUT_NAME_LENGTH),
+);
+const PromptShortcutTimestamps = { createdAt: Schema.String, updatedAt: Schema.String };
+/** What a write may contain. Limits live here only: a stored list outlives the limits of its day. */
+export const PromptShortcut = Schema.Struct({
+  ...PromptShortcutTimestamps,
+  id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64)),
+  name: PromptShortcutName,
+  title: Schema.NullOr(Schema.String.check(Schema.isMaxLength(MAX_PROMPT_SHORTCUT_TITLE_LENGTH))),
+  /** The composer's raw prompt text, so `$skill` and `@file` references come back as chips. */
+  content: Schema.String.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(MAX_PROMPT_SHORTCUT_CONTENT_LENGTH),
+  ),
+});
+export type PromptShortcut = typeof PromptShortcut.Type;
+
+/** Entries as stored and sent to clients: shape only, so a later change of the limits breaks no reader. */
+const StoredPromptShortcut = Schema.Struct({
+  ...PromptShortcutTimestamps,
+  title: Schema.NullOr(Schema.String),
+  id: Schema.String.check(Schema.isMinLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
+  content: Schema.String.check(Schema.isMinLength(1)),
+});
+const isStoredPromptShortcut = Schema.is(StoredPromptShortcut);
+
+/**
+ * Reads the list entry by entry: an entry that cannot be read, a repeated name and anything past
+ * the cap drop alone, so one bad entry in a hand-edited file never resets the other settings.
+ */
+export const StoredPromptShortcuts = Schema.Array(Schema.Unknown).pipe(
+  Schema.decodeTo(
+    Schema.Array(StoredPromptShortcut),
+    SchemaTransformation.transform<
+      ReadonlyArray<typeof StoredPromptShortcut.Type>,
+      ReadonlyArray<unknown>
+    >({
+      decode: (values) => {
+        const names = new Set<string>();
+        const kept: Array<typeof StoredPromptShortcut.Type> = [];
+        for (const value of values) {
+          if (kept.length >= MAX_PROMPT_SHORTCUTS) break;
+          if (!isStoredPromptShortcut(value) || names.has(value.name)) continue;
+          names.add(value.name);
+          kept.push(value);
+        }
+        return kept;
+      },
+      encode: (values) => values,
+    }),
+  ),
+);
+
+/**
+ * One edit to the list, applied by the server under its settings lock, so devices and rapid edits
+ * never overwrite each other with a whole list built from an older copy.
+ */
+export const PromptShortcutChange = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("upsert"), shortcut: PromptShortcut }),
+  Schema.Struct({ kind: Schema.Literal("remove"), id: Schema.String }),
+]);
+export type PromptShortcutChange = typeof PromptShortcutChange.Type;
+
 export const MIN_GLASS_OPACITY = 40;
 export const MAX_GLASS_OPACITY = 100;
 export const GlassOpacity = Schema.Int.check(
@@ -1583,6 +1658,8 @@ export const ServerSettings = Schema.Struct({
   snoozePresets: SnoozePresetSettings.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_SNOOZE_PRESETS)),
   ),
+  /** fork: prompts saved for `;name` in the composer. Per environment, not shared across them. */
+  promptShortcuts: StoredPromptShortcuts.pipe(Schema.withDecodingDefault(Effect.succeed([]))),
   /** Clients hide threads with these tags while `hideTaggedThreads` is on. Bad entries drop alone, so a hand edit cannot reset settings. */
   hiddenThreadTags: Schema.Array(Schema.Unknown).pipe(
     Schema.decodeTo(
@@ -1871,6 +1948,7 @@ export const ServerSettingsOperation = Schema.Literals([
   "prepare-directory",
   "write-managed-setting",
   "use-disallowed-provider",
+  "change-prompt-shortcuts", // fork: prompt shortcuts
 ]);
 export type ServerSettingsOperation = typeof ServerSettingsOperation.Type;
 
@@ -1890,10 +1968,15 @@ export class ServerSettingsError extends Schema.TaggedError<ServerSettingsError>
     managedBy: Schema.optional(Schema.String),
     /** For `use-disallowed-provider`: the provider's name as users know it. */
     providerLabel: Schema.optional(Schema.String),
+    /** For `change-prompt-shortcuts`: why the change was refused. */
+    reason: Schema.optional(Schema.String),
     cause: Schema.optional(Schema.Defect()),
   },
 ) {
   override get message(): string {
+    if (this.operation === "change-prompt-shortcuts") {
+      return this.reason ?? "The prompt shortcut change was refused.";
+    }
     if (this.operation === "write-managed-setting") {
       return `${this.managedSetting ?? "This setting"} is managed by ${this.managedBy ?? "your organization"} and cannot be changed.`;
     }
@@ -2039,6 +2122,10 @@ export const ServerSettingsPatch = Schema.Struct({
   autoResumeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   snoozeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   snoozePresets: Schema.optionalKey(SnoozePresetSettings),
+  // fork: prompt shortcuts. Edits, not the whole list; see PromptShortcutChange.
+  changePromptShortcuts: Schema.optionalKey(
+    Schema.Array(PromptShortcutChange).check(Schema.isMaxLength(MAX_PROMPT_SHORTCUTS)),
+  ),
   hiddenThreadTags: Schema.optionalKey(Schema.Array(Schema.String)),
   hideTaggedThreads: Schema.optionalKey(Schema.Boolean),
   guestSharingEnabled: Schema.optionalKey(Schema.Boolean),

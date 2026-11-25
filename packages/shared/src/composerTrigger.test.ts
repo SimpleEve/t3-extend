@@ -24,6 +24,49 @@ function parsedLinkLabel(markdown: string): string | undefined {
   return link && textOf(link);
 }
 
+describe("detectComposerTrigger prompt shortcuts", () => {
+  it.each([
+    [";", "", 0],
+    [";sk", "sk", 0],
+    [";SK-2", "SK-2", 0],
+    ["\uFF1Bsummary", "summary", 0],
+    ["Please ;re", "re", 7],
+    ["line one\n;fix", "fix", 9],
+  ])("offers %j as a prompt shortcut", (text, query, rangeStart) => {
+    expect(detectComposerTrigger(text, text.length)).toEqual({
+      kind: "prompt-shortcut",
+      query,
+      rangeStart,
+      rangeEnd: text.length,
+    });
+  });
+
+  it.each([
+    "a;b",
+    "x;",
+    "if (a) { b; }",
+    "end of a sentence; and more",
+    "10:30",
+    "http://x",
+    ":re",
+    "\uFF1Are",
+    ";)",
+    ";D!",
+    ";;a",
+    "; sk",
+    "\uFF1B\u597D",
+  ])("does not trigger for %j", (text) =>
+    expect(detectComposerTrigger(text, text.length)).toBeNull(),
+  );
+
+  it("only reads the word before the caret", () => {
+    expect(detectComposerTrigger("go ;re now", 6)).toMatchObject({
+      kind: "prompt-shortcut",
+      query: "re",
+    });
+  });
+});
+
 describe("detectComposerTrigger", () => {
   it.each([
     ["Run /tmp/build.sh", "Run /tmp/build.sh".length],

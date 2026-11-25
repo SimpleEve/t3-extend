@@ -3,6 +3,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import type {
   EnvironmentId,
   ProjectId,
+  PromptShortcut, // fork: prompt shortcuts
   ServerProvider,
   ThreadId,
   ThreadPullRequestLink,
@@ -17,6 +18,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/model
 const EMPTY_THREAD_SHELLS: ReadonlyArray<EnvironmentThreadShell> = [];
 const EMPTY_ENVIRONMENTS: ReadonlyArray<ComposerEnvironmentCandidate> = [];
 const NO_LINKED_ENVIRONMENTS: ReadonlyMap<EnvironmentId, string> = new Map();
+const NO_PROMPT_SHORTCUTS: ReadonlyArray<PromptShortcut> = []; // fork: prompt shortcuts
 import { COMPOSER_CONTEXT_MAX_RECORDS } from "@t3tools/contracts";
 import {
   formatComposerContextReference,
@@ -30,6 +32,12 @@ import {
   useComposerDraftSelection,
 } from "../../state/use-composer-drafts";
 import { USAGE_LIMITS_COMMAND } from "@t3tools/shared/usageLimits";
+import {
+  matchPromptShortcuts,
+  promptShortcutInsertionText,
+  promptShortcutSkillNames,
+  promptShortcutSummary,
+} from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
 import {
   detectComposerTrigger,
   replaceTextRange,
@@ -244,6 +252,9 @@ export function resolveComposerCommandSelection(input: {
     replacement = `/${item.command.name} `;
   } else if (item.type === "model") {
     replacement = `${formatComposerModelMention(item.option.selection.instanceId, item.option.selection.model)} `;
+  } else if (item.type === "prompt-shortcut") {
+    // fork: prompt shortcuts. The saved text goes in as written, plus a space so typing goes on.
+    replacement = promptShortcutInsertionText(item.shortcut.content);
   }
   return replaceTextRange(draftMessage, trigger.rangeStart, trigger.rangeEnd, replacement);
 }
@@ -272,6 +283,7 @@ export function useComposerCommandMenu({
   modelProviders,
   onFreshSession,
   offersSideChat = false,
+  promptShortcuts = NO_PROMPT_SHORTCUTS,
 }: {
   readonly draftMessage: string;
   readonly ownerKey: string | null;
@@ -299,6 +311,8 @@ export function useComposerCommandMenu({
   /** Arms a fresh session for the next message; absent where `/clear` is unavailable. */
   readonly onFreshSession?: () => void;
   readonly offersSideChat?: boolean;
+  /** fork: prompt shortcuts. `;name` offers these; mobile only uses them, it does not edit them. */
+  readonly promptShortcuts?: ReadonlyArray<PromptShortcut>;
 }) {
   const gt = useGT();
   const messages = useMessages();
@@ -432,6 +446,20 @@ export function useComposerCommandMenu({
         }));
 
       return [...commandItems, ...skillItems];
+    }
+
+    if (trigger.kind === "prompt-shortcut") {
+      // fork: prompt shortcuts. No match returns nothing, so the popover stays closed.
+      const skillNames = promptShortcutSkillNames(skills);
+      return matchPromptShortcuts(promptShortcuts, trigger.query).map((shortcut) => ({
+        id: `prompt-shortcut:${shortcut.id}`,
+        type: "prompt-shortcut" as const,
+        shortcut,
+        label: `;${shortcut.name}`,
+        description: [shortcut.title, promptShortcutSummary(shortcut.content, 80, skillNames)]
+          .filter(Boolean)
+          .join(" · "),
+      }));
     }
 
     if (trigger.kind === "skill") {

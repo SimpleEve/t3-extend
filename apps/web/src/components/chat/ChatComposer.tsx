@@ -14,6 +14,8 @@ import {
 } from "./runtimeModeConfig";
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import { usePrimaryEnvironmentId } from "../../state/environments";
+import { useAtomValue } from "@effect/atom-react"; // fork: prompt shortcuts
+import { serverEnvironment } from "../../state/server"; // fork: prompt shortcuts
 import { useRightPanelStore } from "~/rightPanelStore";
 import { importPastedComposerText, readPastedComposerContext } from "../composerInlineTokenPaste";
 import {
@@ -57,6 +59,13 @@ import { formatComposerModelMention } from "@t3tools/client-runtime/composer-mod
 import { isPasteAsTextShortcut } from "@t3tools/client-runtime/text-paste";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
+import {
+  promptShortcutGhostText,
+  promptShortcutInsertionText,
+  promptShortcutSkillNames,
+} from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
+import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences"; // fork: prompt shortcuts
+import { openPromptShortcutEditor } from "../../fork/promptShortcuts/promptShortcutEditorStore"; // fork: prompt shortcuts
 import { type FolderDropTarget, folderDropTarget, resolveDroppedFolderPath } from "./folderDrop";
 import { splitTransferredFiles } from "./workspaceFileDrop";
 import { createModelSelection, normalizeModelSlug } from "@t3tools/shared/model";
@@ -1134,6 +1143,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const composerSelectLockRef = useRef(false);
   const composerMenuItemsRef = useRef<ComposerCommandItem[]>([]);
   const activeComposerMenuItemRef = useRef<ComposerCommandItem | null>(null);
+  // fork: prompt shortcuts. What an arrow key chose, so Enter expands it; a fuzzy default never expands.
+  const promptShortcutPickRef = useRef<{ searchKey: string | null; itemId: string } | null>(null);
+  const promptShortcutPickedRef = useRef(false);
   const composerBlurFrameRef = useRef<number | null>(null);
   const mobileComposerExpandFrameRef = useRef<number | null>(null);
   const mobileComposerExpandReleaseFrameRef = useRef<number | null>(null);
@@ -1218,6 +1230,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     composerPreviewAnnotations.length === 0 &&
     composerReviewComments.length === 0;
   const linkedEnvironments = useLinkedEnvironments(environmentId);
+  const canWritePromptShortcuts = useAtomValue(
+    serverEnvironment.updateSettings.permissionAtom(environmentId),
+  ); // fork: prompt shortcuts
   const {
     items: composerMenuItems,
     isLoading: isComposerMenuLoading,
@@ -1242,9 +1257,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     workspaceSkillsScanning,
     questionAttachmentTarget,
     modelMentions: { instanceEntries: providerInstanceEntries, modelOptionsByInstance },
+    promptShortcuts: settings.promptShortcuts, // fork: prompt shortcuts
+    promptShortcutSaveAvailable: canWritePromptShortcuts, // fork: prompt shortcuts
   });
 
-  const composerMenuOpen = Boolean(composerTrigger);
+  // fork: prompt shortcuts. A `;word` nothing matches is plain text, so it opens no menu.
+  const composerMenuOpen =
+    Boolean(composerTrigger) &&
+    !(composerTrigger?.kind === "prompt-shortcut" && composerMenuItems.length === 0);
   const composerMenuSearchKey = composerTrigger
     ? `${composerSuggestionListId}:${composerTrigger.kind}:${composerTrigger.query.trim().toLowerCase()}`
     : null;
@@ -1256,11 +1276,28 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   });
   const activeComposerMenuItem =
     composerMenuItems.find((item) => item.id === activeComposerMenuItemId) ?? null;
+  // fork: prompt shortcuts. Web and desktop hint what Tab will expand; a small screen has no room.
+  const promptShortcutGhost =
+    composerMenuOpen &&
+    !isMobileViewport &&
+    composerTrigger?.kind === "prompt-shortcut" &&
+    activeComposerMenuItem?.type === "prompt-shortcut"
+      ? promptShortcutGhostText(
+          activeComposerMenuItem.shortcut,
+          composerTrigger.query,
+          promptShortcutSkillNames(selectedProviderSkills),
+        )
+      : null;
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed composer menu state to refs read by editor key handlers
   useLayoutEffect(() => {
     composerMenuItemsRef.current = composerMenuItems;
     activeComposerMenuItemRef.current = activeComposerMenuItem;
+    const pick = promptShortcutPickRef.current; // fork: prompt shortcuts
+    promptShortcutPickedRef.current =
+      pick !== null &&
+      pick.searchKey === composerMenuSearchKey &&
+      pick.itemId === activeComposerMenuItem?.id;
   });
 
   const isComposerApprovalState = activePendingApproval !== null;
@@ -2099,6 +2136,29 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         }
         return;
       }
+      if (item.command === "shortcut") {
+        // fork: prompt shortcuts. The draft without the command becomes the shortcut's content.
+        const draft = replaceTextRange(
+          snapshot.value,
+          trigger.rangeStart,
+          trigger.rangeEnd,
+          "",
+        ).text;
+        const applied = applyPromptReplacement(trigger.rangeStart, trigger.rangeEnd, "", {
+          expectedText: snapshot.value.slice(trigger.rangeStart, trigger.rangeEnd),
+          focusEditorAfterReplace: false,
+        });
+        if (applied) {
+          setComposerHighlightedItemId(null);
+          openPromptShortcutEditor({
+            environmentId,
+            shortcut: null,
+            content: replaceComposerContextReferences(draft, (reference) => reference.label).trim(),
+            cwd: gitCwd ?? undefined,
+          });
+        }
+        return;
+      }
       if (item.command === "clear") {
         const applied = applyPromptReplacement(trigger.rangeStart, trigger.rangeEnd, "", {
           expectedText: snapshot.value.slice(trigger.rangeStart, trigger.rangeEnd),
@@ -2160,6 +2220,26 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       });
       if (applied) {
         setComposerHighlightedItemId(null);
+      }
+      return;
+    }
+    if (item.type === "prompt-shortcut") {
+      // fork: prompt shortcuts. The saved text goes through the same parsing as typed text, so
+      // `$skill` and `@file` references come back as chips and the result stays editable.
+      if (trigger.kind !== "prompt-shortcut") return;
+      // A trailing space lets a closing `$skill` or `@file` become a chip and starts the next word.
+      const replacement = promptShortcutInsertionText(item.shortcut.content);
+      const replacementRangeEnd = extendReplacementRangeForTrailingSpace(
+        snapshot.value,
+        trigger.rangeEnd,
+        replacement,
+      );
+      const applied = applyPromptReplacement(trigger.rangeStart, replacementRangeEnd, replacement, {
+        expectedText: snapshot.value.slice(trigger.rangeStart, replacementRangeEnd),
+      });
+      if (applied) {
+        setComposerHighlightedItemId(null);
+        resetComposerTrigger(null);
       }
       return;
     }
@@ -2267,6 +2347,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     const nextIndex =
       (normalizedIndex + offset + composerMenuItems.length) % composerMenuItems.length;
     const nextItem = composerMenuItems[nextIndex];
+    // fork: prompt shortcuts. With one item the highlight does not change, so no render would record the pick.
+    if (nextItem) {
+      promptShortcutPickRef.current = { searchKey: composerMenuSearchKey, itemId: nextItem.id };
+      promptShortcutPickedRef.current = true;
+    }
     setComposerHighlightedItemId(nextItem?.id ?? null);
   };
 
@@ -2607,6 +2692,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       composerEditorRef,
       composerMenuItemsRef,
       activeComposerMenuItemRef,
+      promptShortcutPickedRef, // fork: prompt shortcuts
       setComposerDraftPrompt,
       setComposerDraftThreadContexts,
       setComposerDraftEnvironmentContexts,
@@ -3952,6 +4038,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     richTextEnabled={settings.composerRichTextEnabled}
                     literalText={isLiteralPendingAnswer}
                     isPathQueryActive={isPathQueryActiveStable}
+                    ghostText={promptShortcutGhost} // fork: prompt shortcuts
                     value={activePendingProgress ? activePendingProgress.customAnswer : prompt}
                     cursor={composerCursor}
                     contextRecords={composerContextRecords}

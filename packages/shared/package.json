@@ -319,6 +319,10 @@
       "types": "./src/composerTrigger.ts",
       "import": "./src/composerTrigger.ts"
     },
+    "./promptShortcuts": {
+      "types": "./src/promptShortcuts.ts",
+      "import": "./src/promptShortcuts.ts"
+    },
     "./triagePrompt": {
       "types": "./src/triagePrompt.ts",
       "import": "./src/triagePrompt.ts"

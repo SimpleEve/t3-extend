@@ -35,6 +35,7 @@ import { Route as ChatSettingsSnapShotRouteImport } from './routes/_chat.setting
 import { Route as ChatSettingsSecretsRouteImport } from './routes/_chat.settings.secrets'
 import { Route as ChatSettingsScheduledTasksRouteImport } from './routes/_chat.settings.scheduled-tasks'
 import { Route as ChatSettingsProvidersRouteImport } from './routes/_chat.settings.providers'
+import { Route as ChatSettingsPromptShortcutsRouteImport } from './routes/_chat.settings.prompt-shortcuts'
 import { Route as ChatSettingsProjectsRouteImport } from './routes/_chat.settings.projects'
 import { Route as ChatSettingsOpenSourceLicensesRouteImport } from './routes/_chat.settings.open-source-licenses'
 import { Route as ChatSettingsMaintenanceRouteImport } from './routes/_chat.settings.maintenance'
@@ -189,6 +190,12 @@ const ChatSettingsProvidersRoute = ChatSettingsProvidersRouteImport.update({
   path: '/providers',
   getParentRoute: () => ChatSettingsRoute,
 } as any)
+const ChatSettingsPromptShortcutsRoute =
+  ChatSettingsPromptShortcutsRouteImport.update({
+    id: '/prompt-shortcuts',
+    path: '/prompt-shortcuts',
+    getParentRoute: () => ChatSettingsRoute,
+  } as any)
 const ChatSettingsProjectsRoute = ChatSettingsProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -336,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/settings/maintenance': typeof ChatSettingsMaintenanceRoute
   '/settings/open-source-licenses': typeof ChatSettingsOpenSourceLicensesRoute
   '/settings/projects': typeof ChatSettingsProjectsRoute
+  '/settings/prompt-shortcuts': typeof ChatSettingsPromptShortcutsRoute
   '/settings/providers': typeof ChatSettingsProvidersRoute
   '/settings/scheduled-tasks': typeof ChatSettingsScheduledTasksRoute
   '/settings/secrets': typeof ChatSettingsSecretsRoute
@@ -384,6 +392,7 @@ export interface FileRoutesByTo {
   '/settings/maintenance': typeof ChatSettingsMaintenanceRoute
   '/settings/open-source-licenses': typeof ChatSettingsOpenSourceLicensesRoute
   '/settings/projects': typeof ChatSettingsProjectsRoute
+  '/settings/prompt-shortcuts': typeof ChatSettingsPromptShortcutsRoute
   '/settings/providers': typeof ChatSettingsProvidersRoute
   '/settings/scheduled-tasks': typeof ChatSettingsScheduledTasksRoute
   '/settings/secrets': typeof ChatSettingsSecretsRoute
@@ -434,6 +443,7 @@ export interface FileRoutesById {
   '/_chat/settings/maintenance': typeof ChatSettingsMaintenanceRoute
   '/_chat/settings/open-source-licenses': typeof ChatSettingsOpenSourceLicensesRoute
   '/_chat/settings/projects': typeof ChatSettingsProjectsRoute
+  '/_chat/settings/prompt-shortcuts': typeof ChatSettingsPromptShortcutsRoute
   '/_chat/settings/providers': typeof ChatSettingsProvidersRoute
   '/_chat/settings/scheduled-tasks': typeof ChatSettingsScheduledTasksRoute
   '/_chat/settings/secrets': typeof ChatSettingsSecretsRoute
@@ -484,6 +494,7 @@ export interface FileRouteTypes {
     | '/settings/maintenance'
     | '/settings/open-source-licenses'
     | '/settings/projects'
+    | '/settings/prompt-shortcuts'
     | '/settings/providers'
     | '/settings/scheduled-tasks'
     | '/settings/secrets'
@@ -532,6 +543,7 @@ export interface FileRouteTypes {
     | '/settings/maintenance'
     | '/settings/open-source-licenses'
     | '/settings/projects'
+    | '/settings/prompt-shortcuts'
     | '/settings/providers'
     | '/settings/scheduled-tasks'
     | '/settings/secrets'
@@ -581,6 +593,7 @@ export interface FileRouteTypes {
     | '/_chat/settings/maintenance'
     | '/_chat/settings/open-source-licenses'
     | '/_chat/settings/projects'
+    | '/_chat/settings/prompt-shortcuts'
     | '/_chat/settings/providers'
     | '/_chat/settings/scheduled-tasks'
     | '/_chat/settings/secrets'
@@ -791,6 +804,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatSettingsProvidersRouteImport
       parentRoute: typeof ChatSettingsRoute
     }
+    '/_chat/settings/prompt-shortcuts': {
+      id: '/_chat/settings/prompt-shortcuts'
+      path: '/prompt-shortcuts'
+      fullPath: '/settings/prompt-shortcuts'
+      preLoaderRoute: typeof ChatSettingsPromptShortcutsRouteImport
+      parentRoute: typeof ChatSettingsRoute
+    }
     '/_chat/settings/projects': {
       id: '/_chat/settings/projects'
       path: '/projects'
@@ -960,6 +980,7 @@ interface ChatSettingsRouteChildren {
   ChatSettingsMaintenanceRoute: typeof ChatSettingsMaintenanceRoute
   ChatSettingsOpenSourceLicensesRoute: typeof ChatSettingsOpenSourceLicensesRoute
   ChatSettingsProjectsRoute: typeof ChatSettingsProjectsRoute
+  ChatSettingsPromptShortcutsRoute: typeof ChatSettingsPromptShortcutsRoute
   ChatSettingsProvidersRoute: typeof ChatSettingsProvidersRoute
   ChatSettingsScheduledTasksRoute: typeof ChatSettingsScheduledTasksRoute
   ChatSettingsSecretsRoute: typeof ChatSettingsSecretsRoute
@@ -991,6 +1012,7 @@ const ChatSettingsRouteChildren: ChatSettingsRouteChildren = {
   ChatSettingsMaintenanceRoute: ChatSettingsMaintenanceRoute,
   ChatSettingsOpenSourceLicensesRoute: ChatSettingsOpenSourceLicensesRoute,
   ChatSettingsProjectsRoute: ChatSettingsProjectsRoute,
+  ChatSettingsPromptShortcutsRoute: ChatSettingsPromptShortcutsRoute,
   ChatSettingsProvidersRoute: ChatSettingsProvidersRoute,
   ChatSettingsScheduledTasksRoute: ChatSettingsScheduledTasksRoute,
   ChatSettingsSecretsRoute: ChatSettingsSecretsRoute,

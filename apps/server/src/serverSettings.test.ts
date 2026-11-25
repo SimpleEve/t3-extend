@@ -296,6 +296,112 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
     }).pipe(Effect.provide(layerServerSettings())),
   );
 
+  // fork: prompt shortcuts
+  const savedShortcut = (name: string, overrides: Record<string, unknown> = {}) => ({
+    id: `id-${name}`,
+    name,
+    title: null,
+    content: `Run ${name}`,
+    createdAt: "2026-11-25T00:00:00.000Z",
+    updatedAt: "2026-11-25T00:00:00.000Z",
+    ...overrides,
+  });
+
+  it.effect("keeps every other setting and the readable shortcuts when one shortcut is bad", () =>
+    Effect.gen(function* () {
+      const config = yield* ServerConfig.ServerConfig;
+      const fs = yield* FileSystem.FileSystem;
+      const service = yield* ServerSettingsModule.ServerSettingsService;
+      yield* fs.writeFileString(
+        config.settingsPath,
+        JSON.stringify({
+          defaultRuntimeMode: "full-access",
+          promptShortcuts: [
+            savedShortcut("keep-one"),
+            { id: "broken", name: "broken", content: 5 },
+            "not an object",
+            savedShortcut("keep-one", { id: "twin" }),
+            savedShortcut("keep-two"),
+          ],
+        }),
+      );
+
+      const settings = yield* service.getSettings;
+      assert.equal(settings.defaultRuntimeMode, "full-access");
+      assert.deepEqual(
+        settings.promptShortcuts.map((shortcut) => shortcut.id),
+        ["id-keep-one", "id-keep-two"],
+      );
+    }).pipe(Effect.provide(layerServerSettings())),
+  );
+
+  it.effect("truncates a stored list longer than the cap instead of refusing the file", () =>
+    Effect.gen(function* () {
+      const config = yield* ServerConfig.ServerConfig;
+      const fs = yield* FileSystem.FileSystem;
+      const service = yield* ServerSettingsModule.ServerSettingsService;
+      yield* fs.writeFileString(
+        config.settingsPath,
+        JSON.stringify({
+          promptShortcuts: Array.from({ length: 205 }, (_, index) => savedShortcut(`n-${index}`)),
+        }),
+      );
+      const settings = yield* service.getSettings;
+      assert.equal(settings.promptShortcuts.length, 200);
+    }).pipe(Effect.provide(layerServerSettings())),
+  );
+
+  it.effect("applies shortcut upserts and removals to the stored list, never replacing it", () =>
+    Effect.gen(function* () {
+      const service = yield* ServerSettingsModule.ServerSettingsService;
+      yield* service.updateSettings({
+        changePromptShortcuts: [
+          { kind: "upsert", shortcut: savedShortcut("one") },
+          { kind: "upsert", shortcut: savedShortcut("two") },
+          { kind: "upsert", shortcut: savedShortcut("three") },
+        ],
+      });
+      // Two devices that both saw all three each remove a different one.
+      yield* Effect.all(
+        [
+          service.updateSettings({ changePromptShortcuts: [{ kind: "remove", id: "id-one" }] }),
+          service.updateSettings({ changePromptShortcuts: [{ kind: "remove", id: "id-two" }] }),
+        ],
+        { concurrency: "unbounded" },
+      );
+      const settings = yield* service.getSettings;
+      assert.deepEqual(
+        settings.promptShortcuts.map((shortcut) => shortcut.name),
+        ["three"],
+      );
+    }).pipe(Effect.provide(layerServerSettings())),
+  );
+
+  it.effect(
+    "refuses a shortcut change that takes another shortcut's name and changes nothing",
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ServerSettingsModule.ServerSettingsService;
+        yield* service.updateSettings({
+          changePromptShortcuts: [{ kind: "upsert", shortcut: savedShortcut("taken") }],
+        });
+        const refused = yield* service
+          .updateSettings({
+            changePromptShortcuts: [
+              { kind: "upsert", shortcut: savedShortcut("fresh") },
+              { kind: "upsert", shortcut: savedShortcut("taken", { id: "someone-else" }) },
+            ],
+          })
+          .pipe(Effect.flip);
+        assert.equal(refused.operation, "change-prompt-shortcuts");
+        const settings = yield* service.getSettings;
+        assert.deepEqual(
+          settings.promptShortcuts.map((shortcut) => shortcut.name),
+          ["taken"],
+        );
+      }).pipe(Effect.provide(layerServerSettings())),
+  );
+
   it.effect("tells clients it reads idle compaction modes before any settings are saved", () =>
     Effect.gen(function* () {
       const service = yield* ServerSettingsModule.ServerSettingsService;

@@ -88,6 +88,30 @@ describe("mobile slash commands", () => {
     ).toEqual({ text: "/plan ", cursor: 6 });
   });
 
+  it("expands a prompt shortcut to its saved text, replacing only the typed ;query, and leaves a space to keep typing", () => {
+    const content = "Review this change\nand $review-skill it";
+    expect(
+      resolveComposerCommandSelection({
+        draftMessage: "Please ;rev",
+        trigger: { rangeStart: 7, rangeEnd: 11 },
+        item: {
+          id: "prompt-shortcut:1",
+          type: "prompt-shortcut",
+          shortcut: {
+            id: "1",
+            name: "review",
+            title: null,
+            content,
+            createdAt: "2026-11-25T00:00:00.000Z",
+            updatedAt: "2026-11-25T00:00:00.000Z",
+          },
+          label: ";review",
+          description: "",
+        },
+      }),
+    ).toEqual({ text: `Please ${content} `, cursor: 7 + content.length + 1 });
+  });
+
   it("offers T3's /clear in place of the provider's, only at the message start", () => {
     const claude = {
       driver: ProviderDriverKind.make("claudeAgent"),

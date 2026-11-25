@@ -10,6 +10,7 @@ import {
   withAssistantCitationComment,
 } from "@t3tools/shared/assistantCitations";
 import {
+  detectComposerPromptShortcutTrigger, // fork: prompt shortcuts
   detectComposerPullRequestTrigger,
   isCurrencyAmountQuery,
   isPathWord,
@@ -25,8 +26,13 @@ import {
   type ShortcutMatchContext,
 } from "./keybindings";
 
-export type ComposerTriggerKind = "path" | "pull-request" | "slash-command" | "skill";
-export type ComposerSlashCommand = "model" | "side" | "btw" | "clear";
+export type ComposerTriggerKind =
+  | "path"
+  | "pull-request"
+  | "slash-command"
+  | "skill"
+  | "prompt-shortcut"; // fork: prompt shortcuts
+export type ComposerSlashCommand = "model" | "side" | "btw" | "clear" | "shortcut"; // fork: prompt shortcuts
 export type ComposerSubmissionIntent = "foreground" | "background" | "alternate";
 
 export interface ComposerTrigger {
@@ -284,6 +290,8 @@ export function detectComposerTrigger(text: string, cursorInput: number): Compos
       rangeEnd: cursor,
     };
   }
+  const promptShortcutTrigger = detectComposerPromptShortcutTrigger(token, cursor); // fork: prompt shortcuts
+  if (promptShortcutTrigger) return promptShortcutTrigger;
   if (!token.startsWith("@")) {
     return null;
   }

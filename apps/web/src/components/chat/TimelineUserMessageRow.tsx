@@ -60,6 +60,7 @@ import { GuestMessageName, guestBubbleClassName } from "./guestMessageStyle";
 import { MessageCopyButton } from "./MessageCopyButton";
 import { AssistantCitationSource } from "./AssistantCitationSource"; // fork: message bookmarks
 import { BookmarkMessageButton } from "../../fork/bookmarks/BookmarkMessageButton"; // fork: message bookmarks
+import { SaveMessageAsShortcutButton } from "../../fork/promptShortcuts/SaveAsShortcutButtons"; // fork: prompt shortcuts
 import { BookmarkMessageMarker } from "../../fork/bookmarks/BookmarkMessageMarker"; // fork: message bookmarks
 import { promptLinkFor } from "../promptLinks/copyPromptLink";
 import { PierreEntryIcon } from "./PierreEntryIcon";
@@ -908,6 +909,17 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             fallbackText={plainText}
           />
         ) : null}
+        {/* fork: prompt shortcuts. Only the user's own words; an agent's or a guest's are not theirs to save. */}
+        {ctx.threadRef &&
+        plainText.trim() &&
+        userMessage.attribution !== "agent" &&
+        userMessage.attribution !== "guest" ? (
+          <SaveMessageAsShortcutButton
+            threadRef={ctx.threadRef}
+            content={plainText}
+            cwd={ctx.markdownCwd}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -1123,6 +1135,9 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                   request={ctx.citationRequest}
                   listRef={ctx.listRef}
                   bookmarkOnly
+                  shortcutSource={
+                    userMessage.attribution !== "agent" && userMessage.attribution !== "guest"
+                  } // fork: prompt shortcuts
                 >
                   <CollapsibleUserMessageBody
                     text={resolvedContext.text}

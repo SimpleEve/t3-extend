@@ -5,6 +5,7 @@ import {
 import type {
   EnvironmentId,
   EnvironmentMachineKind,
+  PromptShortcut, // fork: prompt shortcuts
   PullRequestContextMetadata,
   ScopedThreadRef,
   ServerProviderSkill,
@@ -83,6 +84,14 @@ export type ComposerCommandItem =
       readonly option: ModelOption;
       readonly label: string;
       readonly description: string;
+    }
+  | {
+      // fork: prompt shortcuts
+      readonly id: string;
+      readonly type: "prompt-shortcut";
+      readonly shortcut: PromptShortcut;
+      readonly label: string;
+      readonly description: string;
     };
 
 interface ComposerCommandPopoverProps {
@@ -131,6 +140,7 @@ function itemIcon(item: ComposerCommandItem): AppSymbolName | null {
       return SKILL_SOURCE_SYMBOL_BY_KIND[resolveProviderSkillSourceKind(item.skill)];
     case "path":
     case "model":
+    case "prompt-shortcut": // fork: prompt shortcuts
       return null;
     case "thread":
       return "text.bubble";
@@ -151,6 +161,8 @@ function groupLabel(
       return resolve(msg("Commands"));
     case "skill":
       return resolve(msg("Skills"));
+    case "prompt-shortcut": // fork: prompt shortcuts
+      return resolve(msg("Prompt shortcuts"));
     case "path":
       return items.every((item) => item.type === "path")
         ? resolve(msg("Files"))

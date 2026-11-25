@@ -258,6 +258,7 @@ import {
 import { useCommandPaletteThreadItems } from "./CommandPaletteThreadItems";
 import { useCommandPaletteThemeItems } from "./CommandPaletteThemeItems";
 import { useCommandPaletteSidebarViewItems } from "./CommandPaletteSidebarViewItems"; // fork: sidebar views
+import { usePromptShortcutPaletteItems } from "../fork/promptShortcuts/PromptShortcutPaletteItems"; // fork: prompt shortcuts
 import { useYourServerPaletteItems } from "../fork/YourServerPaletteItems"; // fork: self-hosted devices
 import {
   PORT_FORWARD_GROUP_PREFIX,
@@ -558,6 +559,9 @@ function OpenCommandPaletteDialog(props: {
   const { changeThemeItem, changeAppearanceItem, themeEditorItem } = useCommandPaletteThemeItems();
   const sidebarViewItems = useCommandPaletteSidebarViewItems(); // fork: sidebar views
   const deviceItems = useYourServerPaletteItems(); // fork: self-hosted devices
+  const promptShortcutItems = usePromptShortcutPaletteItems(
+    activeThread?.environmentId ?? activeDraftThread?.environmentId ?? primaryEnvironmentId,
+  ); // fork: prompt shortcuts
   const portForwardItem = useCommandPalettePortForwardItem({
     activeThread: activeThread ?? null,
     query: deferredQuery,
@@ -1684,6 +1688,7 @@ function OpenCommandPaletteDialog(props: {
   actionItems.push(themeEditorItem);
   actionItems.push(...sidebarViewItems); // fork: sidebar views
   actionItems.push(...deviceItems); // fork: self-hosted devices
+  actionItems.push(...promptShortcutItems); // fork: prompt shortcuts
 
   if (environments.some((environment) => environment.serverConfig !== null)) {
     actionItems.push({

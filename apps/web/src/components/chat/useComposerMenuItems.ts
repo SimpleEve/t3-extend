@@ -12,6 +12,7 @@ import { useState } from "react";
 import type {
   EnvironmentId,
   ProjectId,
+  PromptShortcut, // fork: prompt shortcuts
   ProviderDriverKind,
   ProviderInstanceId,
   PullRequestListInput,
@@ -25,6 +26,11 @@ import {
   withLinkedComposerPullRequestsFirst,
 } from "@t3tools/shared/composerPullRequestMatches";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
+import {
+  matchPromptShortcuts,
+  promptShortcutSkillNames,
+  promptShortcutSummary,
+} from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
 
 import type { ComposerTrigger } from "../../composer-logic";
 import type { DraftId } from "../../composerDraftStore";
@@ -83,6 +89,8 @@ export function useComposerMenuItems({
   workspaceSkillsScanning,
   questionAttachmentTarget,
   modelMentions,
+  promptShortcuts,
+  promptShortcutSaveAvailable,
 }: {
   readonly composerTrigger: ComposerTrigger | null;
   readonly environmentId: EnvironmentId;
@@ -106,6 +114,9 @@ export function useComposerMenuItems({
     readonly instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
     readonly modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
   };
+  readonly promptShortcuts: ReadonlyArray<PromptShortcut>;
+  /** Whether `/shortcut` may offer to save the draft: the connection can change settings. */
+  readonly promptShortcutSaveAvailable: boolean;
 }) {
   const gt = useGT();
   const messages = useMessages();
@@ -280,6 +291,18 @@ export function useComposerMenuItems({
               },
             ] as const)
           : []),
+        ...(promptShortcutSaveAvailable
+          ? ([
+              {
+                // fork: prompt shortcuts
+                id: "slash:shortcut",
+                type: "slash-command",
+                command: "shortcut",
+                label: "/shortcut",
+                description: gt("Save this draft as a prompt shortcut"),
+              },
+            ] as const)
+          : []),
         ...(freshSessionAvailable
           ? ([
               {
@@ -330,6 +353,17 @@ export function useComposerMenuItems({
         composerTrigger.rangeStart === 0,
       );
       return searchSlashCommandItems(slashCommandItems, query);
+    }
+    if (composerTrigger.kind === "prompt-shortcut") {
+      // fork: prompt shortcuts. No match returns nothing, which keeps the menu closed.
+      const skillNames = promptShortcutSkillNames(selectedProviderSkills);
+      return matchPromptShortcuts(promptShortcuts, composerTrigger.query).map((shortcut) => ({
+        id: `prompt-shortcut:${shortcut.id}`,
+        type: "prompt-shortcut" as const,
+        shortcut,
+        label: `;${shortcut.name}`,
+        description: promptShortcutSummary(shortcut.content, 120, skillNames),
+      }));
     }
     if (composerTrigger.kind === "skill") {
       return searchProviderSkills(selectedProviderSkills, composerTrigger.query).map((skill) => ({

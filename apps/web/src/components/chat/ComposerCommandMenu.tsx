@@ -12,6 +12,7 @@ import {
   type ProviderInstanceId,
   type PullRequestContextMetadata,
   type ScopedThreadRef,
+  type PromptShortcut, // fork: prompt shortcuts
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
@@ -102,6 +103,14 @@ export type ComposerCommandItem =
       providerDisplayName: string;
       acpRegistryAgentId: string | undefined;
       acpRegistryIconUrl: string | undefined;
+      label: string;
+      description: string;
+    }
+  | {
+      // fork: prompt shortcuts
+      id: string;
+      type: "prompt-shortcut";
+      shortcut: PromptShortcut;
       label: string;
       description: string;
     };
@@ -279,6 +288,12 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
             props.item.label
           )}
         </span>
+        {props.item.type === "prompt-shortcut" && props.item.shortcut.title ? (
+          // fork: prompt shortcuts. The title reads as the row's name; the preview stays muted.
+          <span className="min-w-0 max-w-[35%] shrink-0 truncate text-xs">
+            {props.item.shortcut.title}
+          </span>
+        ) : null}
         <Tooltip open={descriptionTruncated}>
           <TooltipTrigger
             tabIndex={-1}
@@ -314,6 +329,7 @@ const LISTBOX_LABEL_BY_TRIGGER: Record<ComposerTriggerKind, string> = {
   "pull-request": msg("Pull requests"),
   "slash-command": msg("Commands"),
   skill: msg("Skills"),
+  "prompt-shortcut": msg("Prompt shortcuts"), // fork: prompt shortcuts
 };
 
 const SKILL_SOURCE_ICON_BY_KIND: Record<ProviderSkillSourceKind, LucideIcon> = {
