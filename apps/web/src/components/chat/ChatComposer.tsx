@@ -44,6 +44,7 @@ import type {
 import {
   EnvironmentRequestInvalidError,
   AuthOrchestrationOperateScope,
+  AuthSettingsWriteScope, // fork: prompt shortcuts
   clampManagedRuntimeMode,
   ProviderDriverKind,
   ProviderInstanceId,
@@ -58,6 +59,8 @@ import { isPasteAsTextShortcut } from "@t3tools/client-runtime/text-paste";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import { promptShortcutGhostText } from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
+import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences"; // fork: prompt shortcuts
+import { openPromptShortcutEditor } from "../../fork/promptShortcuts/promptShortcutEditorStore"; // fork: prompt shortcuts
 import { type FolderDropTarget, folderDropTarget, resolveDroppedFolderPath } from "./folderDrop";
 import { splitTransferredFiles } from "./workspaceFileDrop";
 import { createModelSelection, normalizeModelSlug } from "@t3tools/shared/model";
@@ -283,7 +286,11 @@ import { Kbd } from "../ui/kbd";
 import { useSoftwareKeyboardOpen } from "../../hooks/useSoftwareKeyboardOpen";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { usePanelAnimationSettings } from "../../panelAnimations";
-import { readEnvironmentScope, readPreparedConnection } from "../../state/session";
+import {
+  readEnvironmentScope,
+  readPreparedConnection,
+  useEnvironmentScope, // fork: prompt shortcuts
+} from "../../state/session";
 import type { ReviewCommentContext } from "../../reviewCommentContext";
 import { useComposerRestingTransition } from "./useComposerRestingTransition";
 import { ComposerCommandMenuLayer } from "./ComposerCommandMenuLayer";
@@ -1219,6 +1226,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     composerPreviewAnnotations.length === 0 &&
     composerReviewComments.length === 0;
   const linkedEnvironments = useLinkedEnvironments(environmentId);
+  const canWritePromptShortcuts = useEnvironmentScope(environmentId, AuthSettingsWriteScope); // fork: prompt shortcuts
   const {
     items: composerMenuItems,
     isLoading: isComposerMenuLoading,
@@ -1244,6 +1252,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     questionAttachmentTarget,
     modelMentions: { instanceEntries: providerInstanceEntries, modelOptionsByInstance },
     promptShortcuts: settings.promptShortcuts, // fork: prompt shortcuts
+    promptShortcutSaveAvailable: canWritePromptShortcuts, // fork: prompt shortcuts
   });
 
   // fork: prompt shortcuts. A `:word` nothing matches is plain text, so it opens no menu.
@@ -2109,6 +2118,29 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         if (applied) {
           setComposerHighlightedItemId(null);
           setIsComposerModelPickerOpen(true);
+        }
+        return;
+      }
+      if (item.command === "shortcut") {
+        // fork: prompt shortcuts. The draft without the command becomes the shortcut's content.
+        const draft = replaceTextRange(
+          snapshot.value,
+          trigger.rangeStart,
+          trigger.rangeEnd,
+          "",
+        ).text;
+        const applied = applyPromptReplacement(trigger.rangeStart, trigger.rangeEnd, "", {
+          expectedText: snapshot.value.slice(trigger.rangeStart, trigger.rangeEnd),
+          focusEditorAfterReplace: false,
+        });
+        if (applied) {
+          setComposerHighlightedItemId(null);
+          openPromptShortcutEditor({
+            environmentId,
+            shortcut: null,
+            content: replaceComposerContextReferences(draft, (reference) => reference.label).trim(),
+            cwd: gitCwd ?? undefined,
+          });
         }
         return;
       }

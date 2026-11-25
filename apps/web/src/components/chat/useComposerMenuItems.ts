@@ -86,6 +86,7 @@ export function useComposerMenuItems({
   questionAttachmentTarget,
   modelMentions,
   promptShortcuts,
+  promptShortcutSaveAvailable,
 }: {
   readonly composerTrigger: ComposerTrigger | null;
   readonly environmentId: EnvironmentId;
@@ -110,6 +111,8 @@ export function useComposerMenuItems({
     readonly modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
   };
   readonly promptShortcuts: ReadonlyArray<PromptShortcut>;
+  /** Whether `/shortcut` may offer to save the draft: the connection can change settings. */
+  readonly promptShortcutSaveAvailable: boolean;
 }) {
   const gt = useGT();
   const messages = useMessages();
@@ -281,6 +284,18 @@ export function useComposerMenuItems({
                 command: "btw",
                 label: "/btw",
                 description: sideChatDisabledReason ?? gt("Same as /side"),
+              },
+            ] as const)
+          : []),
+        ...(promptShortcutSaveAvailable
+          ? ([
+              {
+                // fork: prompt shortcuts
+                id: "slash:shortcut",
+                type: "slash-command",
+                command: "shortcut",
+                label: "/shortcut",
+                description: gt("Save this draft as a prompt shortcut"),
               },
             ] as const)
           : []),

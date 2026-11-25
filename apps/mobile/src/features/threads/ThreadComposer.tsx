@@ -455,6 +455,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
     modelProviders: props.serverConfig?.providers,
     ...(props.onFreshSession === undefined ? {} : { onFreshSession: props.onFreshSession }),
     offersSideChat: props.offersSideChat === true,
+    promptShortcuts: props.serverConfig?.settings.promptShortcuts, // fork: prompt shortcuts
   });
   const voiceInput = useVoiceInputController({
     ownerKey: composerDraftKey,

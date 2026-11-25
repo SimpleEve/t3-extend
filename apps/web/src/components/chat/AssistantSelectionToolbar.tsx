@@ -21,6 +21,7 @@ import {
 import { Button } from "../ui/button";
 import { BackgroundThreadContext } from "./backgroundThread";
 import { SelectionBookmarkButton } from "../../fork/bookmarks/SelectionBookmarkButton"; // fork: message bookmarks
+import { SelectionShortcutButton } from "../../fork/promptShortcuts/SaveAsShortcutButtons"; // fork: prompt shortcuts
 
 export function AssistantSelectionToolbar({
   viewport,
@@ -233,6 +234,14 @@ export function AssistantSelectionToolbar({
         onDone={dismiss}
       />
       {/* fork: message bookmarks */}
+      {selection.bookmarkOnly ? (
+        // fork: prompt shortcuts. The user's own message can be saved as a shortcut, not an assistant's.
+        <SelectionShortcutButton
+          threadRef={threadRef}
+          text={selection.citation.text}
+          onDone={dismiss}
+        />
+      ) : null}
     </div>,
     document.body,
   );

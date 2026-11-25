@@ -32,7 +32,7 @@ export type ComposerTriggerKind =
   | "slash-command"
   | "skill"
   | "prompt-shortcut"; // fork: prompt shortcuts
-export type ComposerSlashCommand = "model" | "side" | "btw" | "clear";
+export type ComposerSlashCommand = "model" | "side" | "btw" | "clear" | "shortcut"; // fork: prompt shortcuts
 export type ComposerSubmissionIntent = "foreground" | "background" | "alternate";
 
 export interface ComposerTrigger {
