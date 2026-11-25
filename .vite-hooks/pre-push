@@ -6,6 +6,9 @@ denylist="${XDG_CONFIG_HOME:-$HOME/.config}/t3extend/denylist"
 
 zero=0000000000000000000000000000000000000000
 status=0
+# Upstream's commits are public already, and its generated code can contain a denied string by accident.
+skip_upstream=""
+git rev-parse -q --verify refs/remotes/upstream/main >/dev/null && skip_upstream="--not refs/remotes/upstream/main"
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
   if [ "$remote_sha" = "$zero" ]; then
@@ -15,7 +18,7 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
   fi
   # Messages and added lines only; removing a denied string is allowed.
   # shellcheck disable=SC2086
-  hits=$(git log -p --no-color --no-ext-diff --format='%h %B' $range | grep -v '^-' | grep -inF -f "$denylist" || true)
+  hits=$(git log -p --no-color --no-ext-diff --format='%h %B' $range $skip_upstream | grep -v '^-' | grep -inF -f "$denylist" || true)
   if [ -n "$hits" ]; then
     echo "pre-push: these new lines match $denylist:" >&2
     echo "$hits" | cut -c1-200 | head -20 >&2
