@@ -10,10 +10,10 @@ The fork's design details, identity table, and merge rules are in [FORK.md](../.
 
 | Item                             | Value                                                                                                                              |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Latest upstream commit merged    | `55c134a346d5830399c82e647f29101fec22ecee` (2026-11-16, `fix(client-runtime): Tab completes a folder name when …`, #37925)         |
-| Position in upstream             | 28th commit after the nightly tag `v0.1.11-nightly.20261117.4814`                                                                  |
-| T3 Extend desktop app and server | 0.1.11-1.0                                                                                                                         |
-| T3 Extend Android app (APK)      | 2.3.0-1.0                                                                                                                          |
+| Latest upstream commit merged    | `ca81b7b97a1c4b91e5ac25768d0f6629f37732fd` (2026-11-24, upstream release `v0.1.12`)                                                |
+| Position in upstream             | Release tag `v0.1.12`                                                                                                              |
+| T3 Extend desktop app and server | 0.1.12-1.9                                                                                                                         |
+| T3 Extend Android app (APK)      | 2.3.0-1.9                                                                                                                          |
 | iOS                              | Not published. Build it yourself with Xcode and your own Apple account; see [install.md](../user/install.md#ios-build-it-yourself) |
 
 A version is the upstream release it is built on, then the fork's own `major.minor`: `0.1.11-1.0` is upstream 0.1.11 and T3 Extend 1.0. The Android app puts the same suffix on upstream's mobile version (`2.3.0-1.0`). The fork's number keeps counting up across upstream syncs; it does not restart at each one.
@@ -28,6 +28,10 @@ This table lists only syncs you can verify in git history. The merge commit is o
 | 2026-11-08 | `6417151c09`    | 2026-11-08           | `76091396d5` | 373     |
 | 2026-11-15 | `b9bbfda087`    | 2026-11-14           | `c567a700fa` | 1928    |
 | 2026-11-17 | `55c134a346`    | 2026-11-16           | `aa782c0d5e` | 423     |
+| 2026-11-20 | `724f5c6bec`    | 2026-11-17           | `a7772bb6b5` | 141     |
+| 2026-11-21 | `9cc4018c75`    | 2026-11-20           | `b39cb114ac` | 459     |
+| 2026-11-24 | `a7a6126a7d`    | 2026-11-24           | `01fb5bc1de` | 834     |
+| 2026-11-25 | `ca81b7b97a`    | 2026-11-24           | `d35fbebd8c` | 209     |
 
 Upstream was also merged in before 2026-11-04, but those merges did not leave an upstream commit ID we can verify, so they are not listed. The conflicts and trade-offs of each sync are recorded in the [Syncing upstream](../../FORK.md#同步上游) section of FORK.md.
 
