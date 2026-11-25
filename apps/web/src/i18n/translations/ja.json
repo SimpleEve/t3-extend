@@ -9387,6 +9387,8 @@
   "14feb09decd98a26": "For separate Google account sign-ins with more than one saved account. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+  "a3ad11973b7cbbea": "グローバルの MCP サーバーを使う",
+  "edcae62d17f32425": "このインスタンス独自のものではなく、ターミナルの agy（~/.gemini）の MCP サーバーとサインインを使います。先に agy のターミナルで MCP を設定してサインインしてください。macOS と Linux のみ。グローバル設定にサーバーが 1 つでも載っている間、このインスタンスはタイトルやコミットメッセージを作成しません。スレッドとターミナルの agy は 1 つの MCP サインインファイルを共有します。更新に失敗したら、ターミナルでもう一度サインインしてください。",
   "d118c06deaf33a65": "起動引数",
   "9ebced15e0d0b234": "CLAUDE_CONFIG_DIR のパス",
   "178f36194b25e76d": "自動圧縮のしきい値",

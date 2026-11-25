@@ -783,6 +783,13 @@ it.layer(NodeServices.layer)("Antigravity profile preparation", (it) => {
         expect(yield* fs.exists(path.join(profileDirectory, "config", "mcp_config.json"))).toBe(
           false,
         );
+        // The instance setting reaches the sync only when asked for.
+        const tokens = path.join(profileDirectory, "antigravity-acp", "mcp_oauth_tokens.json");
+        expect(yield* isLink(tokens)).toBe(false);
+        yield* prepareAntigravityProfile({ profileDirectory, userHome, globalMcp: true });
+        expect(yield* isLink(tokens)).toBe(true);
+        yield* prepareAntigravityProfile({ profileDirectory, userHome });
+        expect(yield* isLink(tokens)).toBe(false);
 
         // The harness leaves an empty folder where the link was skipped.
         yield* fs.makeDirectory(cliLink, { recursive: true });

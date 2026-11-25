@@ -132,6 +132,13 @@ const ANTIGRAVITY_FORK_FIELD_TEXT: ReadonlyArray<readonly [string, string]> = [
       "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
     ),
   ],
+  ["Use global MCP servers", msg("Use global MCP servers")],
+  [
+    "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one MCP sign-in file; if a refresh fails, sign in again in the terminal.",
+    msg(
+      "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one MCP sign-in file; if a refresh fails, sign in again in the terminal.",
+    ),
+  ],
 ];
 
 // Field text authored in contracts and the provider and source-control packages, which the server

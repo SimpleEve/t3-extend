@@ -79,6 +79,125 @@ function permissionRequest(
   };
 }
 
+it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
+  "AntigravityAdapterV2 profile MCP servers",
+  (it) => {
+    type Flavor = ReturnType<typeof makeAntigravityAcpAdapterFlavor>;
+    type RuntimeService = AcpSessionRuntime.AcpSessionRuntime["Service"];
+    type Activation = AcpSessionRuntime.AcpSessionActivationOptions;
+    const bridge = { name: "t3-code", command: "t3", args: [], env: [] };
+    const http = {
+      type: "http",
+      name: "t3-code",
+      url: "http://127.0.0.1/mcp",
+      headers: [],
+    } as const;
+    const acp = { type: "acp", name: "t3-code", serverId: "t3-code" } as const;
+    const notes = { name: "notes", command: "notes-mcp", args: [], env: [] };
+    const runtimeInput = (lists: Activation) =>
+      ({ cwd: "/tmp", mcpServers: [], ...lists }) as Parameters<Flavor["makeRuntime"]>[0];
+
+    // The profile also holds a `t3-code` entry, as a linked global config would.
+    const openFlavor = Effect.fn("openFlavor")(function* (withProfile: boolean) {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const profile = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-ag-profile-mcp-" });
+      yield* fileSystem.makeDirectory(path.join(profile, "config"));
+      yield* fileSystem.writeFileString(
+        path.join(profile, "config", "mcp_config.json"),
+        JSON.stringify({
+          mcpServers: {
+            "t3-code": { command: "shadow" },
+            notes: { command: "notes-mcp" },
+            off: { command: "off-mcp", disabled: true },
+          },
+        }),
+      );
+      const activations: Array<Activation | undefined> = [];
+      const record = (_sessionId: string, activation?: Activation) =>
+        Effect.sync(() => {
+          activations.push(activation);
+        });
+      let started: Parameters<Flavor["makeRuntime"]>[0] | undefined;
+      const flavor = makeAntigravityAcpAdapterFlavor({
+        instanceId: ProviderInstanceId.make("antigravity-profile-mcp"),
+        random: undefined as never,
+        fileSystem,
+        path,
+        host: undefined as never,
+        selfInvocation: undefined as never,
+        makeRuntime: (input) =>
+          Effect.sync(() => {
+            started = input as never;
+            return {
+              loadSession: record,
+              resumeSession: record,
+              forkSession: record,
+            } as unknown as RuntimeService;
+          }),
+        withProcess: (_stop, task) => task,
+        defaultModel: Effect.undefined,
+        ...(withProfile ? { profileDirectory: profile } : {}),
+      });
+      return { flavor, activations, started: () => started };
+    });
+
+    it.effect("names the profile's servers when creating, loading, resuming, and forking", () =>
+      Effect.gen(function* () {
+        const { flavor, activations, started } = yield* openFlavor(true);
+        const runtime = yield* flavor.makeRuntime(
+          runtimeInput({ mcpServers: [bridge], acpMcpServers: [acp], httpMcpServers: [http] }),
+        );
+        assert.deepEqual(started()?.mcpServers, [bridge, notes]);
+        assert.deepEqual(started()?.httpMcpServers, [http, notes]);
+        assert.deepEqual(started()?.acpMcpServers, [acp, notes]);
+
+        const activation = { mcpServers: [bridge], acpMcpServers: [], httpMcpServers: [http] };
+        yield* runtime.loadSession("s", activation);
+        yield* runtime.resumeSession("s", activation);
+        yield* runtime.forkSession("s", activation);
+        yield* runtime.resumeSession("s");
+        assert.deepEqual(activations, [
+          ...Array.from({ length: 3 }, () => ({
+            mcpServers: [bridge, notes],
+            acpMcpServers: [],
+            httpMcpServers: [http, notes],
+          })),
+          undefined,
+        ]);
+      }),
+    );
+
+    it.effect("extends only mcpServers when T3 lists none, and never doubles t3-code later", () =>
+      Effect.gen(function* () {
+        const { flavor, activations, started } = yield* openFlavor(true);
+        const runtime = yield* flavor.makeRuntime(
+          runtimeInput({ mcpServers: [], acpMcpServers: [], httpMcpServers: [] }),
+        );
+        assert.deepEqual(started()?.mcpServers, [notes]);
+        assert.deepEqual(started()?.acpMcpServers, []);
+        assert.deepEqual(started()?.httpMcpServers, []);
+
+        yield* runtime.resumeSession("s", { mcpServers: [bridge], httpMcpServers: [http] });
+        assert.deepEqual(activations, [
+          { mcpServers: [bridge, notes], httpMcpServers: [http, notes] },
+        ]);
+      }),
+    );
+
+    it.effect("leaves the session lists alone without a profile directory", () =>
+      Effect.gen(function* () {
+        const { flavor, activations, started } = yield* openFlavor(false);
+        const runtime = yield* flavor.makeRuntime(runtimeInput({ mcpServers: [bridge] }));
+        const activation = { mcpServers: [bridge], httpMcpServers: [http] };
+        yield* runtime.resumeSession("s", activation);
+        assert.deepEqual(started()?.mcpServers, [bridge]);
+        assert.deepEqual(activations, [activation]);
+      }),
+    );
+  },
+);
+
 describe("AntigravityAdapterV2 flavor", () => {
   it("keeps a successful subagent launch running until the parent turn becomes idle", () => {
     const batch = flavor.extractSubagentUpdate?.({

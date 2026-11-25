@@ -9428,6 +9428,8 @@
   "14feb09decd98a26": "For separate Google account sign-ins with more than one saved account. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+  "a3ad11973b7cbbea": "Usar servidores MCP globais",
+  "edcae62d17f32425": "Usa os servidores MCP e os logins do agy do seu terminal (~/.gemini) em vez dos desta instância. Configure o MCP e faça login primeiro no terminal do agy. Somente macOS e Linux. Enquanto a configuração global listar algum servidor, esta instância não escreve mais títulos nem mensagens de commit. As threads e o agy do terminal compartilham um mesmo arquivo de login do MCP; se uma renovação falhar, faça login novamente no terminal.",
   "d118c06deaf33a65": "Argumentos de inicialização",
   "9ebced15e0d0b234": "Caminho do CLAUDE_CONFIG_DIR",
   "178f36194b25e76d": "Compactar automaticamente após",

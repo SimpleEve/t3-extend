@@ -1954,6 +1954,9 @@ export default {
   "Network proxy": "网络代理",
   "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.":
     "让这个实例的 Antigravity 流量都走同一个代理，支持 http://、https://、socks5:// 和 socks5h://。URL 里的账号密码会以明文保存在设置中。留空则使用这台机器自己的网络。",
+  "Use global MCP servers": "使用全局 MCP 服务器",
+  "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one MCP sign-in file; if a refresh fails, sign in again in the terminal.":
+    "沿用终端 agy 里的 MCP 服务器和登录（~/.gemini），不用这个实例自己的。请先在终端 agy 里配置并登录。仅支持 macOS 和 Linux。全局配置里有服务器时，这个实例不再生成标题和提交信息。各个对话和终端 agy 共用同一份 MCP 登录，刷新失败时请在终端重新登录。",
   "API key": "API 密钥",
   "Gemini or Vertex AI express key. Stored separately on the host.":
     "Gemini 或 Vertex AI express 密钥，单独存储在主机上。",

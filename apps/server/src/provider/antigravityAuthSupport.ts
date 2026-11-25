@@ -31,6 +31,7 @@ import {
   antigravityNetworkProxyIssue,
   withAntigravityNetworkProxy,
 } from "./antigravityNetworkProxy.ts"; // fork:
+import { syncAntigravityGlobalMcp } from "./antigravityGlobalMcp.ts"; // fork:
 
 export const ANTIGRAVITY_AUTH_STDOUT_PREFIX =
   "Open the following link to authenticate the ACP server: ";
@@ -491,6 +492,7 @@ export const prepareAntigravityProfile = Effect.fn("prepareAntigravityProfile")(
   readonly tempDirectory?: string;
   // fork:
   readonly sharedLogin?: boolean;
+  readonly globalMcp?: boolean; // fork:
 }) {
   const auth = input.auth ?? ANTIGRAVITY_PERSONAL_AUTH;
   const fs = yield* FileSystem.FileSystem;
@@ -631,6 +633,12 @@ export const prepareAntigravityProfile = Effect.fn("prepareAntigravityProfile")(
       ),
     );
   yield* linkAntigravityUserConfig({ profileDirectory: geminiHome, userHome, platform });
+  yield* syncAntigravityGlobalMcp({
+    profileDirectory: geminiHome,
+    userHome,
+    platform,
+    enabled: input.globalMcp === true,
+  }); // fork:
   if (platform === "win32") {
     yield* copyAntigravityUserConfigFiles({ profileDirectory: geminiHome, userHome });
   }

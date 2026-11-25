@@ -89,6 +89,7 @@ import {
 } from "../antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
 import { makeAntigravityProxyDispatcher } from "../antigravityNetworkProxy.ts"; // fork:
+import { syncAntigravityGlobalMcp } from "../antigravityGlobalMcp.ts"; // fork:
 import {
   makeAntigravityAccountPool,
   type AntigravityAccountPoolError,
@@ -219,6 +220,16 @@ export const AntigravityDriver: ProviderDriver<
       ),
     );
     const profileDirectory = directories.profile;
+    // fork: switching the setting off removes its config copy and links now, not at the next agy launch.
+    yield* syncAntigravityGlobalMcp({
+      profileDirectory,
+      userHome,
+      platform: yield* HostProcess.Platform,
+      enabled: settings.useGlobalMcp,
+    }).pipe(
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.provideService(Path.Path, path),
+    );
     // fork: the default instance signs in from the agy CLI's own login instead of asking again.
     const sharedLogin =
       resolveAntigravityLoginSource({
@@ -342,6 +353,7 @@ export const AntigravityDriver: ProviderDriver<
         userHome,
         tempDirectory: directories.runtimeTemp,
         sharedLogin, // fork:
+        globalMcp: settings.useGlobalMcp, // fork:
       }).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
         Effect.provideService(Path.Path, path),

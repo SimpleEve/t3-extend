@@ -248,6 +248,34 @@ Cmd+Q、SIGTERM 触发的退出，在 `DesktopLifecycle.ts` 里最多等 25 秒�
 
 fork 的 `continuationWithoutPromptEnd` 补丁已删除：上游 #38864（`12be92d034`，`enablePostSettleContinuation` + `wakeOnDetachedRequest` + `replyEndsWithUsageUpdate`）做了同一件事。`packages/provider-acp/src/server/adapter.ts` 和 `AntigravityAdapterV2.ts` 与上游一致。Codex 停止后清审批卡（`finalizeCodexTurn`）还在。
 
+## Antigravity 会话预加载 profile 的 MCP server
+
+agy 只预加载会话 `mcpServers` 里点名的 server，profile 的 `config/mcp_config.json` 里的其余 server 在后台加载，第一轮和委派任务的每一轮都用不上。`readAntigravityProfileMcpServers`（`AntigravityAcpSupport.ts`）读这个文件，`AntigravityAdapterV2.ts` 在启动、load、resume、fork 时把启用的 server 点名进会话。这是上游 #40300 的移植，和上游有两处不同，合并上游时按这个取舍：
+
+- 上游只扩 `mcpServers`。运行时一旦 agent 声明 HTTP 或 ACP MCP，会优先用 http / acp 列表，那时 profile 的 server 会被丢掉，所以 fork 在这两个列表非空时也追加。agy 1.5.15 两者都不声明，目前只用 `mcpServers`。上游如果采纳同样的修改就取上游。
+- 过滤放在每次调用里：列表里已有的名字和固定的 `t3-code` 不追加，读文件的函数不带过滤参数。
+
+用隔离的 agy 1.5.15 副本和本地假 server 验证过：agy 按自己 config 里的定义启动被点名的 server，会话里的条目只起名字的作用，所以 header、`cwd`、`env` 都保留，`${VAR}` agy 本来就不展开。点名一个 401、OAuth 401、不存在、卡住的 server，会话和轮次都不会失败，只是没有它的工具；永远不回应的 server 会让会话启动和 resume 多等约 5 秒（agy 自己的上限）。1.5.16 没有测过。
+
+### 实例可以用全局的 MCP 配置和 MCP 登录
+
+实例设置 `useGlobalMcp`（Antigravity 设置里的“使用全局 MCP 服务器”，默认关）。每个实例有自己的 GEMINI_HOME，所以终端 agy 里配好并授权过的 MCP server 在实例里没有；ACP 下也走不完第一次 MCP OAuth（agy 注册客户端后等用户粘贴 code，不开浏览器）。打开后 `syncAntigravityGlobalMcp`（`antigravityGlobalMcp.ts`）在每次启动 agy（`prepareAntigravityProfile`）和驱动创建时（设置一改就生效）做两件事：
+
+- **配置是副本，不是链接。** 把 `~/.gemini/config/mcp_config.json` 去掉 T3 自己的名字（`t3-code`）后写成 `config/mcp_config.json`。agy 按配置里的条目启动被点名的 server（隔离实验的 case 1b：会话条目指向的 URL 一次请求都没收到），链接过来的全局 `t3-code` 会顶替 T3 注入的那个，把工具调用打到官方 T3 Code。副本由 `.t3-global-mcp.json`（profile 根目录，记录上次写入内容的 sha256；第一版存的是全文，仍然认）认领：当前内容等于记录，或等于“现在会生成的副本”（记录丢了或过期也算自己的）时才刷新或删除；用户改过的、profile 自己的非空文件原样保留。副本和记录都写同目录临时文件再 rename，别的线程的 agy 读不到半截文件。全局文件不存在、不是合法 JSON 或没有 `mcpServers` 对象时删掉副本；`mcpServers` 是 `{}` 或只有 `t3-code` 时写一个空表副本（文本生成仍可用）。保留名 `t3-code` 是 `T3_MCP_SERVER_NAME`，adapter 也用它。上一版建的配置链接（指向任何 home 的 `.gemini/config/mcp_config.json`）会被替换或删除。悬空链接的问题也随之消失。
+- **MCP 登录文件是链接。** `antigravity-acp/mcp_oauth_tokens.json` 指向 `~/.gemini/antigravity-cli/mcp_oauth_tokens.json`。关闭或 home 变了时，指向任何 `…/.gemini/antigravity-cli/mcp_oauth_tokens.json` 的链接都算本功能建的并被拆掉；指向别处的链接、有登录内容的真实文件原样保留（只记 warning）。空文件、`{}` 都算空，会被换成链接。
+
+`kept`（原样保留的 profile 文件）只写日志：provider 状态的 message 只在出错和未登录时用，ready 状态不带 message，加一个提示要改 provider 状态的结构。不链接 `hooks.json`。Windows 上文件链接要提权，所以不支持，打开时只记一条日志。
+
+用隔离的 agy 1.5.15 副本和本地假 OAuth server 验证过（证据：`global-mcp.md`，`scripts/oauth-*.mjs`）：
+
+- ACP 只读 `<home>/antigravity-acp/mcp_oauth_tokens.json`（放在 `antigravity-cli/`、根目录、`config/` 都不读）。格式按 server URL 做 key，值里要有 `token`（`access_token`、`refresh_token`、`expiry`）、`client_id`、`token_url`，缺 `token_url` 刷新会失败。
+- agy 原地改写这个文件（inode 不变）。符号链接保留，目标收到刷新后的 token。agy 跟随指向别处的 `mcp_config.json` 链接，而且从不写它。悬空的登录链接无害。
+- 多进程：agy 刷新前**不重读文件**，用启动时读到的 refresh token 去刷新；刷新失败时只删**那一条**，其他条目（包括进程运行期间新加的）保留，是读改写而不是整表覆盖。所以 refresh token 会轮换的服务商下，一个进程刷新之后，其他进程（别的线程、终端 agy）再刷新会失败，并把刚写好的新条目删掉，要在终端重新登录。refresh token 不轮换的服务商不受影响。没加锁也没加代理，设置说明和用户文档里写明了这个风险。
+- 独立 agy 的 token 路径 `~/.gemini/antigravity-cli/mcp_oauth_tokens.json` 是推断的：独立模式要真实的 Google 登录，隔离实验里跑不了。配置路径 `~/.gemini/config/mcp_config.json` 是实测的。
+- **没验证**：用 agy CLI 登录的实例（`sharedLogin`，不设文件存储开关）的 MCP 登录是否也走这个文件，还是进钥匙串；钥匙串没法隔离，没有实验。真实 OAuth 服务商、agy 1.5.16 也没测。
+
+副作用：`isAntigravityTextGenerationAvailable` 在 profile 的 `mcp_config.json` 里有任何条目（包括 `disabled: true` 的）时返回 false，所以全局配置里有 server 时这个实例不能再生成标题和提交信息。规则没改，设置的说明文字里写了。
+
 ## 侧边栏视图
 
 侧边栏有"按状态"（上游的 Inbox）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组，是默认视图：`boringSidebarEnabled` 的默认值在 contracts 里改成了 true（带 `// fork:`），手机端偏好未设置时回落到 `"project"`（`threadListViewState.ts` 的 `DEFAULT_VIEW_MODE`）。默认值只对没存过这一项的设备生效：桌面版一旦存过任何客户端设置，整份设置（包括 `boringSidebarEnabled`）都会写进 `client-settings.json`，所以以前存过 `false` 的设备要手动切一次。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
