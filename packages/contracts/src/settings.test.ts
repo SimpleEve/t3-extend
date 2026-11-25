@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import * as Schema from "effect/Schema";
 
+import { AuthSettingsWriteScope } from "./auth.ts";
 import { type CommandId, ProjectId } from "./baseSchemas.ts";
 import {
   ProviderDriverKind,
@@ -17,6 +18,7 @@ import {
   idleCompactionPatch,
   PROJECT_SCOPED_SERVER_SETTING_KEYS,
   requiredScopesForProjectMutation,
+  requiredScopesForServerSettingsPatch,
   resolveIdleCompaction,
   resolveProjectProviderInstanceEnabled,
   resolveProviderInstanceEnabled,
@@ -53,6 +55,42 @@ it("drops theme defaults from a client's settings patch", () => {
       defaultAppearanceSetAt: "2026-11-13T00:00:00.000Z",
     }),
   ).toEqual({ newWorktreesStartFromOrigin: false });
+});
+
+// fork: prompt shortcuts
+describe("prompt shortcuts", () => {
+  const entry = (name: string, overrides: Record<string, unknown> = {}) => ({
+    id: `id-${name}`,
+    name,
+    title: null,
+    content: "Review this change",
+    createdAt: "2026-11-25T00:00:00.000Z",
+    updatedAt: "2026-11-25T00:00:00.000Z",
+    ...overrides,
+  });
+
+  it("defaults to none and replaces the whole list through a patch", () => {
+    expect(decodeServerSettings({}).promptShortcuts).toEqual([]);
+    expect(
+      decodeServerSettingsPatch({ promptShortcuts: [entry("review")] }).promptShortcuts,
+    ).toHaveLength(1);
+    expect(requiredScopesForServerSettingsPatch({ promptShortcuts: [] })).toEqual([
+      AuthSettingsWriteScope,
+    ]);
+  });
+
+  it.each([
+    ["names with spaces, capitals or punctuation", [entry("Review")]],
+    ["a name with a space", [entry("fix ci")]],
+    ["an empty name", [entry("")]],
+    ["a name past 32 characters", [entry("a".repeat(33))]],
+    ["a repeated name", [entry("review"), entry("review", { id: "other" })]],
+    ["empty content", [entry("review", { content: "" })]],
+    ["content past 20,000 characters", [entry("review", { content: "x".repeat(20_001) })]],
+    ["more than 200 shortcuts", Array.from({ length: 201 }, (_, index) => entry(`name-${index}`))],
+  ])("refuses %s", (_label, promptShortcuts) => {
+    expect(() => decodeServerSettingsPatch({ promptShortcuts })).toThrow();
+  });
 });
 
 describe("storage cleanup settings", () => {

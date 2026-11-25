@@ -17,6 +17,8 @@ import {
   RunId,
   RuntimeRequestId,
   ServerConfig,
+  type ServerConfigStreamEvent,
+  type ServerSettings,
   ThreadId,
   TurnItemId,
   WS_METHODS,
@@ -111,6 +113,7 @@ const decodeServerConfig = Schema.decodeUnknownSync(ServerConfig);
 const makeServerConfig = (
   providers: ReadonlyArray<unknown>,
   supportsIssues = false,
+  settings: Record<string, unknown> = {},
 ): ServerConfig => ({
   ...decodeServerConfig({
     environment: {
@@ -130,7 +133,7 @@ const makeServerConfig = (
       otlpTracesEnabled: false,
       otlpMetricsEnabled: false,
     },
-    settings: {},
+    settings,
     threadSnapshotPagination: true,
     threadResumeCompletionMarker: true,
     shellResumeCompletionMarker: true,
@@ -436,6 +439,8 @@ let pendingDispatches: Array<{
 let pendingAssetUrls: Array<Deferred.Deferred<AssetCreateUrlResult>> = [];
 let sequence = 1;
 let vcsStatusSubscriber: Queue.Queue<VcsStatusStreamEvent> | null = null;
+let configSubscribers = new Set<Queue.Queue<ServerConfigStreamEvent>>();
+let settingsPatches: Array<Record<string, unknown>> = [];
 
 const subscribe = <A>(first: ReadonlyArray<A>, register?: (queue: Queue.Queue<A>) => () => void) =>
   Stream.unwrap(
@@ -450,7 +455,33 @@ const subscribe = <A>(first: ReadonlyArray<A>, register?: (queue: Queue.Queue<A>
     }),
   );
 
+const subscribeConfig = () =>
+  subscribe<ServerConfigStreamEvent>(
+    [{ version: 1 as const, type: "snapshot" as const, config: serverConfig() }],
+    (queue) => {
+      configSubscribers.add(queue);
+      return () => configSubscribers.delete(queue);
+    },
+  );
+
 const handlers: Record<string, (input: never) => unknown> = {
+  // Applies the patch over the served settings and pushes the result, as the server does.
+  [WS_METHODS.serverUpdateSettings]: ({ patch }: { readonly patch: Record<string, unknown> }) =>
+    Effect.gen(function* () {
+      settingsPatches.push(patch);
+      baseServerConfig = {
+        ...baseServerConfig,
+        settings: { ...baseServerConfig.settings, ...patch } as ServerSettings,
+      };
+      for (const queue of configSubscribers) {
+        yield* Queue.offer(queue, {
+          version: 1 as const,
+          type: "settingsUpdated" as const,
+          payload: { settings: baseServerConfig.settings },
+        });
+      }
+      return baseServerConfig.settings;
+    }),
   // Recorded, and accepted only when the scenario asks, since a pending command holds every
   // later command on its thread. Accepted commands' events never arrive.
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: (command: OrchestrationV2Command) =>
@@ -550,8 +581,7 @@ const handlers: Record<string, (input: never) => unknown> = {
         if (vcsStatusSubscriber === queue) vcsStatusSubscriber = null;
       };
     }),
-  [WS_METHODS.subscribeServerConfig]: () =>
-    subscribe([{ version: 1 as const, type: "snapshot" as const, config: serverConfig() }]),
+  [WS_METHODS.subscribeServerConfig]: subscribeConfig,
 };
 
 // Unanswered calls stay pending, like a server that has not replied yet.
@@ -567,8 +597,7 @@ const client = new Proxy(handlers, {
 const session: EnvironmentConnectionLease["session"] = {
   client: client as unknown as WsRpcProtocolClient,
   initialConfig: Effect.sync(serverConfig),
-  subscribeServerConfig: () =>
-    subscribe([{ version: 1 as const, type: "snapshot" as const, config: serverConfig() }]),
+  subscribeServerConfig: subscribeConfig,
   ready: Effect.void,
   probe: Effect.void,
   inboundFrames: Effect.succeed(0),
@@ -612,6 +641,8 @@ export function installFakeEnvironment(
     /** Commands left unanswered even when accepting, until `rejectPendingCommand`. */
     readonly holdCommand?: (command: OrchestrationV2Command) => boolean;
     readonly providers?: ReadonlyArray<unknown>;
+    /** Server settings to serve, in their encoded form; the rest take their defaults. */
+    readonly settings?: Record<string, unknown>;
   },
 ): Disposable {
   threads = fixtures;
@@ -619,6 +650,7 @@ export function installFakeEnvironment(
     ...makeServerConfig(
       options?.providers ?? [CODEX_PROVIDER],
       fixtures.some((thread) => (thread.issues?.length ?? 0) > 0),
+      options?.settings,
     ),
     keybindings: options?.keybindings ?? DEFAULT_RESOLVED_KEYBINDINGS,
   };
@@ -656,6 +688,8 @@ export function installFakeEnvironment(
       threads = [];
       baseServerConfig = makeServerConfig([CODEX_PROVIDER]);
       dispatched = [];
+      settingsPatches = [];
+      configSubscribers = new Set();
       acceptCommands = false;
       projects = [project];
       holdCommand = () => false;
@@ -699,6 +733,11 @@ export async function answerAssetUrls(): Promise<void> {
 /** Commands the app dispatched to the environment, oldest first. */
 export function dispatchedCommands(): ReadonlyArray<OrchestrationV2Command> {
   return dispatched;
+}
+
+/** The server-settings patches the app has sent, oldest first. */
+export function settingsPatchesSent(): ReadonlyArray<Record<string, unknown>> {
+  return settingsPatches;
 }
 
 type ThreadEvent = Extract<OrchestrationV2ThreadStreamItem, { readonly kind: "event" }>["event"];
