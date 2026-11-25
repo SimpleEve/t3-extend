@@ -1,3 +1,6 @@
+// @effect-diagnostics nodeBuiltinImport:off - reads this module's source to check how its labels are written.
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   EnvironmentId,
@@ -15,6 +18,7 @@ import {
   isSettingsSearchScopeAvailable,
   movedSettingsPath,
   searchSettings,
+  SETTINGS_SECTION_LABELS,
   settingsNavGroups,
   SETTINGS_SEARCH_ITEMS,
   sourceControlHostSearchItems,
@@ -54,6 +58,19 @@ const ITEMS: ReadonlyArray<SettingsSearchItem> = [
 ];
 
 describe("searchSettings", () => {
+  it("marks every page label for translation, so no page title stays English", () => {
+    // The catalog generator only sees msg() calls; a plain string shows in English in every language.
+    const source = NodeFS.readFileSync(
+      NodePath.join(import.meta.dirname, "settingsSearch.ts"),
+      "utf8",
+    );
+    const block =
+      /export const SETTINGS_SECTION_LABELS[^{]*\{([\s\S]*?)\n\};/.exec(source)?.[1] ?? "";
+    const entries = block.split("\n").filter((line) => line.includes('"/settings/'));
+    expect(entries.length).toBe(Object.keys(SETTINGS_SECTION_LABELS).length);
+    for (const entry of entries) expect(entry).toMatch(/: msg\("/);
+  });
+
   it("matches titles, sections, and remembered setting details", () => {
     expect(searchSettings("word", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
     expect(searchSettings("network", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
