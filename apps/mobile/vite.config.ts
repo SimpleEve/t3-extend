@@ -6,6 +6,7 @@ import "vite-plus/test/config";
 const reactTests = [
   "src/features/browser/LocalPreviewRouteScreen.test.tsx",
   "src/features/threads/LinkedThreadSheet.test.tsx",
+  "src/features/workflows/WorkflowStepCard.test.tsx",
   "src/features/threads/ThreadGuestShareSheet.test.tsx",
   "src/features/threads/useSubmitAfterNativeImages.test.tsx",
   "src/features/threads/git/GitBranchesSheet.test.tsx",
@@ -68,6 +69,7 @@ const reactTests = [
   "src/i18n/loadedLocaleSelection.test.tsx", // fork: locale switch waits for its catalog
   "src/fork/useMarkdownTypography.test.tsx", // fork: Chinese text sizes
   "src/fork/deviceKeys/ServerDevicesScreen.test.tsx", // fork: self-hosted devices
+  "src/features/voice-input/useVoiceInputController.test.tsx",
 ];
 
 const sourceRoot = `${normalizePath(NodeURL.fileURLToPath(new URL("./src", import.meta.url)))}/`;

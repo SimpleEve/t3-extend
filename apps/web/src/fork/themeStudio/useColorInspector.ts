@@ -128,7 +128,7 @@ export function useColorInspector() {
       else if (phaseRef.current === "showing") dispatch({ type: "back" });
     };
     const cancelInspection = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229) return;
       // Esc leaves picking only; Settings must not see it and close too.
       event.preventDefault();
       event.stopImmediatePropagation();

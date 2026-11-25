@@ -254,6 +254,12 @@ const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
 
 const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
   {
+    path: "apps/mobile/src/features/cloud/ConnectOnboardingRouteScreen.tsx",
+    line: "Helps the T3 Code team",
+    reason:
+      "T3 Connect onboarding, which the fork never shows (it ships no relay URL); the traces go to the upstream team it names.",
+  },
+  {
     path: "apps/web/src/components/settings/LabsSettingsPanel.tsx",
     line: "T3 Code",
     reason:

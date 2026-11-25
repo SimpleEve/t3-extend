@@ -2,11 +2,11 @@ import { redirect, useLocation } from "@tanstack/react-router";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
-import { render } from "../../test/render";
+import { act, render } from "../../test/render";
 import { useCommitOnBlur } from "../hooks/useCommitOnBlur";
-import { act } from "../../test/render";
 import { useAppModalPeek } from "../fork/appModalPeek"; // fork: peek behind the modal
 import { AppRouteModal } from "./AppRouteModal";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "./ui/menu";
 
 vi.mock("./chat/GlobalVoiceInputIndicator", () => ({ GlobalVoiceInputIndicator: () => null }));
 
@@ -128,5 +128,46 @@ describe("AppRouteModal", () => {
     await userEvent.keyboard("{Escape}");
 
     await expect.element(settings).toHaveAttribute("data-open");
+  });
+
+  it("stays open when a held Esc repeats after closing a nested menu", async () => {
+    await using _screen = await render(
+      <AppRouteModal label="Usage">
+        <Menu>
+          <MenuTrigger>All providers</MenuTrigger>
+          <MenuPopup>
+            <MenuItem>Claude</MenuItem>
+          </MenuPopup>
+        </Menu>
+      </AppRouteModal>,
+      { router: "/usage" },
+    );
+    const usage = page.getByRole("dialog", { name: "Usage" });
+    const trigger = page.getByRole("button", { name: "All providers" });
+    await expect.element(usage).toHaveFocus();
+
+    (trigger.element() as HTMLElement).focus();
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByRole("menu")).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+    await expect.element(trigger).toHaveFocus();
+    await expect.element(usage).toHaveAttribute("data-open");
+
+    await act(() =>
+      trigger.element().dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          repeat: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    await expect.element(usage).toHaveAttribute("data-open");
+
+    await userEvent.keyboard("{Escape}");
+    await expect.element(usage).not.toBeInTheDocument();
   });
 });

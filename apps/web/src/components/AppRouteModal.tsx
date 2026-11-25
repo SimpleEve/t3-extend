@@ -2,7 +2,14 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { T, useGT } from "gt-react";
 import { XIcon } from "lucide-react";
 import { useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { useAppModalPeek } from "../fork/appModalPeek"; // fork: peek behind the modal
 import { getCommandPaletteOpener } from "../commandPaletteStore";
@@ -22,7 +29,15 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 // fork: hidden while peeking; pointer-events none so the page behind receives the clicks
 const PEEKING_STYLE: CSSProperties = { visibility: "hidden", pointerEvents: "none" };
 
-export function AppRouteModal({ label, children }: { label: string; children: ReactNode }) {
+export function AppRouteModal({
+  label,
+  actionsRef,
+  children,
+}: {
+  label: string;
+  actionsRef?: RefObject<DialogPrimitive.Root.Actions | null>;
+  children: ReactNode;
+}) {
   const closeAppModal = useCloseAppModal();
   const [open, setOpen] = useState(true);
   // Text selection that ends on the backdrop is not a dismissal.
@@ -62,10 +77,15 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
     <DialogPrimitive.Root
       open={open}
       modal={!peeking} // fork: a modal makes the page behind inert, so peeking turns it off
+      actionsRef={actionsRef}
       // Portaled layers outside this tree (toasts, Clerk, confirm dialogs) are not backdrop presses.
       disablePointerDismissal
       onOpenChange={(nextOpen, eventDetails) => {
         if (nextOpen) return;
+        // Base UI's dismiss handler fires on held Esc repeats after a nested popup closes.
+        if (eventDetails.reason === "escape-key" && eventDetails.event.repeat) {
+          return eventDetails.cancel();
+        }
         // Esc from a layer outside Base UI (Clerk's modals) is that layer's to handle.
         const target = eventDetails.event.target;
         if (

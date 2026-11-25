@@ -325,7 +325,8 @@ function antigravityEnvironment(
     ...(profile.sharedLogin
       ? {}
       : { AGY_ACP_FORCE_FILE_STORAGE: "1", AGY_CLI_FORCE_FILE_TOKEN_STORAGE: "1" }),
-    AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+    // agy's troubleshooting docs specify "true"; the interactive CLI keeps self-updating with "1".
+    AGY_CLI_DISABLE_AUTO_UPDATE: "true",
     BROWSER: profile.browserCommand,
     PYTHONUNBUFFERED: "1",
     ELECTRON_RUN_AS_NODE: "1",

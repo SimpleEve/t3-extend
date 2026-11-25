@@ -1,5 +1,6 @@
 import {
   CHATGPT_USAGE_URL,
+  collectHttpQuotaSources,
   collectLimitAccounts,
   collectLimitPools,
   displayLimitWindows,
@@ -11,7 +12,7 @@ import {
   remainingPercent,
   type ResetCreditChoice,
 } from "@t3tools/shared/usageLimits";
-import { T, useGT, useMessages } from "gt-react";
+import { T, Var, useGT, useMessages } from "gt-react";
 import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
 import { AlertTriangleIcon, ExternalLinkIcon, TicketIcon } from "lucide-react";
@@ -44,6 +45,7 @@ import {
   collectLimitNotices,
   cursorUsageWindowDetails,
   formatReadAgo, // fork:
+  formatDuration,
   formatResetsIn,
   resetCreditChoices,
 } from "@t3tools/shared/usageLimitsCopy";
@@ -627,6 +629,7 @@ function PoolWindowCard({
   readonly label?: string | null | undefined;
   readonly description?: string | undefined;
 }) {
+  const m = useMessages();
   const nextRefill = pool.resets.find((reset) => reset.at > now && reset.restoresPercent > 0);
   return (
     <div
@@ -650,8 +653,13 @@ function PoolWindowCard({
           </span>
         </span>
         {nextRefill && pool.columns.length > 1 ? (
-          <span className="text-xs font-medium text-foreground tabular-nums">
-            ↻ +{nextRefill.restoresPercent}%
+          <span className="text-xs text-muted-foreground tabular-nums">
+            <T context="usage limit refill">
+              <span className="font-medium text-foreground">
+                ↻ +<Var>{nextRefill.restoresPercent}</Var>%
+              </span>{" "}
+              in <Var>{formatDuration(nextRefill.at - now, m)}</Var>
+            </T>
           </span>
         ) : null}
       </div>
@@ -736,11 +744,15 @@ export function UsageLimitsPooled({
   const [segmentPopover] = useState(() => PopoverCreateHandle<SegmentPayload>());
   const segmentPopoverActions = useRef<PopoverPrimitive.Root.Actions | null>(null);
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
+  const quotaSources = collectHttpQuotaSources(presentations);
   const notices = collectLimitNotices(presentations, m);
   const externalLinks = collectExternalUsageLinks(presentations, m);
   return (
     <div className="flex flex-col gap-8">
-      {pools.length === 0 && notices.length === 0 && externalLinks.length === 0 ? (
+      {pools.length === 0 &&
+      notices.length === 0 &&
+      externalLinks.length === 0 &&
+      quotaSources.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           <T>No provider on the selected environments reports subscription limits.</T>
         </p>
@@ -765,6 +777,31 @@ export function UsageLimitsPooled({
           ) : null
         }
       </Popover>
+      {quotaSources.map((source) => (
+        <section key={source.key} className="space-y-3 rounded-xl border p-4">
+          <h2 className="text-sm font-medium">{source.label}</h2>
+          {source.quotaAccounts?.map((account) => (
+            <div key={account.id} className="space-y-1">
+              <h3 className="text-sm font-medium">{account.label}</h3>
+              {account.windows.map((window) => {
+                const reset = formatResetsIn(window, now, m);
+                return (
+                  <div
+                    key={window.id}
+                    className="flex justify-between gap-3 text-sm text-muted-foreground"
+                  >
+                    <span>{window.label}</span>
+                    <span>
+                      {gt("{remaining}% left", { remaining: remainingPercent(window) })}
+                      {reset ? ` · ${reset}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </section>
+      ))}
       {externalLinks.map((link) => (
         <section
           key={link.url}
