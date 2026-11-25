@@ -232,6 +232,7 @@ const ALLOWED: ReadonlyArray<Allowed> = [
 const BRAND_NAME = /T3\s+Code/gu;
 const BRAND_ROOTS = [
   "apps/server/src/peer/PeerLinks.ts",
+  "apps/server/src/orchestration-v2/RestartContinuation.ts", // summaries shown in the timeline
   "apps/server/src/device/EasDeviceHost.ts",
   "apps/web/index.html",
   "apps/web/public/manifest.webmanifest",

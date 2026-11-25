@@ -1,6 +1,7 @@
 import { PullRequestProviderError } from "@t3tools/source-control-core/server/PullRequestProvider";
 import { PullRequestUnavailableError, SourceControlProviderKind } from "@t3tools/contracts";
 import { limitRecoveryCommand } from "./UsageLimitRecoveryWorker.ts";
+import { RESTART_RESUMED_NOTICE } from "@t3tools/shared/forkNotices";
 import { createOrchestrationV2TurnItemVisibility } from "@t3tools/shared/orchestrationV2Timeline";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
@@ -7910,7 +7911,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
           notification: {
             source: { kind: "system" as const },
             outcome: "updated" as const,
-            summary: "T3 Code restarted and resumed this turn",
+            summary: RESTART_RESUMED_NOTICE,
             detail: "Continue where you left off.",
           },
           attachments: [],
@@ -7931,7 +7932,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
           continuationItems.flatMap((item) =>
             item.type === "notification" ? [[item.summary, item.detail]] : [],
           ),
-          ["T3 Code restarted and resumed this turn", "Continue where you left off."],
+          [RESTART_RESUMED_NOTICE, "Continue where you left off."],
         );
         yield* orchestrator.dispatch({
           ...command,

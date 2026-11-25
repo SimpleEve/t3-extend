@@ -1,3 +1,8 @@
+import {
+  RESTART_RESUMED_NOTICE, // fork: notices T3 Extend words itself
+  RESTART_STOPPED_NOTICE,
+  RUNTIME_EXITED_NOTICE,
+} from "@t3tools/shared/forkNotices";
 import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import {
@@ -344,10 +349,10 @@ export const continueRestartedRun = Effect.fn("RestartContinuation.continueResta
           outcome: "updated",
           summary:
             input.cause === "provider_exit"
-              ? "The agent runtime exited and stopped background work"
+              ? RUNTIME_EXITED_NOTICE
               : note.settled
-                ? "T3 Code restarted and stopped background work"
-                : "T3 Code restarted and resumed this turn",
+                ? RESTART_STOPPED_NOTICE
+                : RESTART_RESUMED_NOTICE,
           detail: text,
         },
         attachments: [],
