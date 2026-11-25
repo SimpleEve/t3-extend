@@ -1,3 +1,4 @@
+import { HexValueInput } from "./HexValueInput";
 import { THEME_LOOK_LIMITS, type ChatWidth } from "@t3tools/contracts";
 import { BUILT_IN_THEMES } from "@t3tools/shared/themePalettes";
 import { useAtomValue } from "@effect/atom-react";
@@ -28,7 +29,6 @@ import {
 } from "../../themePalette";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { FontFamilyPicker } from "../../components/settings/FontFamilyPicker";
 import {
   Select,
@@ -267,14 +267,11 @@ function ColorRow({
         value={valid ? value : "#000000"}
       />
       <div className="w-28 shrink-0">
-        <Input
-          aria-invalid={!valid}
-          aria-label={t("{label} hex value", { label })}
-          font="mono"
-          nativeInput
-          onChange={(event) => change(event.currentTarget.value)}
-          size="compact"
-          value={hex}
+        <HexValueInput
+          committed={hex}
+          invalid={!valid}
+          label={t("{label} hex value", { label })}
+          onCommit={change}
         />
       </div>
     </div>

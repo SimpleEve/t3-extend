@@ -65,7 +65,8 @@ function themeRgbToHex(value: string): string | null {
   return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function isShortHexColor(value: string): boolean {
+export function isShortHexColor(value: string): boolean {
+  // fork: the theme studio's hex field too
   return /^#[0-9a-f]{3,4}$/i.test(value.trim());
 }
 
