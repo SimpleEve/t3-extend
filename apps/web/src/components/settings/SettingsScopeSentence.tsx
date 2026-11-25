@@ -59,9 +59,12 @@ export const SETTINGS_DEVICE_ONLY_PATHS: ReadonlySet<string> = new Set([
   // Access picks its environment on the page itself.
   "/settings/access",
   "/settings/about",
+  // fork: prompt shortcuts live in one machine's settings and pick that machine on the page.
+  "/settings/prompt-shortcuts",
 ]);
 
-interface SettingsScopeMenuProps {
+// fork: prompt shortcuts pick their machine with the environment menu below.
+export interface SettingsScopeMenuProps {
   readonly value: SettingsScopeSearch;
   readonly groups: readonly SidebarProjectSnapshot[];
   readonly environments: readonly EnvironmentPresentation[];
@@ -285,7 +288,8 @@ function ScopeMenu({
   );
 }
 
-function EnvironmentScopeMenu({
+// fork: prompt shortcuts
+export function EnvironmentScopeMenu({
   value,
   groups,
   environments,

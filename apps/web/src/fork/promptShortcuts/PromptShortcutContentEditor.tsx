@@ -33,7 +33,7 @@ const noop = () => {};
 
 /**
  * The composer's own editor, so `$skill` and `@file` become the chips they are in a message, with
- * the same `$` and `@` menus beneath it. Other triggers (`/`, `#`, `:`) are plain text here.
+ * the same `$` and `@` menus beneath it. Other triggers (`/`, `#`, `;`) are plain text here.
  */
 export function PromptShortcutContentEditor(props: {
   environmentId: EnvironmentId;

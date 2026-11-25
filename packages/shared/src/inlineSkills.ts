@@ -8,7 +8,7 @@ export function formatProviderSkillDisplayName(
   return skill.displayName?.trim() || skill.name;
 }
 
-const SKILL_TOKEN_REGEX =
+export const SKILL_TOKEN_REGEX = // fork: prompt shortcuts read tokens the same way
   /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s|$)/gu;
 
 export function* matchInlineSkills<Skill extends InlineSkill>(

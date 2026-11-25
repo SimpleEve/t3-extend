@@ -349,6 +349,7 @@ export function AssistantCitationSource({
   request,
   listRef,
   bookmarkOnly = false,
+  shortcutSource = false,
   children,
 }: {
   messageId: MessageId;
@@ -358,6 +359,8 @@ export function AssistantCitationSource({
   listRef: RefObject<LegendListRef | null>;
   /** The user's own message: a bookmark can mark it, but "Cite" is for responses. */
   bookmarkOnly?: boolean; // fork: message bookmarks
+  /** fork: prompt shortcuts. A selection here may be saved as a shortcut: the user's own words. */
+  shortcutSource?: boolean;
   children: ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -376,6 +379,7 @@ export function AssistantCitationSource({
       className="outline-none"
       data-assistant-citation-source={messageId}
       data-bookmark-only={bookmarkOnly ? "true" : undefined} // fork: message bookmarks
+      data-prompt-shortcut-source={shortcutSource ? "true" : undefined} // fork: prompt shortcuts
       data-assistant-citation-environment={threadRef?.environmentId}
       data-assistant-citation-thread={threadRef?.threadId}
     >

@@ -37,6 +37,7 @@ export function AssistantSelectionToolbar({
     position: SelectionActionPoint;
     sourceAnchor: AssistantCitationSourceAnchor;
     bookmarkOnly: boolean; // fork: the user's own message can be bookmarked, not cited
+    shortcutSource: boolean; // fork: prompt shortcuts. Only the user's own words, like the hover bar
   } | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null); // fork: message bookmarks, holds Cite and Bookmark
   const actionsRef = useRef<ReturnType<typeof observeSelectionActions> | null>(null);
@@ -128,6 +129,7 @@ export function AssistantSelectionToolbar({
         );
       setSelection({
         bookmarkOnly: captured.source.dataset.bookmarkOnly === "true", // fork: message bookmarks
+        shortcutSource: captured.source.dataset.promptShortcutSource === "true", // fork: prompt shortcuts
         sourceAnchor: { source: captured.source, range: captured.range, viewport },
         citation: {
           version: 1,
@@ -234,8 +236,8 @@ export function AssistantSelectionToolbar({
         onDone={dismiss}
       />
       {/* fork: message bookmarks */}
-      {selection.bookmarkOnly ? (
-        // fork: prompt shortcuts. The user's own message can be saved as a shortcut, not an assistant's.
+      {selection.shortcutSource ? (
+        // fork: prompt shortcuts. The user's own message can be saved as a shortcut, not an assistant's, an agent's or a guest's.
         <SelectionShortcutButton
           threadRef={threadRef}
           text={selection.citation.text}

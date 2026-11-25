@@ -270,14 +270,22 @@ describe("composerSubmissionIntentForKey", () => {
 });
 
 describe("detectComposerTrigger prompt shortcuts", () => {
-  it.each([":", ":sk", "Please :Re", "\uFF1Asummary", "10:30", "http://x", ":)", "word:sk"])(
-    "agrees with the shared detector for %j",
-    (text) => {
-      const trigger = detectComposerTrigger(text, text.length);
-      expect(trigger).toEqual(sharedDetectComposerTrigger(text, text.length));
-      expect(trigger?.kind === "prompt-shortcut").toBe(/(^|\s)[:\uFF1A][a-z0-9-]*$/i.test(text));
-    },
-  );
+  it.each([
+    ";",
+    ";sk",
+    "Please ;Re",
+    "\uFF1Bsummary",
+    "a;b",
+    "x;",
+    ";)",
+    ":re",
+    "10:30",
+    "http://x",
+  ])("agrees with the shared detector for %j", (text) => {
+    const trigger = detectComposerTrigger(text, text.length);
+    expect(trigger).toEqual(sharedDetectComposerTrigger(text, text.length));
+    expect(trigger?.kind === "prompt-shortcut").toBe(/(^|\s)[;\uFF1B][a-z0-9-]*$/i.test(text));
+  });
 });
 
 describe("detectComposerTrigger", () => {

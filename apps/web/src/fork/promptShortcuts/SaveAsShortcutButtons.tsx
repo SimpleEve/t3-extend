@@ -1,10 +1,11 @@
-import { AuthSettingsWriteScope, type ScopedThreadRef } from "@t3tools/contracts";
+import { useAtomValue } from "@effect/atom-react";
+import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useGT } from "gt-react";
 import { ZapIcon } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../components/ui/tooltip";
-import { useEnvironmentScope } from "../../state/session";
+import { serverEnvironment } from "../../state/server";
 import { openPromptShortcutEditor } from "./promptShortcutEditorStore";
 
 /** On a message's hover bar: opens the shortcut dialog with the message's text. */
@@ -18,7 +19,9 @@ export function SaveMessageAsShortcutButton({
   cwd: string | undefined;
 }) {
   const gt = useGT();
-  const canWrite = useEnvironmentScope(threadRef.environmentId, AuthSettingsWriteScope);
+  const canWrite = useAtomValue(
+    serverEnvironment.updateSettings.permissionAtom(threadRef.environmentId),
+  );
   if (!canWrite) return null;
   const label = gt("Save as shortcut");
   return (
@@ -60,7 +63,9 @@ export function SelectionShortcutButton({
   onDone: () => void;
 }) {
   const gt = useGT();
-  const canWrite = useEnvironmentScope(threadRef.environmentId, AuthSettingsWriteScope);
+  const canWrite = useAtomValue(
+    serverEnvironment.updateSettings.permissionAtom(threadRef.environmentId),
+  );
   if (!canWrite) return null;
   return (
     <Button

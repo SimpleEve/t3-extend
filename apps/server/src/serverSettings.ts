@@ -49,6 +49,10 @@ import * as ServerConfig from "./config.ts";
 import { type DeepPartial, deepMerge } from "@t3tools/shared/Struct";
 import { fromJsonStringPretty, fromLenientJson } from "@t3tools/shared/schemaJson";
 import {
+  applyPromptShortcutChanges, // fork: prompt shortcuts
+  type PromptShortcutChangeProblem,
+} from "@t3tools/shared/promptShortcuts";
+import {
   applyServerSettingsPatch,
   deriveLegacyProjectOverrides,
   fallbackTextGenerationModelSelection,
@@ -232,6 +236,35 @@ function ensureSecretProviderWritesAllowed(
   return Effect.void;
 }
 
+const PROMPT_SHORTCUT_CHANGE_REFUSALS: Readonly<Record<PromptShortcutChangeProblem, string>> = {
+  "name-taken": "Another prompt shortcut already has that name.",
+  limit: "The list of prompt shortcuts is full.",
+  "too-large": "The prompt shortcuts together are too large.",
+};
+
+// fork: prompt shortcuts. Runs under the write lock against the stored list, so a name another
+// device took a moment ago is refused here rather than silently dropped.
+function ensurePromptShortcutChangesAllowed(
+  current: ServerSettings,
+  patch: ServerSettingsPatch,
+  settingsPath: string,
+): Effect.Effect<void, ServerSettingsError> {
+  if (patch.changePromptShortcuts === undefined) return Effect.void;
+  const { problem } = applyPromptShortcutChanges(
+    current.promptShortcuts,
+    patch.changePromptShortcuts,
+  );
+  return problem === null
+    ? Effect.void
+    : Effect.fail(
+        new ServerSettingsError({
+          settingsPath,
+          operation: "change-prompt-shortcuts",
+          reason: PROMPT_SHORTCUT_CHANGE_REFUSALS[problem],
+        }),
+      );
+}
+
 function ensureProviderInstanceMutationAllowed(
   settings: ServerSettings,
   mutation: ProviderInstanceMutation,
@@ -328,7 +361,9 @@ const makeTest = Effect.fn("serverSettings.makeTest")(function* (
     getSettings,
     updateSettings: (patch) =>
       updateTestSettings((currentSettings) =>
-        Effect.succeed(applyServerSettingsPatch(currentSettings, patch)),
+        ensurePromptShortcutChangesAllowed(currentSettings, patch, "test settings").pipe(
+          Effect.as(applyServerSettingsPatch(currentSettings, patch)),
+        ),
       ),
     updateProviderInstance: (mutation, patch = {}) =>
       updateTestSettings((currentSettings) =>
@@ -1447,6 +1482,7 @@ const make = Effect.gen(function* () {
     updateSettings: (patch) =>
       updateAndPersistSettings(patch, (current) =>
         ensureSecretProviderWritesAllowed(patch, settingsPath).pipe(
+          Effect.andThen(ensurePromptShortcutChangesAllowed(current, patch, settingsPath)), // fork: prompt shortcuts
           Effect.as(applyServerSettingsPatch(current, patch)),
         ),
       ),

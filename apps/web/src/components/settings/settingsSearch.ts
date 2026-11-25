@@ -1163,8 +1163,8 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Prompt shortcuts"),
     to: "/settings/prompt-shortcuts",
     searchTerms: [
-      "prompt shortcuts snippets saved prompts templates colon expand composer",
-      "提示词 快捷方式 快捷 模板 常用提示词 冒号 展开 输入框 保存 新建 删除 编辑",
+      "prompt shortcuts snippets saved prompts templates semicolon expand composer",
+      "提示词 快捷方式 快捷 模板 常用提示词 分号 展开 输入框 保存 新建 删除 编辑",
     ],
   },
   {

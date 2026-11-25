@@ -26,12 +26,12 @@ function parsedLinkLabel(markdown: string): string | undefined {
 
 describe("detectComposerTrigger prompt shortcuts", () => {
   it.each([
-    [":", "", 0],
-    [":sk", "sk", 0],
-    [":SK-2", "SK-2", 0],
-    ["\uFF1Asummary", "summary", 0],
-    ["Please :re", "re", 7],
-    ["line one\n:fix", "fix", 9],
+    [";", "", 0],
+    [";sk", "sk", 0],
+    [";SK-2", "SK-2", 0],
+    ["\uFF1Bsummary", "summary", 0],
+    ["Please ;re", "re", 7],
+    ["line one\n;fix", "fix", 9],
   ])("offers %j as a prompt shortcut", (text, query, rangeStart) => {
     expect(detectComposerTrigger(text, text.length)).toEqual({
       kind: "prompt-shortcut",
@@ -42,21 +42,25 @@ describe("detectComposerTrigger prompt shortcuts", () => {
   });
 
   it.each([
+    "a;b",
+    "x;",
+    "if (a) { b; }",
+    "end of a sentence; and more",
     "10:30",
     "http://x",
-    "see https://example.com",
-    ":)",
-    ":D!",
-    "word:sk",
-    "a::b",
-    ": sk",
-    "\uFF1A\u597D",
+    ":re",
+    "\uFF1Are",
+    ";)",
+    ";D!",
+    ";;a",
+    "; sk",
+    "\uFF1B\u597D",
   ])("does not trigger for %j", (text) =>
     expect(detectComposerTrigger(text, text.length)).toBeNull(),
   );
 
   it("only reads the word before the caret", () => {
-    expect(detectComposerTrigger("go :re now", 6)).toMatchObject({
+    expect(detectComposerTrigger("go ;re now", 6)).toMatchObject({
       kind: "prompt-shortcut",
       query: "re",
     });

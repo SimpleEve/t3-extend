@@ -1135,6 +1135,9 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                   request={ctx.citationRequest}
                   listRef={ctx.listRef}
                   bookmarkOnly
+                  shortcutSource={
+                    userMessage.attribution !== "agent" && userMessage.attribution !== "guest"
+                  } // fork: prompt shortcuts
                 >
                   <CollapsibleUserMessageBody
                     text={resolvedContext.text}

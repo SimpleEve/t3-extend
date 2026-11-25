@@ -189,8 +189,6 @@ function emptyText(
       return resolve(msg("No skills found."));
     case "slash-command":
       return resolve(msg("No matching commands."));
-    case "prompt-shortcut": // fork: prompt shortcuts
-      return resolve(msg("No matching prompt shortcuts."));
     default:
       return resolve(msg("No results."));
   }

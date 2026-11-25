@@ -28,6 +28,7 @@ import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import { deepMerge } from "./Struct.ts";
+import { applyPromptShortcutChanges } from "./promptShortcuts.ts"; // fork: prompt shortcuts
 import { fromLenientJson } from "./schemaJson.ts";
 import { createModelSelection, readCustomModelEntries } from "./model.ts";
 import {
@@ -394,6 +395,8 @@ export function applyServerSettingsPatch(
     setModelFavorites,
     setModelsHidden,
     setProviderModelOrder,
+    // fork: prompt shortcuts. Applied to the stored list below, never merged.
+    changePromptShortcuts,
     providerModelPreferences,
     automaticGitFetchInterval,
     providerHealthRefreshInterval,
@@ -504,6 +507,15 @@ export function applyServerSettingsPatch(
   const next = deepMerge(current, patchForMerge);
   const nextWithReplacementsBase = {
     ...next,
+    ...(changePromptShortcuts === undefined
+      ? {}
+      : {
+          // fork: prompt shortcuts. A refused change keeps the list; the server reports why first.
+          promptShortcuts: applyPromptShortcutChanges(
+            current.promptShortcuts,
+            changePromptShortcuts,
+          ).shortcuts,
+        }),
     favorites,
     providerModelPreferences: nextModelPreferences,
     ...(worktreeCleanupPatch === undefined

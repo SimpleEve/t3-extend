@@ -806,7 +806,7 @@ const GhostTextPluginKey = new PluginKey<{ text: string; head: number } | null>(
 function createGhostTextElement(text: string): HTMLElement {
   const element = document.createElement("span");
   element.className =
-    "pointer-events-none inline-block max-w-[min(100%,28rem)] align-top text-muted-foreground/60 select-none truncate";
+    "pointer-events-none inline-block max-w-[min(100%,28rem)] overflow-hidden whitespace-nowrap align-top text-muted-foreground/60 select-none";
   element.setAttribute("aria-hidden", "true");
   element.setAttribute("data-composer-ghost-text", "");
   element.textContent = text;

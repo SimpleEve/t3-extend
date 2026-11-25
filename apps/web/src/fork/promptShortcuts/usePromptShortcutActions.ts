@@ -1,5 +1,10 @@
 import { useAtomValue } from "@effect/atom-react";
-import { MAX_PROMPT_SHORTCUTS, type EnvironmentId, type PromptShortcut } from "@t3tools/contracts";
+import {
+  MAX_PROMPT_SHORTCUTS,
+  type EnvironmentId,
+  type PromptShortcut,
+  type PromptShortcutChange,
+} from "@t3tools/contracts";
 import { normalizePromptShortcutName } from "@t3tools/shared/promptShortcuts";
 import { useGT } from "gt-react";
 
@@ -35,8 +40,9 @@ const readShortcuts = (environmentId: EnvironmentId): ReadonlyArray<PromptShortc
   readEnvironment(environmentId)?.serverConfig?.settings.promptShortcuts ?? [];
 
 /**
- * Writes the environment's shortcut list through the ordinary settings update, so permissions and
- * validation are the server's. Each call reads the newest list, then replaces it whole.
+ * Edits the environment's shortcut list through the ordinary settings update. Each call sends one
+ * upsert or removal and the server applies it to the stored list under its write lock, so rapid
+ * edits and other devices never overwrite each other with a whole list built from an older copy.
  */
 export function usePromptShortcutActions(environmentId: EnvironmentId) {
   const gt = useGT();
@@ -45,8 +51,11 @@ export function usePromptShortcutActions(environmentId: EnvironmentId) {
   });
   const canWrite = useAtomValue(serverEnvironment.updateSettings.permissionAtom(environmentId));
 
-  const write = async (next: ReadonlyArray<PromptShortcut>): Promise<boolean> => {
-    const result = await update({ environmentId, input: { patch: { promptShortcuts: next } } });
+  const change = async (edit: PromptShortcutChange): Promise<boolean> => {
+    const result = await update({
+      environmentId,
+      input: { patch: { changePromptShortcuts: [edit] } },
+    });
     return result._tag === "Success";
   };
 
@@ -58,32 +67,32 @@ export function usePromptShortcutActions(environmentId: EnvironmentId) {
     const now = new Date().toISOString();
     const title = draft.title.trim();
     const shortcut: PromptShortcut = {
-      id: existing?.id ?? randomUUID(),
+      id: existing?.id ?? draft.id ?? randomUUID(),
       name: normalizePromptShortcutName(draft.name),
       title: title === "" ? null : title,
       content: draft.content.trim(),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
-    const next = existing
-      ? list.map((entry) => (entry.id === existing.id ? shortcut : entry))
-      : [...list, shortcut];
-    return (await write(next)) ? shortcut : null;
+    return (await change({ kind: "upsert", shortcut })) ? shortcut : null;
   };
 
-  const restore = async (shortcut: PromptShortcut): Promise<boolean> =>
-    write([
-      ...readShortcuts(environmentId).filter(
-        (entry) => entry.id !== shortcut.id && entry.name !== shortcut.name,
-      ),
-      shortcut,
-    ]);
+  /** Puts a removed shortcut back, unless its name was taken meanwhile: that one stays untouched. */
+  const restore = async (shortcut: PromptShortcut): Promise<boolean> => {
+    if (readShortcuts(environmentId).some((entry) => entry.name === shortcut.name)) {
+      toastManager.add({
+        type: "warning",
+        title: gt("Prompt shortcut not restored"),
+        description: gt("Another shortcut is already named ;{name}.", { name: shortcut.name }),
+      });
+      return false;
+    }
+    return change({ kind: "upsert", shortcut });
+  };
 
   /** Removing never asks: a toast offers Undo. */
   const remove = async (shortcut: PromptShortcut): Promise<boolean> => {
-    const removed = await write(
-      readShortcuts(environmentId).filter((entry) => entry.id !== shortcut.id),
-    );
+    const removed = await change({ kind: "remove", id: shortcut.id });
     if (!removed) return false;
     const toastId = toastManager.add(
       stackedThreadToast({

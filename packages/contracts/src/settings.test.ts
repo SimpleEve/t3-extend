@@ -69,27 +69,76 @@ describe("prompt shortcuts", () => {
     ...overrides,
   });
 
-  it("defaults to none and replaces the whole list through a patch", () => {
+  it("defaults to none and changes the list through edits, which need only settings access", () => {
     expect(decodeServerSettings({}).promptShortcuts).toEqual([]);
     expect(
-      decodeServerSettingsPatch({ promptShortcuts: [entry("review")] }).promptShortcuts,
-    ).toHaveLength(1);
-    expect(requiredScopesForServerSettingsPatch({ promptShortcuts: [] })).toEqual([
+      decodeServerSettingsPatch({
+        changePromptShortcuts: [
+          { kind: "upsert", shortcut: entry("review") },
+          { kind: "remove", id: "id-other" },
+        ],
+      }).changePromptShortcuts,
+    ).toHaveLength(2);
+    expect(requiredScopesForServerSettingsPatch({ changePromptShortcuts: [] })).toEqual([
       AuthSettingsWriteScope,
     ]);
   });
 
+  it("does not accept a whole replacement list any more", () => {
+    expect(decodeServerSettingsPatch({ promptShortcuts: [entry("review")] })).not.toHaveProperty(
+      "promptShortcuts",
+    );
+  });
+
   it.each([
-    ["names with spaces, capitals or punctuation", [entry("Review")]],
-    ["a name with a space", [entry("fix ci")]],
-    ["an empty name", [entry("")]],
-    ["a name past 32 characters", [entry("a".repeat(33))]],
-    ["a repeated name", [entry("review"), entry("review", { id: "other" })]],
-    ["empty content", [entry("review", { content: "" })]],
-    ["content past 20,000 characters", [entry("review", { content: "x".repeat(20_001) })]],
-    ["more than 200 shortcuts", Array.from({ length: 201 }, (_, index) => entry(`name-${index}`))],
-  ])("refuses %s", (_label, promptShortcuts) => {
-    expect(() => decodeServerSettingsPatch({ promptShortcuts })).toThrow();
+    ["names with capitals", entry("Review")],
+    ["a name with a space", entry("fix ci")],
+    ["an empty name", entry("")],
+    ["a name past 32 characters", entry("a".repeat(33))],
+    ["empty content", entry("review", { content: "" })],
+    ["content past 20,000 characters", entry("review", { content: "x".repeat(20_001) })],
+  ])("refuses a write with %s", (_label, shortcut) => {
+    expect(() =>
+      decodeServerSettingsPatch({ changePromptShortcuts: [{ kind: "upsert", shortcut }] }),
+    ).toThrow();
+  });
+
+  it("refuses more than 200 edits at once", () => {
+    expect(() =>
+      decodeServerSettingsPatch({
+        changePromptShortcuts: Array.from({ length: 201 }, (_, index) => ({
+          kind: "remove",
+          id: `id-${index}`,
+        })),
+      }),
+    ).toThrow();
+  });
+
+  it("reads a stored list entry by entry: bad entries, repeated names and the overflow drop alone", () => {
+    const settings = decodeServerSettings({
+      defaultRuntimeMode: "full-access",
+      promptShortcuts: [
+        entry("keep-one"),
+        { id: "x", name: "no-content" },
+        "nonsense",
+        null,
+        entry("keep-one", { id: "twin" }),
+        // A limit tightened or loosened later does not make an entry unreadable.
+        entry("Long Name With Spaces", { id: "old-rules", content: "x".repeat(50_000) }),
+        entry("keep-two"),
+      ],
+    });
+    expect(settings.defaultRuntimeMode).toBe("full-access");
+    expect(settings.promptShortcuts.map((shortcut) => shortcut.id)).toEqual([
+      "id-keep-one",
+      "old-rules",
+      "id-keep-two",
+    ]);
+    expect(
+      decodeServerSettings({
+        promptShortcuts: Array.from({ length: 205 }, (_, index) => entry(`n-${index}`)),
+      }).promptShortcuts,
+    ).toHaveLength(200);
   });
 });
 

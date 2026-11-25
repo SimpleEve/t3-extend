@@ -26,7 +26,11 @@ import {
   withLinkedComposerPullRequestsFirst,
 } from "@t3tools/shared/composerPullRequestMatches";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
-import { matchPromptShortcuts, promptShortcutSummary } from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
+import {
+  matchPromptShortcuts,
+  promptShortcutSkillNames,
+  promptShortcutSummary,
+} from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
 
 import type { ComposerTrigger } from "../../composer-logic";
 import type { DraftId } from "../../composerDraftStore";
@@ -352,12 +356,13 @@ export function useComposerMenuItems({
     }
     if (composerTrigger.kind === "prompt-shortcut") {
       // fork: prompt shortcuts. No match returns nothing, which keeps the menu closed.
+      const skillNames = promptShortcutSkillNames(selectedProviderSkills);
       return matchPromptShortcuts(promptShortcuts, composerTrigger.query).map((shortcut) => ({
         id: `prompt-shortcut:${shortcut.id}`,
         type: "prompt-shortcut" as const,
         shortcut,
-        label: `:${shortcut.name}`,
-        description: promptShortcutSummary(shortcut.content, 120),
+        label: `;${shortcut.name}`,
+        description: promptShortcutSummary(shortcut.content, 120, skillNames),
       }));
     }
     if (composerTrigger.kind === "skill") {
@@ -473,7 +478,6 @@ export function useComposerMenuItems({
         ? gt("No pull request matches {query}.", { query: composerTrigger.query })
         : gt("No pull requests found in this repository.");
     }
-    if (composerTriggerKind === "prompt-shortcut") return gt("No matching prompt shortcut.");
     return composerTriggerKind === "path"
       ? gt("No matching files or folders.")
       : gt("No matching command.");

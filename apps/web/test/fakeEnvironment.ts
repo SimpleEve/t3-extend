@@ -19,6 +19,7 @@ import {
   ServerConfig,
   type ServerConfigStreamEvent,
   type ServerSettings,
+  type ServerSettingsPatch,
   ThreadId,
   TurnItemId,
   WS_METHODS,
@@ -46,6 +47,7 @@ import type {
 } from "@t3tools/client-runtime/connection";
 import type { WsRpcProtocolClient } from "@t3tools/client-runtime/rpc";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
+import { applyServerSettingsPatch } from "@t3tools/shared/serverSettings";
 import { APP_VERSION } from "~/branding";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -471,7 +473,7 @@ const handlers: Record<string, (input: never) => unknown> = {
       settingsPatches.push(patch);
       baseServerConfig = {
         ...baseServerConfig,
-        settings: { ...baseServerConfig.settings, ...patch } as ServerSettings,
+        settings: applyServerSettingsPatch(baseServerConfig.settings, patch as ServerSettingsPatch),
       };
       for (const queue of configSubscribers) {
         yield* Queue.offer(queue, {
@@ -733,6 +735,11 @@ export async function answerAssetUrls(): Promise<void> {
 /** Commands the app dispatched to the environment, oldest first. */
 export function dispatchedCommands(): ReadonlyArray<OrchestrationV2Command> {
   return dispatched;
+}
+
+/** The settings the fake server holds now: every patch the app sent, applied in order. */
+export function servedSettings(): ServerSettings {
+  return baseServerConfig.settings;
 }
 
 /** The server-settings patches the app has sent, oldest first. */

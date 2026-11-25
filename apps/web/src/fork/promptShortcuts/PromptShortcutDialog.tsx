@@ -6,6 +6,8 @@ import {
 } from "@t3tools/contracts";
 import {
   normalizePromptShortcutName,
+  promptShortcutInsertionText,
+  promptShortcutsHaveRoomFor,
   validatePromptShortcutName,
 } from "@t3tools/shared/promptShortcuts";
 import { T, useGT } from "gt-react";
@@ -53,7 +55,11 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
   const actions = usePromptShortcutActions(environmentId);
   const [name, setName] = useState(shortcut?.name ?? "");
   const [title, setTitle] = useState(shortcut?.title ?? "");
-  const [content, setContent] = useState(shortcut?.content ?? target.content ?? "");
+  // A closing `$skill` or `@file` only becomes a chip once a space follows it.
+  const [content, setContent] = useState(() => {
+    const initial = shortcut?.content ?? target.content ?? "";
+    return initial === "" ? initial : promptShortcutInsertionText(initial);
+  });
   const [saving, setSaving] = useState(false);
 
   const nameProblem = validatePromptShortcutName(
@@ -62,13 +68,19 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
   );
   const limitReached = shortcut === null && shortcuts.length >= MAX_PROMPT_SHORTCUTS;
   const contentTooLong = content.trim().length > MAX_PROMPT_SHORTCUT_CONTENT_LENGTH;
+  const contentTooLargeForList =
+    !contentTooLong &&
+    !promptShortcutsHaveRoomFor(
+      shortcuts.filter((entry) => entry.id !== shortcut?.id),
+      content.trim().length,
+    );
   const nameMessage =
     nameProblem === "format"
       ? gt("Use lowercase letters, numbers and hyphens only.")
       : nameProblem === "too-long"
         ? gt("Use at most {max} characters.", { max: MAX_PROMPT_SHORTCUT_NAME_LENGTH })
         : nameProblem === "duplicate"
-          ? gt("Another shortcut is already named :{name}.", {
+          ? gt("Another shortcut is already named ;{name}.", {
               name: normalizePromptShortcutName(name),
             })
           : null;
@@ -76,6 +88,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
     nameProblem === null &&
     content.trim().length > 0 &&
     !contentTooLong &&
+    !contentTooLargeForList &&
     !limitReached &&
     actions.canWrite &&
     !saving;
@@ -91,7 +104,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
       toastManager.add({
         type: "success",
         title: gt("Prompt shortcut saved"),
-        description: gt("Type :{name} in the composer to use it.", { name: saved.name }),
+        description: gt("Type ;{name} in the composer to use it.", { name: saved.name }),
       });
     }
   };
@@ -109,7 +122,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
             {shortcut ? <T>Edit prompt shortcut</T> : <T>New prompt shortcut</T>}
           </DialogTitle>
           <DialogDescription>
-            <T>Type : and its name in the composer to insert this prompt.</T>
+            <T>Type ; and its name in the composer to insert this prompt.</T>
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
@@ -127,7 +140,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
               </Label>
               <div className="flex items-center gap-2">
                 <span aria-hidden="true" className="text-sm text-muted-foreground">
-                  :
+                  ;
                 </span>
                 <Input
                   id="prompt-shortcut-name"
@@ -141,7 +154,7 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
                   aria-invalid={name !== "" && nameProblem !== null}
                   aria-describedby="prompt-shortcut-name-hint"
                   onChange={(event) =>
-                    setName(event.target.value.replace(/^[:：]/, "").toLowerCase())
+                    setName(event.target.value.replace(/^[;；]/, "").toLowerCase())
                   }
                 />
               </div>
@@ -184,13 +197,25 @@ function PromptShortcutDialog({ target }: { target: PromptShortcutEditorTarget }
                 onChange={setContent}
                 onSubmit={() => void save()}
                 ariaLabel={gt("Prompt")}
-                placeholder={gt("Write the prompt. Type $ for skills or @ for files.")}
+                placeholder={
+                  target.cwd === undefined
+                    ? gt("Write the prompt. Type $ for skills.")
+                    : gt("Write the prompt. Type $ for skills or @ for files.")
+                }
               />
               {contentTooLong ? (
                 <p className="text-xs text-destructive">
-                  {gt("The prompt is too long. Keep it under {max} characters.", {
-                    max: MAX_PROMPT_SHORTCUT_CONTENT_LENGTH,
+                  {gt("The prompt is too long. Use at most {max} characters.", {
+                    max: new Intl.NumberFormat().format(MAX_PROMPT_SHORTCUT_CONTENT_LENGTH),
                   })}
+                </p>
+              ) : null}
+              {contentTooLargeForList ? (
+                <p className="text-xs text-destructive">
+                  <T>
+                    Your saved prompts are too large together. Shorten this one or remove another
+                    shortcut.
+                  </T>
                 </p>
               ) : null}
               {limitReached ? (

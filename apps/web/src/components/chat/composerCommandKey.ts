@@ -1,5 +1,6 @@
 import type { ChatComposerProps } from "./ChatComposer";
 import { type ComposerCommandItem } from "./ComposerCommandMenu";
+import { isPromptShortcutNamePrefixMatch } from "@t3tools/shared/promptShortcuts"; // fork: prompt shortcuts
 import {
   type ComposerDispatchMode,
   resolveComposerDispatchMode,
@@ -65,6 +66,8 @@ export function composerCommandKeyHandler(input: {
   readonly composerEditorRef: RefObject<ComposerPromptEditorHandle | null>;
   readonly composerMenuItemsRef: RefObject<ComposerCommandItem[]>;
   readonly activeComposerMenuItemRef: RefObject<ComposerCommandItem | null>;
+  /** fork: prompt shortcuts. Whether an arrow key (not the default order) chose the active item. */
+  readonly promptShortcutPickedRef: RefObject<boolean>;
   readonly setComposerDraftPrompt: (
     target: ChatComposerProps["composerDraftTarget"],
     prompt: string,
@@ -123,6 +126,7 @@ export function composerCommandKeyHandler(input: {
     composerEditorRef,
     composerMenuItemsRef,
     activeComposerMenuItemRef,
+    promptShortcutPickedRef,
     setComposerDraftPrompt,
     setComposerDraftThreadContexts,
     setComposerDraftEnvironmentContexts,
@@ -235,7 +239,7 @@ export function composerCommandKeyHandler(input: {
       return applyListEdit(event, listOutdentForTab);
     }
     const { trigger } = resolveActiveComposerTrigger();
-    // fork: prompt shortcuts. `:word` with no matching shortcut shows no menu, so its keys act as plain text.
+    // fork: prompt shortcuts. `;word` with no matching shortcut shows no menu, so its keys act as plain text.
     const menuIsActive =
       !isLiteralPendingAnswer &&
       trigger !== null &&
@@ -265,7 +269,16 @@ export function composerCommandKeyHandler(input: {
         nudgeComposerMenuHighlight("ArrowUp");
         return true;
       }
-      if ((key === "Enter" || key === "Tab") && selectedItem) {
+      // fork: prompt shortcuts. `;D` or `;)` at the end of a message is text: unless the query
+      // starts the name or an arrow key chose the item, Enter sends and only Tab expands.
+      const enterIsPlainSend =
+        key === "Enter" &&
+        trigger.kind === "prompt-shortcut" &&
+        selectedItem?.type === "prompt-shortcut" &&
+        !isPromptShortcutNamePrefixMatch(selectedItem.shortcut, trigger.query) &&
+        !promptShortcutPickedRef.current;
+      if (enterIsPlainSend) dismissComposerTrigger(trigger);
+      if ((key === "Enter" || key === "Tab") && selectedItem && !enterIsPlainSend) {
         onSelectComposerItem(selectedItem);
         return true;
       }

@@ -4,6 +4,8 @@ import { T, useGT } from "gt-react";
 import { PencilIcon, PlusIcon, TrashIcon, ZapIcon } from "lucide-react";
 import { useState } from "react";
 
+import { useEnvironments } from "../../state/environments";
+
 import { Button } from "../../components/ui/button";
 import {
   Empty,
@@ -15,6 +17,7 @@ import {
 import { Input } from "../../components/ui/input";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../components/ui/tooltip";
 import { useSettingsScope } from "../../components/settings/SettingsScopeContext";
+import { EnvironmentScopeMenu } from "../../components/settings/SettingsScopeSentence";
 import { SettingsPageContainer, SettingsSection } from "../../components/settings/settingsLayout";
 import { useSearchableSetting } from "../../components/settings/settingsSearch";
 import { PromptShortcutPreview } from "./PromptShortcutPreview";
@@ -23,7 +26,8 @@ import { usePromptShortcutActions, usePromptShortcuts } from "./usePromptShortcu
 
 export function PromptShortcutsSettings() {
   const gt = useGT();
-  const { environment } = useSettingsScope();
+  const { environment, search, groups, selectScope } = useSettingsScope();
+  const { environments } = useEnvironments();
   if (!environment) {
     return (
       <SettingsPageContainer>
@@ -34,7 +38,22 @@ export function PromptShortcutsSettings() {
     );
   }
   return (
-    <PromptShortcutList key={environment.environmentId} environmentId={environment.environmentId} />
+    <SettingsPageContainer>
+      {/* Shortcuts belong to one machine, never to a project: only the machine is chosen here. */}
+      <div className="px-3 sm:px-4">
+        <EnvironmentScopeMenu
+          singleEnvironment
+          value={search}
+          groups={groups}
+          environments={environments}
+          onChange={selectScope}
+        />
+      </div>
+      <PromptShortcutList
+        key={environment.environmentId}
+        environmentId={environment.environmentId}
+      />
+    </SettingsPageContainer>
   );
 }
 
@@ -60,7 +79,7 @@ function PromptShortcutList({ environmentId }: { environmentId: EnvironmentId })
   const create = () => openPromptShortcutEditor({ environmentId, shortcut: null });
 
   return (
-    <SettingsPageContainer>
+    <>
       <SettingsSection
         {...setting("prompt-shortcuts")}
         headerAction={
@@ -86,7 +105,7 @@ function PromptShortcutList({ environmentId }: { environmentId: EnvironmentId })
               </EmptyTitle>
               <EmptyDescription>
                 <T>
-                  Save a prompt you reuse, then type : and its name in the composer to insert it.
+                  Save a prompt you reuse, then type ; and its name in the composer to insert it.
                 </T>
               </EmptyDescription>
             </EmptyHeader>
@@ -116,7 +135,7 @@ function PromptShortcutList({ environmentId }: { environmentId: EnvironmentId })
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex min-w-0 items-baseline gap-2">
                       <span className="shrink-0 font-mono text-sm font-medium">
-                        :{shortcut.name}
+                        ;{shortcut.name}
                       </span>
                       {shortcut.title ? (
                         <span className="min-w-0 truncate text-sm text-muted-foreground">
@@ -138,7 +157,7 @@ function PromptShortcutList({ environmentId }: { environmentId: EnvironmentId })
                             size="icon-xs"
                             variant="ghost-muted"
                             disabled={!actions.canWrite}
-                            aria-label={gt("Edit :{name}", { name: shortcut.name })}
+                            aria-label={gt("Edit ;{name}", { name: shortcut.name })}
                             onClick={() => openPromptShortcutEditor({ environmentId, shortcut })}
                           />
                         }
@@ -155,7 +174,7 @@ function PromptShortcutList({ environmentId }: { environmentId: EnvironmentId })
                             size="icon-xs"
                             variant="ghost-muted"
                             disabled={!actions.canWrite}
-                            aria-label={gt("Delete :{name}", { name: shortcut.name })}
+                            aria-label={gt("Delete ;{name}", { name: shortcut.name })}
                             onClick={() => void actions.remove(shortcut)}
                           />
                         }
@@ -171,6 +190,6 @@ function PromptShortcutList({ environmentId }: { environmentId: EnvironmentId })
           </>
         )}
       </SettingsSection>
-    </SettingsPageContainer>
+    </>
   );
 }

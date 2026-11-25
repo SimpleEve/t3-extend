@@ -1,4 +1,5 @@
 import type { EnvironmentId } from "@t3tools/contracts";
+import { promptShortcutInsertionText } from "@t3tools/shared/promptShortcuts";
 
 import ChatMarkdown from "../../components/ChatMarkdown";
 import type { MarkdownExtensions } from "~/markdown/wordsHast";
@@ -18,7 +19,7 @@ export function PromptShortcutPreview({
   return (
     <div className="line-clamp-2 max-h-12 overflow-hidden text-xs text-muted-foreground">
       <ChatMarkdown
-        text={content}
+        text={promptShortcutInsertionText(content)}
         cwd={undefined}
         environmentId={environmentId}
         skills={skills}
