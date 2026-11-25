@@ -157,7 +157,9 @@ export function deriveLatestContextWindowSnapshot(
 
   if (liveUsage != null) {
     const usedTokens = Math.max(0, liveUsage.usedTokens);
-    const maxTokens = liveUsage.maxTokens ?? null;
+    // fork: a turn's report often has no window size; the provider thread's own report does.
+    const maxTokens =
+      liveUsage.maxTokens ?? asFiniteNumber(providerThread?.contextUsage?.maxTokens);
     const usedPercentage =
       maxTokens !== null && maxTokens > 0 ? Math.min(100, (usedTokens / maxTokens) * 100) : null;
     const remainingTokens =

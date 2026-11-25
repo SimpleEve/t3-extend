@@ -405,4 +405,32 @@ describe("deriveThreadContextMeter", () => {
     );
     expect(meter).toMatchObject({ percent: 25, usedTokens: 50_000, maxTokens: 200_000 });
   });
+
+  it("takes the window size from the provider thread when the turn's report has none", () => {
+    const meter = deriveThreadContextMeter(
+      {
+        thread: { activeProviderThreadId: "pt-1", forkedFrom: null },
+        contextTransfers: [],
+        providerThreads: [
+          {
+            id: "pt-1",
+            updatedAt: DateTime.makeUnsafe("2026-11-15T10:00:00.000Z"),
+            contextUsage: { usedTokens: 49_847, maxTokens: 1_048_576 },
+          },
+        ],
+        providerTurns: [
+          {
+            providerThreadId: "pt-1",
+            tokenUsage: {
+              usedTokens: 262_144,
+              maxTokens: null,
+              updatedAt: "2026-11-15T10:00:00.000Z",
+            },
+          },
+        ],
+      } as never,
+      [],
+    );
+    expect(meter).toMatchObject({ percent: 25, usedTokens: 262_144, maxTokens: 1_048_576 });
+  });
 });
