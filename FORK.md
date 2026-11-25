@@ -529,8 +529,8 @@ workflow 先构建所有产物，全部传上去之后才把 release 从草稿�
 | `t3-<版本>-linux-x64.tar.gz`                         | `ubuntu-24.04`     | 同上                                                                                                           |
 | `t3-<版本>-linux-arm64.tar.gz`                       | `ubuntu-24.04-arm` | 同上                                                                                                           |
 | `SHA256SUMS`                                         | release 任务       | 只含上面三个归档，格式 `<sha256>  <文件名>`                                                                    |
-| `T3-Extend-<版本>-arm64.dmg`（附 `.sha256`）         | `macos-15`         | `fork-dist-mac.ts` 的流程，用 fork 自己的自签名身份签名                                                        |
-| `T3-Extend-<版本>-arm64.zip`、`latest-mac.yml`       | `macos-15`         | 同一个已签名的 app 打成 zip（Squirrel.Mac 从它安装），`latest-mac.yml` 点名它；供桌面自更新，不是给人下载的    |
+| `T3-Extend-<版本>-arm64.dmg`（附 `.sha256`）         | `macos-26`         | `fork-dist-mac.ts` 的流程，用 fork 自己的自签名身份签名                                                        |
+| `T3-Extend-<版本>-arm64.zip`、`latest-mac.yml`       | `macos-26`         | 同一个已签名的 app 打成 zip（Squirrel.Mac 从它安装），`latest-mac.yml` 点名它；供桌面自更新，不是给人下载的    |
 | `T3-Extend-<版本>-x64.exe`（附 `.sha256`）           | `windows-2025`     | `fork-dist-win.ts` 的流程，NSIS 安装包，**不签名**（没有 Windows 证书）                                        |
 | `T3-Extend-<版本>-x64.exe.blockmap`、`latest.yml`    | `windows-2025`     | electron-builder 生成，桌面自更新用                                                                            |
 | `T3-Extend-<应用版本>-arm64-v8a.apk`（附 `.sha256`） | `ubuntu-24.04`     | `fork-build-android-release.ts` 的流程；文件名里是移动端应用版本（上游移动端版本加 fork 后缀，如 `2.3.0-1.0`） |

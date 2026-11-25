@@ -252,7 +252,8 @@ jobs:
     name: macOS DMG
     needs: plan
     if: github.repository == 'SimpleEve/t3-extend'
-    runs-on: macos-15
+    # The Apple Speech helper needs the macOS 26 SDK (Xcode 26), which macos-15 does not have.
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - name: Checkout

@@ -1077,8 +1077,9 @@ export function resolveWindowsServerAsarIgnoreGlobs(arch: typeof BuildArch.Type)
 
 export const WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT = 80;
 // fork: built on a Windows host, the app also gets the ~24-file server compile cache that a Linux
-// cross build (what the limit above was set against) skips, plus frpc, LICENSE and NOTICE.
-export const FORK_WINDOWS_PAYLOAD_FILE_LIMIT = 100;
+// cross build (what the limit above was set against) skips, plus frpc, LICENSE and NOTICE. That cache
+// grows with the server: 110 files after the 11-24 upstream sync.
+export const FORK_WINDOWS_PAYLOAD_FILE_LIMIT = 120;
 export const WINDOWS_SERVER_RESOURCE_SOURCE_DIR = "apps/desktop/prod-resources/windows-server";
 export const WINDOWS_SERVER_EXTRA_RESOURCES = [
   {
