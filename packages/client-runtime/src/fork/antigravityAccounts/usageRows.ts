@@ -16,6 +16,8 @@ export interface AccountUsageColumn {
 
 export interface AccountUsageRow {
   readonly account: LimitAccount;
+  /** 1-based place in the list, for naming an account that has no e-mail. */
+  readonly position: number;
   readonly current: boolean;
   /** Milliseconds since the reading was taken; null while it is live or when there is none. */
   readonly readAgoMs: number | null;
@@ -56,13 +58,16 @@ export function accountUsageRows(
   /** The pool's own windows, in column order: the pooled share left, its pace and next refill. */
   readonly windows: ReadonlyArray<LimitPoolWindow>;
   readonly rows: ReadonlyArray<AccountUsageRow>;
+  /** The same rows, split by machine when the pool spans several; see `accountUsageSections`. */
+  readonly sections: ReadonlyArray<AccountUsageSection>;
 } {
   const windows = displayLimitWindows(pool);
   const columns = windows.map(({ id, kind, label }) => ({ id, kind, label }));
-  const rows = pool.accounts.map((account): AccountUsageRow => {
+  const unordered = pool.accounts.map((account): AccountUsageRow => {
     const unread = account.limits.windows.length === 0;
     return {
       account,
+      position: 0,
       current: account.current === true,
       readAgoMs:
         account.snapshot && !unread
@@ -79,11 +84,74 @@ export function accountUsageRows(
       ),
     };
   });
-  return {
-    columns,
-    windows,
-    rows: [...rows.filter((row) => row.current), ...rows.filter((row) => !row.current)],
-  };
+  const rows = [
+    ...unordered.filter((row) => row.current),
+    ...unordered.filter((row) => !row.current),
+  ].map((row, index): AccountUsageRow => ({ ...row, position: index + 1 }));
+  return { columns, windows, rows, sections: accountUsageSections(rows) };
+}
+
+export interface AccountUsageSection {
+  readonly key: string;
+  /**
+   * The machine or machines the accounts are saved on; null when the pool sits on one machine, which
+   * needs no heading, and for accounts that name no machine at all.
+   */
+  readonly label: string | null;
+  /** The accounts are saved on more than one machine. */
+  readonly shared: boolean;
+  /** Machines named by `label`. */
+  readonly machineCount: number;
+  readonly rows: ReadonlyArray<AccountUsageRow>;
+}
+
+/**
+ * One section per set of machines an account is saved on. An account kept on several machines is one
+ * row, as in the pooled total, so it sits in its own section named after all of them rather than
+ * once per machine. Sections are ordered by name, those that span machines last; rows keep their
+ * order. A pool on a single machine (or with no machine to name) is one unlabelled section.
+ */
+function accountUsageSections(
+  rows: ReadonlyArray<AccountUsageRow>,
+): ReadonlyArray<AccountUsageSection> {
+  const machines = new Set(
+    rows.flatMap((row) => row.account.environments.map((environment) => environment.environmentId)),
+  );
+  if (machines.size < 2) {
+    return rows.length === 0
+      ? []
+      : [{ key: "", label: null, shared: false, machineCount: machines.size, rows }];
+  }
+  const sections = new Map<
+    string,
+    { label: string | null; machineCount: number; rows: AccountUsageRow[] }
+  >();
+  for (const row of rows) {
+    const { environments, sourceLabel } = row.account;
+    const ids = environments.map((environment) => environment.environmentId).sort();
+    const key = ids.join("\0");
+    const section = sections.get(key) ?? {
+      label:
+        environments.length > 0
+          ? environments
+              .map((environment) => environment.label)
+              .sort((left, right) => left.localeCompare(right))
+              .join(", ")
+          : sourceLabel,
+      machineCount: environments.length,
+      rows: [],
+    };
+    section.rows.push(row);
+    sections.set(key, section);
+  }
+  // No `toSorted`: Hermes, which runs the mobile app, does not have it.
+  return [...sections]
+    .map(([key, section]) => ({ key, shared: section.machineCount > 1, ...section }))
+    .sort(
+      (left, right) =>
+        Number(left.shared) - Number(right.shared) ||
+        (left.label ?? "").localeCompare(right.label ?? ""),
+    );
 }
 
 export interface AccountUsageGroup {
