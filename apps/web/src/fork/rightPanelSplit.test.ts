@@ -565,3 +565,20 @@ describe("operations on saved data that no longer matches its tabs", () => {
     expect(next.layout?.ratio).toBe(0.3);
   });
 });
+
+describe("a terminal id that is used again", () => {
+  it("lands in the focused cell, not in the cell where an earlier terminal with that id was closed", () => {
+    const store = useRightPanelStore.getState();
+    open("a", "b");
+    store.openTerminal(ref, "term-1");
+    split("a", "right"); // [b term-1 | a]
+    apply({ kind: "focus", cellId: cellIdOf("b") });
+    store.closeSurface(ref, "terminal:term-1");
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+    store.openTerminal(ref, "term-1"); // the id is allocated again
+    const terminalCell = cellsOf(panel().layout!).find((cell) =>
+      cell.tabIds.includes("terminal:term-1"),
+    )!;
+    expect(terminalCell.id).toBe(cellIdOf("a"));
+  });
+});

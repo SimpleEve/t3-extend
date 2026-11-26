@@ -328,7 +328,9 @@ export function reconcileSplit<T extends SplitState>(
     .map((surface): string => surface.id)
     .filter((id) => !assigned.has(id));
   const homes: Record<string, string> = { ...layout.homes };
-  for (const [id, where] of removed) homes[id] = where.cellId;
+  // Terminals are not reopened, and their ids are handed out again, so a new one must not
+  // be pulled back to the cell an earlier terminal with that id closed in.
+  for (const [id, where] of removed) if (!id.startsWith("terminal:")) homes[id] = where.cellId;
 
   if (unassigned.length > 0) {
     const placements = new Map<string, { index?: number; activate: boolean }>();
