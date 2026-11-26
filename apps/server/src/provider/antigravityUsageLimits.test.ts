@@ -7,9 +7,13 @@ import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Fiber from "effect/Fiber"; // fork:
+import * as Logger from "effect/Logger"; // fork:
 import * as Path from "effect/Path";
+import * as Queue from "effect/Queue"; // fork:
+import * as References from "effect/References"; // fork:
 import * as TestClock from "effect/testing/TestClock";
-import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
+import { FetchHttpClient, HttpClient, HttpClientError, HttpClientResponse } from "effect/http"; // fork:
 import type * as Undici from "undici";
 
 import type { AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
@@ -67,6 +71,8 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     summaryStatus?: number;
     /** Per-host summary statuses; hosts not listed fall back to `summaryStatus`. */
     summaryStatusByHost?: Record<string, number>;
+    summaryTransportErrorHosts?: string[]; // fork:
+    summaryBodyText?: string; // fork: a summary answer that is not JSON
     tokenStatus?: number;
     refreshToken?: string;
     userId?: string | (() => string); // fork: a function lets a test switch the account
@@ -138,9 +144,11 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
       return HttpClientResponse.fromWeb(
         request,
         request.url.endsWith(":retrieveUserQuotaSummary")
-          ? Response.json(options.summaryByHost?.[url.host] ?? options.summary ?? summary, {
-              status: options.summaryStatusByHost?.[url.host] ?? options.summaryStatus ?? 200,
-            })
+          ? options.summaryBodyText === undefined // fork:
+            ? Response.json(options.summaryByHost?.[url.host] ?? options.summary ?? summary, {
+                status: options.summaryStatusByHost?.[url.host] ?? options.summaryStatus ?? 200,
+              })
+            : new Response(options.summaryBodyText) // fork:
           : Response.json(options.models ?? { models: {} }),
       );
     }).pipe(
@@ -148,6 +156,18 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
         request.url.endsWith("/userinfo") && options.userInfoAt !== undefined
           ? TestClock.setTime(options.userInfoAt)
           : Effect.void,
+      ),
+      // fork: a request that never reaches the host.
+      Effect.filterOrFail(
+        () =>
+          !(
+            options.summaryTransportErrorHosts?.includes(url.host) &&
+            request.url.endsWith(":retrieveUserQuotaSummary")
+          ),
+        () =>
+          new HttpClientError.HttpClientError({
+            reason: new HttpClientError.TransportError({ request }),
+          }),
       ),
     ),
   );
@@ -706,6 +726,171 @@ describe("Antigravity subscription limits", () => {
       expect(JSON.stringify(limits)).not.toMatch(/client-secret|refresh-a|access-token/);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
+
+  // fork: a failed read names what each host did, so a report is enough to tell why.
+  describe("diagnosing an empty limits read", () => {
+    const run = Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer));
+    const denied = {
+      error: { code: 403, status: "PERMISSION_DENIED", message: "Secret project text" },
+    };
+    const both = {
+      "daily-cloudcode-pa.googleapis.com": denied,
+      "cloudcode-pa.googleapis.com": denied,
+    };
+    const signedIn: AntigravityCliLoginRead = {
+      _tag: "found",
+      login: { accessToken: "access-token", refreshToken: "cli-refresh", expiresAt: 60 * 60_000 },
+    };
+    const cliFixture = (options: Parameters<typeof fixture>[0]) =>
+      fixture({
+        sharedLogin: true,
+        missingToken: true,
+        userId: "google-user-1",
+        cliLogin: () => signedIn,
+        ...options,
+      });
+
+    it.effect("says what both hosts answered, the sign-in route and that no project went out", () =>
+      Effect.gen(function* () {
+        const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+        const logger = Logger.make(({ message, fiber }) => {
+          logs.push({ message, annotations: fiber.getRef(References.CurrentLogAnnotations) });
+        });
+        const { probe } = yield* cliFixture({ summaryByHost: both, summaryStatus: 403 });
+        const limits = yield* probe.pipe(Effect.provide(Logger.layer([logger])));
+        expect(limits.windows).toEqual([]);
+        expect(limits.unavailable?.reason).toBe("probeFailed");
+        expect(limits.unavailable?.message).toBe(
+          "Antigravity did not return usable quota information. (login: agy CLI sign-in; project: no; retrieveUserQuotaSummary: daily HTTP 403 PERMISSION_DENIED, prod HTTP 403 PERMISSION_DENIED; fetchAvailableModels: daily no usable quota, prod no usable quota)",
+        );
+        expect(logs).toContainEqual({
+          message: ["Antigravity quota request gave no usable windows."],
+          annotations: {
+            operation: "retrieveUserQuotaSummary",
+            endpoint: "prod",
+            outcome: "HTTP 403 PERMISSION_DENIED",
+            status: 403,
+            login: "agy CLI sign-in",
+            project: "no",
+          },
+        });
+        expect(JSON.stringify([limits, logs])).not.toMatch(
+          /Secret project text|access-token|cli-refresh|google-user-1/,
+        );
+      }).pipe(Effect.scoped, run),
+    );
+
+    it.effect("says a project went out for a separate sign-in", () =>
+      Effect.gen(function* () {
+        const { probe } = yield* fixture({ summaryByHost: both, summaryStatus: 403 });
+        const message = (yield* probe).unavailable?.message;
+        expect(message).toContain("login: separate sign-in token file; project: yes;");
+        expect(message).not.toContain("project-id");
+      }).pipe(Effect.scoped, run),
+    );
+
+    it.effect("adds nothing while one host still reports quota", () =>
+      Effect.gen(function* () {
+        const { probe } = yield* cliFixture({
+          summaryByHost: { "daily-cloudcode-pa.googleapis.com": denied },
+          summaryStatusByHost: { "daily-cloudcode-pa.googleapis.com": 403 },
+        });
+        const limits = yield* probe;
+        expect(limits.unavailable).toBeUndefined();
+        expect(limits.windows).toHaveLength(4);
+      }).pipe(Effect.scoped, run),
+    );
+
+    it.effect("tells a missing error status, a redirect and a server error apart", () =>
+      Effect.gen(function* () {
+        const message = (status: number, summaryByHost?: Record<string, unknown>) =>
+          cliFixture({ summaryStatus: status, ...(summaryByHost ? { summaryByHost } : {}) }).pipe(
+            Effect.flatMap((usage) => usage.probe),
+            Effect.map((limits) => limits.unavailable?.message ?? ""),
+          );
+        expect(
+          yield* message(401, {
+            "daily-cloudcode-pa.googleapis.com": {},
+            "cloudcode-pa.googleapis.com": {},
+          }),
+        ).toContain("retrieveUserQuotaSummary: daily HTTP 401, prod HTTP 401;");
+        expect(yield* message(302)).toContain(
+          "retrieveUserQuotaSummary: daily redirect HTTP 302, prod redirect HTTP 302;",
+        );
+        // Only a short enum is quoted; prose and anything long or odd is dropped.
+        const odd = { error: { status: "Token abc.def is bad, retry later please" } };
+        expect(
+          yield* message(500, {
+            "daily-cloudcode-pa.googleapis.com": odd,
+            "cloudcode-pa.googleapis.com": odd,
+          }),
+        ).toContain("daily HTTP 500, prod HTTP 500");
+      }).pipe(Effect.scoped, run),
+    );
+
+    it.effect("labels a transport error, a body that is not JSON and an unexpected shape", () =>
+      Effect.gen(function* () {
+        const { probe } = yield* cliFixture({
+          summaryTransportErrorHosts: ["daily-cloudcode-pa.googleapis.com"],
+          summaryBodyText: "<html>blocked</html>",
+        });
+        expect((yield* probe).unavailable?.message).toContain(
+          "retrieveUserQuotaSummary: daily network error, prod response is not JSON;",
+        );
+        const shaped = yield* cliFixture({ summary: { groups: "none" } }).pipe(
+          Effect.flatMap((usage) => usage.probe),
+        );
+        expect(shaped.unavailable?.message).toContain(
+          "retrieveUserQuotaSummary: daily unexpected response, prod unexpected response;",
+        );
+      }).pipe(Effect.scoped, run),
+    );
+
+    it.effect("labels a request that times out", () =>
+      Effect.gen(function* () {
+        const asked = yield* Queue.unbounded<string>();
+        const usage = yield* makeAntigravityUsageProbe({
+          profileDirectory: "/unused",
+          authMethod: "oauth-personal",
+          sharedLogin: true,
+          readCliLogin: Effect.succeed(signedIn),
+        }).pipe(
+          Effect.provideService(
+            HttpClient.HttpClient,
+            HttpClient.make((request) =>
+              request.url.endsWith("/userinfo")
+                ? Effect.succeed(
+                    HttpClientResponse.fromWeb(request, Response.json({ id: "google-user-1" })),
+                  )
+                : Queue.offer(asked, request.url).pipe(Effect.andThen(Effect.never)),
+            ),
+          ),
+        );
+        const fiber = yield* Effect.forkChild(usage.probe);
+        // Each operation asks both hosts, which then time out together.
+        for (const _operation of ["summary", "models"]) {
+          yield* Queue.take(asked);
+          yield* Queue.take(asked);
+          yield* TestClock.adjust("10 seconds");
+        }
+        const limits = yield* Fiber.join(fiber);
+        expect(limits.unavailable?.message).toContain(
+          "retrieveUserQuotaSummary: daily timeout, prod timeout; fetchAvailableModels: daily timeout, prod timeout)",
+        );
+      }).pipe(Effect.scoped, run),
+    );
+
+    it.effect("names why the read itself failed without echoing credentials", () =>
+      Effect.gen(function* () {
+        const { probe } = yield* fixture({ tokenStatus: 401 });
+        const limits = yield* probe;
+        expect(limits.unavailable?.message).toBe(
+          "Could not read Antigravity limits. Refresh provider status to retry. (HTTP 401)",
+        );
+        expect(JSON.stringify(limits)).not.toMatch(/client-secret|refresh-a|access-token/);
+      }).pipe(Effect.scoped, run),
+    );
+  });
 
   // fork: the shared login lives in the system keyring, which the probe never reads.
   it.effect("explains why limits are unavailable when the sign-in is the agy CLI's", () =>

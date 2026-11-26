@@ -2,6 +2,7 @@ import * as NodeModule from "node:module";
 
 import type { AntigravitySettings, ServerProviderUsageWindow } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as Cause from "effect/Cause"; // fork:
 import * as Clock from "effect/Clock";
 import * as Digest from "effect/crypto/Digest";
 import * as DateTime from "effect/DateTime";
@@ -11,7 +12,13 @@ import { identity } from "effect/Function"; // fork:
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
-import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import {
+  FetchHttpClient,
+  HttpClient,
+  HttpClientError, // fork:
+  HttpClientRequest,
+  HttpClientResponse,
+} from "effect/http";
 import type * as Undici from "undici";
 
 import {
@@ -51,6 +58,61 @@ const MANUAL_REDIRECT: RequestInit = { redirect: "manual" };
 // fork: a proxy that cannot be used must not let the probe go out directly.
 const PROXY_UNUSABLE =
   "Limits are not available because the Antigravity network proxy cannot be used from the T3 server. Check the proxy address in the provider settings.";
+// fork: a failed limits read says why, with short labels only: never a token, project id or body text.
+const NO_QUOTA = "Antigravity did not return usable quota information.";
+const COULD_NOT_READ = "Could not read Antigravity limits. Refresh provider status to retry.";
+const SHORT_CODE = /^[A-Za-z_]{3,48}$/;
+
+interface Failure {
+  readonly label: string;
+  readonly status?: number;
+}
+
+// Google answers `{"error":{"status":"PERMISSION_DENIED"}}`; OAuth answers `{"error":"invalid_grant"}`.
+const ErrorBody = Schema.Struct({
+  error: Schema.Union([Schema.String, Schema.Struct({ status: Schema.optional(Schema.String) })]),
+});
+const decodeErrorBody = Schema.decodeUnknownOption(ErrorBody);
+const errorCode = (response: HttpClientResponse.HttpClientResponse) =>
+  response.json.pipe(
+    Effect.map((body) => {
+      const code = Option.map(decodeErrorBody(body), ({ error }) =>
+        typeof error === "string" ? error : error.status,
+      );
+      return Option.isSome(code) && code.value !== undefined && SHORT_CODE.test(code.value)
+        ? code.value
+        : undefined;
+    }),
+    Effect.timeout("2 seconds"),
+    Effect.orElseSucceed(() => undefined),
+  );
+
+const describeFailure = Effect.fnUntraced(function* (error: unknown) {
+  if (Cause.isTimeoutError(error)) return { label: "timeout" } satisfies Failure;
+  if (Schema.isSchemaError(error)) return { label: "unexpected response" } satisfies Failure;
+  if (HttpClientError.isHttpClientError(error)) {
+    const { reason } = error;
+    switch (reason._tag) {
+      case "StatusCodeError": {
+        const status = reason.response.status;
+        if (status >= 300 && status < 400) return { label: `redirect HTTP ${status}`, status };
+        const code = yield* errorCode(reason.response);
+        return { label: `HTTP ${status}${code ? ` ${code}` : ""}`, status };
+      }
+      case "TransportError":
+        return { label: "network error" } satisfies Failure;
+      case "DecodeError":
+      case "EmptyBodyError":
+        return { label: "response is not JSON" } satisfies Failure;
+      default:
+        return { label: reason._tag } satisfies Failure;
+    }
+  }
+  const tag =
+    typeof error === "object" && error !== null && "_tag" in error ? error._tag : undefined;
+  return { label: typeof tag === "string" ? tag : "error" } satisfies Failure;
+});
+
 const TokenFile = Schema.Struct({
   client_id: Schema.NonEmptyString,
   client_secret: Schema.NonEmptyString,
@@ -396,8 +458,10 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     let accessToken: string;
     let account: string;
     let projectId: string | undefined;
+    let loginPath = "separate sign-in token file"; // fork:
     // fork: a shared login has no token of its own. A leftover file may belong to another account.
     if (input.sharedLogin) {
+      loginPath = "agy CLI sign-in"; // fork:
       cached = undefined;
       if (!input.readCliLogin) {
         return makeUnavailableUsageLimits({
@@ -447,6 +511,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
             );
       if (generation === startedGeneration) cachedCliAccount = { fingerprint, account };
     } else if (!(yield* fs.exists(tokenPath))) {
+      loginPath = "1.5.x CLI token file"; // fork:
       cached = undefined;
       // Google account instances bypass the keyring, whose one entry every profile shares.
       const stored = (yield* fs.exists(cliTokenPath))
@@ -535,6 +600,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
           Effect.gen(function* () {
             // Capture each request after auth, so refresh latency does not widen the tolerance.
             const requestedAt = yield* Clock.currentTimeMillis;
+            const host = endpoint === DAILY_ENDPOINT ? "daily" : "prod"; // fork:
             return yield* request(
               HttpClientRequest.post(`${endpoint}/v1internal:${operation}`).pipe(
                 HttpClientRequest.setHeaders({
@@ -545,28 +611,71 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
               ),
             ).pipe(
               Effect.flatMap((response) => parse(response, requestedAt)),
-              Effect.orElseSucceed(() => []),
+              // fork: keep why an endpoint gave nothing, for the diagnosis below.
+              Effect.map((windows) => ({
+                host,
+                windows,
+                failure: windows.length ? undefined : ({ label: "no usable quota" } as Failure),
+              })),
+              Effect.catch((error) =>
+                describeFailure(error).pipe(
+                  Effect.map((failure) => ({
+                    host,
+                    windows: [] as ServerProviderUsageWindow[],
+                    failure: failure as Failure | undefined,
+                  })),
+                ),
+              ),
             );
           }),
         { concurrency: "unbounded" },
       );
       const windows = new Map<string, ServerProviderUsageWindow>();
-      for (const window of responses.flat()) {
+      for (const window of responses.flatMap((response) => response.windows)) {
         if (!windows.has(window.id)) windows.set(window.id, window);
       }
-      return [...windows.values()];
+      const failures = responses.flatMap(({ host, failure }) =>
+        failure ? [{ host, ...failure }] : [],
+      ); // fork:
+      return { operation, windows: [...windows.values()], failures }; // fork:
     });
     const summary = yield* fetchWindows("retrieveUserQuotaSummary", antigravitySummaryWindows);
-    const windows = summary.length
-      ? summary
+    const fallback = summary.windows.length
+      ? undefined
       : yield* fetchWindows("fetchAvailableModels", (response) =>
           decodeModels(response).pipe(Effect.map(modelWindows)),
         );
+    const windows = (fallback ?? summary).windows;
     if (windows.length === 0) {
+      // fork: the sign-in route and whether a project went out are what tell a rejected request apart.
+      const attempts = [summary, fallback].flatMap((attempt) => (attempt ? [attempt] : []));
+      yield* Effect.forEach(
+        attempts.flatMap(({ operation, failures }) =>
+          failures.map((failure) => ({ operation, ...failure })),
+        ),
+        ({ operation, host, label, status }) =>
+          Effect.logWarning("Antigravity quota request gave no usable windows.").pipe(
+            Effect.annotateLogs({
+              operation,
+              endpoint: host,
+              outcome: label,
+              ...(status === undefined ? {} : { status }),
+              login: loginPath,
+              project: projectId ? "yes" : "no",
+            }),
+          ),
+        { discard: true },
+      );
+      const details = attempts
+        .map(
+          ({ operation, failures }) =>
+            `${operation}: ${failures.map(({ host, label }) => `${host} ${label}`).join(", ")}`,
+        )
+        .join("; ");
       return makeUnavailableUsageLimits({
         checkedAt,
         reason: "probeFailed",
-        message: "Antigravity did not return usable quota information.",
+        message: `${NO_QUOTA} (login: ${loginPath}; project: ${projectId ? "yes" : "no"}; ${details})`,
       });
     }
     return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
@@ -574,12 +683,20 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   const probe = read.pipe(
     Effect.provideService(Digest.Digest, crypto),
     Effect.timeout("30 seconds"),
-    Effect.catch(() =>
+    Effect.catch((error) =>
       Effect.gen(function* () {
+        // fork: only the classification is logged; a decode error's text can quote the token file.
+        const failure = yield* describeFailure(error);
+        yield* Effect.logWarning("Could not read Antigravity limits.").pipe(
+          Effect.annotateLogs({
+            outcome: failure.label,
+            ...(failure.status === undefined ? {} : { status: failure.status }),
+          }),
+        );
         return makeUnavailableUsageLimits({
           checkedAt: DateTime.formatIso(yield* DateTime.now),
           reason: "probeFailed",
-          message: "Could not read Antigravity limits. Refresh provider status to retry.",
+          message: `${COULD_NOT_READ} (${failure.label})`,
         });
       }),
     ),
