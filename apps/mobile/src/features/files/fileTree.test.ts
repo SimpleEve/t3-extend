@@ -1,6 +1,6 @@
 import { expect, it } from "vite-plus/test";
 
-import { buildFileTree, canExpandNode, canOpenNode, flattenFileTree } from "./fileTree";
+import { buildFileTree, flattenFileTree } from "./fileTree";
 
 it("flattens a wide expanded directory without exceeding argument limits", () => {
   const children = Array.from({ length: 200_000 }, (_, index) => ({
@@ -60,22 +60,16 @@ it("prunes unmatched subtrees without losing adjacent rows or their depths", () 
   ]);
 });
 
-it("carries a link's target on its node and keeps loops and broken links from opening", () => {
+it("carries each link on its node, sorts loops with folders and never walks into one", () => {
   const nodes = buildFileTree([
-    { kind: "directory", path: "data", symlink: { target: "/mnt/data" } },
-    { kind: "directory", path: "up", symlink: { target: "..", cycle: true } },
     { kind: "file", path: "gone", symlink: { target: "missing", broken: true } },
     { kind: "file", path: "plain.txt" },
+    { kind: "file", path: "up", symlink: { target: "..", cycle: true } },
+    { kind: "directory", path: "data", symlink: { target: "/mnt/data" } },
   ]);
-  const byPath = new Map(nodes.map((node) => [node.path, node]));
-  expect(byPath.get("data")?.symlink).toEqual({ target: "/mnt/data" });
-  expect(byPath.get("plain.txt")).not.toHaveProperty("symlink");
-  expect(nodes.map((node) => [node.path, canExpandNode(node), canOpenNode(node)])).toEqual([
-    ["data", true, false],
-    ["up", false, false],
-    ["gone", false, false],
-    ["plain.txt", false, true],
-  ]);
+  expect(nodes.map((node) => node.path)).toEqual(["data", "up", "gone", "plain.txt"]);
+  expect(nodes[0]?.symlink).toEqual({ target: "/mnt/data" });
+  expect(nodes.at(-1)).not.toHaveProperty("symlink");
   // Even when a stale expansion names the loop, its row is not followed.
   const withChild = nodes.map((node) =>
     node.path === "up"

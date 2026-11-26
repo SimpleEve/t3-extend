@@ -1,3 +1,4 @@
+import { isExpandableEntry, isFolderEntry } from "@t3tools/client-runtime/project-symlink";
 import type { ProjectEntry, ProjectEntrySymlink } from "@t3tools/contracts";
 
 export interface FileTreeNode {
@@ -7,16 +8,6 @@ export interface FileTreeNode {
   readonly ignored?: boolean;
   readonly symlink?: ProjectEntrySymlink;
   readonly children: ReadonlyArray<FileTreeNode>;
-}
-
-/** A link back to a parent folder stays a leaf: expanding it would only list the same folders again. */
-export function canExpandNode(node: Pick<FileTreeNode, "kind" | "symlink">): boolean {
-  return node.kind === "directory" && node.symlink?.cycle !== true;
-}
-
-/** A broken link is listed so it can be seen, but nothing is there to open. */
-export function canOpenNode(node: Pick<FileTreeNode, "kind" | "symlink">): boolean {
-  return node.kind === "file" && node.symlink?.broken !== true;
 }
 
 export interface VisibleFileTreeNode {
@@ -60,11 +51,12 @@ function freezeNode(node: MutableFileTreeNode): FileTreeNode {
 const fileNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function compareNodes(
-  left: Pick<FileTreeNode, "kind" | "name">,
-  right: Pick<FileTreeNode, "kind" | "name">,
+  left: Pick<FileTreeNode, "kind" | "name" | "symlink">,
+  right: Pick<FileTreeNode, "kind" | "name" | "symlink">,
 ): number {
-  if (left.kind !== right.kind) {
-    return left.kind === "directory" ? -1 : 1;
+  const leftIsFolder = isFolderEntry(left);
+  if (leftIsFolder !== isFolderEntry(right)) {
+    return leftIsFolder ? -1 : 1;
   }
   return fileNameCollator.compare(left.name, right.name);
 }
@@ -117,7 +109,7 @@ function flattenNode(
   const start = output.length;
   output.push({ node, depth });
 
-  if (canExpandNode(node) && (expanded.has(node.path) || isSearching)) {
+  if (isExpandableEntry(node) && (expanded.has(node.path) || isSearching)) {
     for (const child of node.children) {
       if (flattenNode(output, child, depth + 1, expanded, searchResultPaths)) {
         descendantMatches = true;
