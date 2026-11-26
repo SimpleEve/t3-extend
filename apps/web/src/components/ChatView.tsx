@@ -376,7 +376,6 @@ import {
   deriveCommittedServerUserMessageIds,
   deriveTimelineWorking,
   dismissBranchMismatchForSession,
-  shouldRenderPreviewMiniPlayer,
   deriveLockedProvider,
   resolveFileAttachmentUrl,
   resolveComposerProviderSelection,
@@ -400,6 +399,9 @@ import { observeResize } from "~/lib/observeResize";
 import { ThreadVisitWatermark } from "./chat/ThreadVisitWatermark";
 import { ChatTerminalDrawers } from "./chat/ChatTerminalDrawers";
 import { ChatRightPanel } from "./chat/ChatRightPanel";
+import { shouldRenderPreviewMiniPlayerInSplit } from "../fork/previewMiniPlayerSplit"; // fork: split panel cells
+import { resolveSplitLayout } from "../fork/rightPanelSplit"; // fork: split panel cells
+import { splitContents } from "../fork/rightPanelSplitContents"; // fork: split panel cells
 import { useDraftEnvironmentRouting } from "./chat/useDraftEnvironmentRouting";
 import { branchMismatchBannerItem, extensionStatusBannerItem } from "./chat/ThreadActivityBanners";
 import { ThreadNow } from "./chat/ThreadNow";
@@ -1186,6 +1188,7 @@ export default function ChatView(props: ChatViewProps) {
   const rightPanelPresenceValue = {
     activeSurface: activeRightPanelSurface,
     surfaces: rightPanelState.surfaces,
+    layout: resolveSplitLayout(rightPanelState), // fork: split panel cells
   };
   const rightPanelPresence = usePanelPresence(
     rightPanelOpen && activeThreadRef !== null,
@@ -1200,9 +1203,15 @@ export default function ChatView(props: ChatViewProps) {
   const rightPanelControlsAtRoot = rightPanelPresent && !shouldUsePlanSidebarSheet;
   const renderedRightPanelSurface = rightPanelPresence.value?.activeSurface ?? null;
   const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
-  const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
+  const renderedRightPanelLayout = rightPanelPresence.value?.layout ?? null; // fork: split panel cells
+  const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayerInSplit(
+    // fork: every visible cell's selected tab counts
     activePreviewMiniPlayer?.source ?? null,
-    renderedRightPanelSurface,
+    {
+      activeSurface: renderedRightPanelSurface,
+      surfaces: renderedRightPanelSurfaces,
+      layout: renderedRightPanelLayout,
+    },
   );
   const canMaximizeRightPanel = rightPanelOpen;
   // An embedded side chat has no panel; a stale maximized flag would hide its own column.
@@ -2190,6 +2199,7 @@ export default function ChatView(props: ChatViewProps) {
     closeOtherSurfaces: closeOtherRightPanelSurfacesStable,
     closeSurfacesToRight: closeRightPanelSurfacesToRightStable,
     closeAllSurfaces: closeAllRightPanelSurfacesStable,
+    closeSurfaces: closeRightPanelSurfaceList, // fork: the split host closes a cell's range
   } = useRightPanelSurfaceClose({
     threadRef: activeThreadRef,
     terminalLabelsById: activeTerminalLabelsById,
@@ -3513,6 +3523,13 @@ export default function ChatView(props: ChatViewProps) {
       }}
     />
   ) : null;
+  // fork: split panel cells
+  const rightPanelContents = splitContents(
+    rightPanelContent,
+    renderedRightPanelLayout,
+    renderedRightPanelSurfaces,
+    renderedRightPanelSurface,
+  );
   const panelToggleControlProps = {
     terminalAvailable: activeProject !== null,
     terminalOpen: terminalUiState.terminalOpen,
@@ -4246,6 +4263,12 @@ export default function ChatView(props: ChatViewProps) {
 
       {rightPanelPresent && activeThreadRef && !embedded ? (
         <ChatRightPanel
+          split={{
+            threadRef: activeThreadRef,
+            layout: renderedRightPanelLayout,
+            contents: rightPanelContents,
+            closeSurfaces: closeRightPanelSurfaceList,
+          }} // fork: split panel cells
           sheet={shouldUsePlanSidebarSheet}
           workspaceLayoutElement={workspaceLayoutElement}
           widthStorageKey={`t3code:preview-panel-width:${activeThreadKey}`}

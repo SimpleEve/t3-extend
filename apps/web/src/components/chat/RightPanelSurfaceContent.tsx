@@ -66,6 +66,8 @@ interface RightPanelFileProps {
 export function RightPanelSurfaceContent(props: {
   readonly surface: RightPanelSurface | null;
   readonly activeSurfaceId: string | null;
+  /** fork: false for a visible cell of a split panel that does not hold the focus. */
+  readonly focused?: boolean;
   readonly threadRef: ScopedThreadRef;
   readonly environmentId: EnvironmentId;
   readonly visible: boolean;
@@ -139,7 +141,9 @@ export function RightPanelSurfaceContent(props: {
       return (
         <PullRequestDetailPanel
           getShortcutContext={props.getShortcutContext}
-          shortcutsEnabled={visible && props.activeSurfaceId === surface.id}
+          shortcutsEnabled={
+            visible && props.focused !== false && props.activeSurfaceId === surface.id
+          }
           key={`${scopedThreadKey(threadRef)}:${surface.id}`}
           environmentId={
             (surface.environmentId as EnvironmentId | undefined) ?? props.environmentId
@@ -287,7 +291,7 @@ export function RightPanelSurfaceContent(props: {
             composerDraftTarget={props.composerDraftTarget}
             keybindings={props.keybindings}
             availableEditors={files.availableEditors}
-            openInShortcutEnabled={visible}
+            openInShortcutEnabled={visible && props.focused !== false} // fork: split panel cells
             relativePath={surface.kind === "file" ? surface.relativePath : null}
             {...(attachment ? { attachment } : {})}
             revealLine={surface.kind === "file" ? (surface.revealLine ?? null) : null}

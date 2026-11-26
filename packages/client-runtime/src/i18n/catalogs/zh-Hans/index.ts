@@ -20,6 +20,7 @@ import mobileSettings from "./mobileSettings.ts";
 import mobileWorkspace from "./mobileWorkspace.ts";
 import outputs from "./outputs.ts"; // fork: outputs
 import pullRequest from "./pullRequest.ts";
+import rightPanelSplit from "./rightPanelSplit.ts"; // fork: split right panel
 import settings from "./settings.ts";
 import settingsPanels from "./settingsPanels.ts";
 import sharing from "./sharing.ts";
@@ -55,6 +56,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   mobileWorkspace,
   outputs, // fork: outputs
   pullRequest,
+  rightPanelSplit, // fork: split right panel
   settings,
   settingsPanels,
   sharing,

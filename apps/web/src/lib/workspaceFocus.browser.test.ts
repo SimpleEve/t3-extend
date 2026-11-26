@@ -413,4 +413,26 @@ describe("workspace area focus", () => {
     expect(document.activeElement).toBe(home);
     expect(outline(), "F6 onto the only, already focused area shows no ring").toBe("solid");
   });
+
+  it("enters a split panel on its focused cell, not the first one in the document", () => {
+    using fixture = setup();
+    const panel = fixture.area("panel", 3);
+    const cell = (focused: boolean) => {
+      const element = document.createElement("div");
+      element.dataset.rightPanelCell = "";
+      element.dataset.cellFocused = String(focused);
+      const content = document.createElement("div");
+      content.setAttribute("data-right-panel-surface-content", "");
+      const button = document.createElement("button");
+      content.append(button);
+      element.append(content);
+      panel.element.append(element);
+      return button;
+    };
+    const first = cell(false);
+    const second = cell(true);
+    expect(fixture.controller.focus("panel")).toBe(true);
+    expect(document.activeElement).toBe(second);
+    expect(document.activeElement).not.toBe(first);
+  });
 });

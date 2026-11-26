@@ -769,3 +769,23 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 - 翻译：`catalogs/zh-Hans/themeStudio.ts`。颜色角色 "Input" 用 `"theme color|Input"` 区分，因为通用的 "Input" 是对话的"待输入"状态。
 
 改了的上游文件（行都带 `// fork:`）：`apps/web/src/themePalette.ts`（look 与 basedOn 的类型、读取、解析、导出，预设的构建和查找，应用路径）、`appInit.tsx`、`appearanceFonts.ts`、`themeBackground.ts`、`main.tsx`（多引一个 css）、`routeTree.gen.ts`（新路由，由 router generator 生成）、`components/CommandPaletteThemeItems.tsx`（"Toggle theme editor" 换成打开工作室，Change theme 列表加预设）、`shortcuts/commandPaletteCommands.ts`、`components/settings/` 下的 `AppearanceSettingsPanel.tsx`、`ThemeSettings.tsx`（编辑按钮改为打开工作室，预设进列表，导出 `downloadThemeFile`）、`ThemeImportDialog.tsx`（冲突时的复制走上游的 `renameTheme`，fork 在里面保留 look 和 basedOn）、`ThemeColorPicker.tsx`（只导出 `ThemeColorPicker`）、`KeybindingsSettings.logic.ts`（`themeEditor.toggle` 的显示名）、`hooks/useTheme.ts`（`useThemeHalvesStored`，订阅 halves 的变化）、`components/AppRouteModal.tsx`（取色时让出对话框）、`SettingsScopeSentence.tsx`、`SettingsSidebarNav.tsx`、`settingsSearch.ts`；`routes/__root.tsx`（不再挂 `ThemeEditorHost`）、`index.css`（`--radius-*` 各档带 `--radius-grow`，见下）；`packages/contracts/src/server.ts` 和 `index.ts`；`packages/shared` 的 `themePalettes.ts`（`ThemeDefinition` 加字段）、`themeCss.ts`（THEME_GUIDE）、`package.json`（导出）；`apps/server` 的 `cli/theme.ts`、`mcp/toolkits/theme/tools.ts`；`scripts/i18n-report.ts`（一条白名单）。背景图（11-21）又动了：`apps/server` 的 `assets/AssetAccess.ts`（新取图标签）、`ws.ts`、`http.ts`、`server.ts`、`observability/RpcInstrumentation.ts`，`packages/contracts` 的 `assets.ts`、`rpc.ts`、`clientRpcPermissions.ts`，`components/settings/FontFamilyPicker.tsx`。同步上游时 `themePalette.ts` 最容易冲突：`parseStoredTheme`、`environmentThemeDefinition`、`parseThemeFile`、`serializeThemeFile`、`applyThemePalette` 里带 `// fork: theme look` 的行要确认还在。
+
+## 右侧面板分屏（最多 2×2）
+
+对话页的右侧面板可以拆成最多四格：标签右键菜单的 Split right / Split down、把标签拖到格子边缘、拖到另一格的标签栏或内容区都行。只有对话页的右侧面板能拆；PR 列表、Issues 页、窄屏的抽屉和手机端不拆。
+
+- 数据：`rightPanelStore` 里每个线程多一个可选的 `layout`（存储版本 16→17）。`surfaces` 和 `activeSurfaceId` 保持扁平，`activeSurfaceId` 恒等于焦点格选中的标签，所以上游所有读它的代码照旧。没有 `layout` 就是一格；数据坏了退回一格。形状固定：一刀外切（行或列），每一半最多再垂直切一刀，不是通用的树；同方向的第三刀被拒绝。两列（或两行）的比例各自独立。
+- 逻辑都在 `apps/web/src/fork/`：`rightPanelSplit.ts`（布局模型、`reconcileSplit`、`applySplitOperation`，有单测）、`rightPanelSplitGeometry.ts`（最小格尺寸、落点区域）、`rightPanelSplitMenu.ts`、`rightPanelCell.tsx`（格子的上下文和边框）、`RightPanelSplitDivider.tsx`、`RightPanelSplitHost.tsx`（宿主，含拖放）、`rightPanelSplitContents.ts`。中文在 `catalogs/zh-Hans/rightPanelSplit.ts`。
+- `reconcileSplit` 挂在 `updateThreadStateMap` 上，带一个意图参数（`choose` 用户选了某个标签、`close` 关闭、`auto` 程序自己改）：所有改标签的老动作都先走原来的逻辑，再被它修成合法布局（删掉已不存在的标签；新标签一律放进焦点格；只有焦点格里的"原地替换"（文件夹导航、设备占位符换成设备）让新标签占旧标签的位置；空格子合并，折回一格就丢掉 layout）。删掉当前标签后上游代码回退选中的那个标签不算用户选择，焦点格不动。已关闭标签的原来格子记在 `homes` 里，但只有"重新打开关闭的视图"会用：`reopenClosedView` 重开前发 `focus-home`，把焦点切到记录的原格（浏览器用旧的 `browser:<tabId>` 查，原格不在就不动），重开的标签随后进入焦点格。普通地再打开同一个标签（同一个 Diff、同一个文件、复用的终端 id）一律进当前焦点格。
+- 宿主只渲染一次 `PreviewPanelShell`，格子是同一层 `position:absolute` 的平铺列表（key 是格子 id），重排时内容不卸载。位置来自容器上的 CSS 变量，拖分隔条直接改变量，松手才写 store，没有逐帧写 store，也没有新的持续重绘动画。分隔条两侧各让出 4px：浏览器 webview 画在页面之上，不让出的话两格都是浏览器时分隔条被整条盖住，鼠标抓不到。
+- 面板小到放不下当前布局时（每格最小 280×200）折叠成一条带全部标签的扁平标签栏，宽了再展开；窄面板不显示左右拆分的落点。
+- 单个 `DndContext` 在宿主里（@dnd-kit，没有引入停靠库）；格子里的标签栏只渲染 `SortableContext`。拖动时 `[data-preview-viewport]` 暂时 `pointer-events:none`，否则 webview 会吃掉拖动。
+- 新建标签、关闭标签、单键切标签的快捷键都作用于焦点格；"关闭其他/右侧/全部"限定在被点的那一格。最大化保留分屏。
+
+上游文件里的接线（都带 `// fork:`）：`rightPanelStore.ts`、`components/RightPanelTabs.tsx`（11 行）、`components/ChatView.tsx`、`components/chat/ChatRightPanel.tsx`、`components/chat/RightPanelSurfaceContent.tsx`、`hooks/useRightPanelSurfaceClose.ts`（只多导出 `closeSurfaces`）、`lib/workspaceFocus.ts`（F6 进面板落到焦点格）、`reopenClosedView.ts`、`catalogs/zh-Hans/index.ts`。同步上游时 `RightPanelTabs.tsx` 最容易冲突：`SortableTabList` 的 `DndContext` 跳过、`Frame` 的选择、新建快捷键的 `inactiveCell` 判断、标签的 `data-surface-id` 和 `data-dragging`（拖动时的样式在宿主的 CSS 里）要确认还在。
+
+- 存储版本：`rightPanelStore` 的版本号现在是 17；同步上游时如果上游也升了版本，取 max(上游, fork)+1，别两边撞在同一个数字上。
+- 单格时标签的拖动不再限制为水平方向（为了能拖到别的格和边缘）。
+- 新标签落点的规则：新开的标签进入焦点格；只有"原地替换"（文件夹导航、设备占位符换成设备）且发生在焦点格里，新标签才占旧标签的位置。其他情况（比如打开附件顺带删掉独立浏览器）一律进焦点格。
+
+没做：手机端不拆（手机本来就是单格）；焦点切换的 workspace 方向键导航目前只认第一格；`vp run i18n:check` 在这个仓库里不是 task，用 `node scripts/i18n-check.ts`。

@@ -178,5 +178,12 @@ export function useRightPanelSurfaceClose(input: {
   });
   const closeAllSurfaces = useStableCallback(() => closeSurfaces(surfaces));
 
-  return { closeSurface, closeOtherSurfaces, closeSurfacesToRight, closeAllSurfaces };
+  // fork: the split host decides which surfaces a close covers
+  return {
+    closeSurface,
+    closeOtherSurfaces,
+    closeSurfacesToRight,
+    closeAllSurfaces,
+    closeSurfaces,
+  };
 }

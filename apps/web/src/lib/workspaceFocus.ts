@@ -95,6 +95,12 @@ function revealInScrollers(target: HTMLElement) {
   }
 }
 
+// fork: keyboard entry into a split right panel goes to its focused cell, not the first in the DOM
+const entryScope = (area: HTMLElement): ParentNode => {
+  if (area.querySelectorAll("[data-right-panel-cell]").length < 2) return area;
+  return area.querySelector('[data-right-panel-cell][data-cell-focused="true"]') ?? area;
+};
+
 /** Keeps area focus local, like VS Code's layout service focusPart/visible-neighbour actions. */
 export function createWorkspaceFocusController(doc: Document) {
   const lastFocused = new Map<string, HTMLElement>();
@@ -139,6 +145,7 @@ export function createWorkspaceFocusController(doc: Document) {
   const focusArea = (area: HTMLElement, restore = true, nested = true) => {
     const key = area.dataset.workspaceFocusKey ?? area.dataset.workspaceArea!;
     const previous = restore ? lastFocused.get(key) : undefined;
+    const scope = entryScope(area); // fork
     const usable = (element: HTMLElement) =>
       isWorkspaceElementVisible(element) && !element.matches(":disabled");
     const belongs = (element: HTMLElement) => workspaceArea(element) === area && usable(element);
@@ -146,20 +153,20 @@ export function createWorkspaceFocusController(doc: Document) {
     // panel focuses it, but F6 visits that area on its own, so it moves past it here.
     // A nested timeline stands in only for its own area, never ahead of that input.
     const preferred = Array.from(
-      area.querySelectorAll<HTMLElement>(
+      scope.querySelectorAll<HTMLElement>(
         '[data-workspace-focus-default], [data-sidebar-row][aria-current="page"], [data-settings-section][aria-current="page"], .xterm-helper-textarea, [contenteditable="true"]',
       ),
     ).find((element) =>
       nested && !standsInFor(element, area) ? usable(element) : belongs(element),
     );
-    const fallback = Array.from(area.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
+    const fallback = Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
       (element) => element.tabIndex >= 0 && belongs(element),
     );
     // Panel surfaces may unmount when hidden. Recover the same named control when
     // it mounts again, without sharing focus history between different surface tabs.
     const restored =
       previous && !previous.isConnected
-        ? Array.from(area.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
+        ? Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
             (element) =>
               belongs(element) &&
               element.tagName === previous.tagName &&
@@ -171,7 +178,7 @@ export function createWorkspaceFocusController(doc: Document) {
                   element.textContent === previous.textContent)),
           )
         : undefined;
-    const surface = area.querySelector<HTMLElement>("[data-right-panel-surface-content]");
+    const surface = scope.querySelector<HTMLElement>("[data-right-panel-surface-content]");
     const surfaceControl = surface
       ? Array.from(surface.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
           (element) => belongs(element) && element.tabIndex >= 0,
@@ -223,7 +230,7 @@ export function createWorkspaceFocusController(doc: Document) {
           areas.find((element) => element.dataset.workspaceArea === "panel"))
         : areas.find((element) => element.dataset.workspaceArea === name);
     if (!area) return false;
-    const surface = area.querySelector("[data-right-panel-surface-content]");
+    const surface = entryScope(area).querySelector("[data-right-panel-surface-content]");
     // A lazy surface's Suspense fallback is empty. Wait for its content instead
     // of claiming focus on the tab strip before the useful controls mount.
     if (surface && !surface.hasChildNodes()) return false;

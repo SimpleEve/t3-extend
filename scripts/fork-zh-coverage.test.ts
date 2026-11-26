@@ -38,6 +38,10 @@ const FEATURES: Readonly<Record<string, ReadonlyArray<string>>> = {
     "apps/web/src/fork/AccountUsageList.tsx",
     "apps/mobile/src/fork/AccountUsageList.tsx",
   ],
+  "split right panel": [
+    "apps/web/src/fork/rightPanelSplitMenu.ts",
+    "apps/web/src/fork/RightPanelSplitHost.tsx",
+  ],
   "message bookmarks": ["apps/web/src/fork/bookmarks", "apps/mobile/src/features/bookmarks"],
   "sidebar by project": [
     "apps/web/src/components/sidebar/SidebarViewToggle.tsx",

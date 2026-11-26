@@ -9,6 +9,14 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { useClosedViewStore } from "./closedViewStore";
+import {
+  applySplitOperation,
+  reconcileSplit,
+  type SplitIntent,
+  restoreSplit,
+  type PanelLayout,
+  type SplitOperation,
+} from "./fork/rightPanelSplit"; // fork: split panel layout
 import { m } from "./i18n/messages";
 import { resolveStorage } from "./lib/storage";
 import type { LinkedThreadTarget } from "@t3tools/client-runtime/linked-thread";
@@ -130,7 +138,7 @@ export function decodeThreadSurface(surface: object): ThreadSurface | null {
 }
 
 const RIGHT_PANEL_STORAGE_KEY = "t3code:right-panel-state:v2";
-const RIGHT_PANEL_STORAGE_VERSION = 16;
+const RIGHT_PANEL_STORAGE_VERSION = 17; // fork: 17 adds the split layout
 
 export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(
   EnvironmentId.make("pull-requests-panel"),
@@ -157,6 +165,8 @@ export interface ThreadRightPanelState {
   dismissedDeviceSurfaceIds?: string[];
   maximized?: true;
   proactiveDiffTurnId?: RunId;
+  /** fork: split cells of the panel; absent means one cell. See `fork/rightPanelSplit.ts`. */
+  layout?: PanelLayout;
 }
 
 export interface ThreadPanelVisibility {
@@ -247,6 +257,8 @@ interface RightPanelStoreState {
   closeSurfacesToRight: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeAllSurfaces: (ref: ScopedThreadRef) => void;
   moveSurface: (ref: ScopedThreadRef, surfaceId: string, toIndex: number) => void;
+  /** fork: one gesture on the panel's split cells. */
+  applySplit: (ref: ScopedThreadRef, operation: SplitOperation) => void;
   reconcileBrowserSurfaces: (
     ref: ScopedThreadRef,
     tabIds: readonly string[],
@@ -430,9 +442,10 @@ const updateThreadStateMap = (
   byThreadKey: Record<string, ThreadRightPanelState>,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
+  intent: SplitIntent = "auto", // fork: lets reconcileSplit tell a choice from a closing fallback
 ): Record<string, ThreadRightPanelState> => {
   const current = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const next = updater(current);
+  const next = reconcileSplit(current, updater(current), intent); // fork: keep cells in step with surfaces
   if (
     !next.isOpen &&
     next.activeSurfaceId === null &&
@@ -473,9 +486,10 @@ const updateThread = (
   state: RightPanelStoreData,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
+  intent: SplitIntent = "auto", // fork: see updateThreadStateMap
 ): RightPanelStoreData => {
   const current = state.byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, updater);
+  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, updater, intent); // fork: pass it on
   const next = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
   let threadPanelVisibilityByThreadKey = state.threadPanelVisibilityByThreadKey;
 
@@ -541,24 +555,29 @@ const userActionOnThread = (
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
   closesView: boolean,
 ): Partial<RightPanelStoreState> => ({
-  ...updateThread(state, threadKey, (current) => {
-    const next = updater(current);
-    if (next === current) return current;
-    const removedDevices = current.surfaces.filter(
-      (surface) =>
-        surface.kind === "device" && !next.surfaces.some((entry) => entry.id === surface.id),
-    );
-    if (removedDevices.length === 0) return next;
-    return {
-      ...next,
-      dismissedDeviceSurfaceIds: [
-        ...new Set([
-          ...(next.dismissedDeviceSurfaceIds ?? []),
-          ...removedDevices.map((surface) => surface.id),
-        ]),
-      ],
-    };
-  }),
+  ...updateThread(
+    state,
+    threadKey,
+    (current) => {
+      const next = updater(current);
+      if (next === current) return current;
+      const removedDevices = current.surfaces.filter(
+        (surface) =>
+          surface.kind === "device" && !next.surfaces.some((entry) => entry.id === surface.id),
+      );
+      if (removedDevices.length === 0) return next;
+      return {
+        ...next,
+        dismissedDeviceSurfaceIds: [
+          ...new Set([
+            ...(next.dismissedDeviceSurfaceIds ?? []),
+            ...removedDevices.map((surface) => surface.id),
+          ]),
+        ],
+      };
+    },
+    closesView ? "close" : "choose",
+  ), // fork: a close's fallback activation is not a choice
   userActionRevisionByThreadKey: {
     ...state.userActionRevisionByThreadKey,
     [threadKey]: (state.userActionRevisionByThreadKey[threadKey] ?? 0) + 1,
@@ -734,7 +753,7 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
                 (isOpen || rawActiveSurfaceId === "agents" ? (surfaces[0]?.id ?? null) : null);
               return [
                 threadKey,
-                {
+                restoreSplit(validThreadState?.layout, {
                   isOpen,
                   surfaces,
                   activeSurfaceId,
@@ -750,7 +769,7 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
                       }
                     : {}),
                   ...(validThreadState?.maximized === true ? { maximized: true as const } : {}),
-                },
+                }),
               ];
             }),
         )
@@ -1231,6 +1250,15 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             return { ...current, surfaces };
           }),
         ),
+      applySplit: (ref, operation) =>
+        set((state) => {
+          const update = (current: ThreadRightPanelState) =>
+            applySplitOperation(current, operation);
+          // fork: arranging cells is not the user acting on the panel, like moveSurface
+          return operation.kind === "move" || operation.kind === "ratio"
+            ? updateThread(state, scopedThreadKey(rightPanelHostRef(ref)), update)
+            : userAction(state, scopedThreadKey(ref), update);
+        }),
       reconcileBrowserSurfaces: (ref, tabIds, hiddenTabIds) =>
         set((state) =>
           automaticUpdate(state, scopedThreadKey(ref), (current) => {

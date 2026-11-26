@@ -100,6 +100,11 @@ export async function reopenClosedView(
 ): Promise<boolean> {
   const panels = useRightPanelStore.getState();
   const ref = view.threadRef;
+  // fork: the reopened view lands in the focused cell, so focus the cell it was closed in first
+  panels.applySplit(ref, {
+    kind: "focus-home",
+    id: view.kind === "browser" ? `browser:${view.snapshot.tabId}` : view.surface.id,
+  });
 
   if (view.kind === "browser") {
     const url = view.snapshot.navStatus._tag === "Idle" ? undefined : view.snapshot.navStatus.url;

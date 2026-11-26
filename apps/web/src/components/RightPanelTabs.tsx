@@ -37,6 +37,11 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { TranslatedDndContext as DndContext } from "../fork/TranslatedDndContext"; // fork: dnd-kit announcements in the interface language
+import {
+  RightPanelCellFrame,
+  type SplitTabMenuAction,
+  useRightPanelCell,
+} from "../fork/rightPanelCell"; // fork: split panel cells
 import { restrictToFirstScrollableAncestor, restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -233,7 +238,8 @@ type TabContextMenuAction =
   | "close"
   | "close-others"
   | "close-to-right"
-  | "close-all";
+  | "close-all"
+  | SplitTabMenuAction; // fork: split panel cells
 
 const TAB_SCROLL_EDGE_TOLERANCE = 1;
 const TAB_DRAG_MODIFIERS = [restrictToHorizontalAxis, restrictToFirstScrollableAncestor];
@@ -594,7 +600,8 @@ function RightPanelEmptyState(props: {
   );
 }
 
-function surfaceTitle(
+// fork: exported for the split host's panel label
+export function surfaceTitle(
   surface: RightPanelSurface,
   sessions: Readonly<Record<string, PreviewSessionSnapshot>>,
   terminalLabelsById: ReadonlyMap<string, string>,
@@ -913,6 +920,14 @@ function SortableTabList(props: {
     const toIndex = surfaces.findIndex((surface) => surface.id === over.id);
     if (toIndex >= 0) onMove?.(String(active.id), toIndex);
   };
+  const hosted = useRightPanelCell() !== null; // fork: a hosted cell sorts inside the split host's drag context, which also takes drops on other cells
+  if (hosted) {
+    return (
+      <SortableContext items={surfaceIds} strategy={horizontalListSortingStrategy}>
+        {props.children}
+      </SortableContext>
+    );
+  }
   return (
     <DndContext
       sensors={sensors}
@@ -1101,13 +1116,18 @@ function RightPanelTab(
   return (
     <div
       data-active-tab={props.active}
+      data-surface-id={surface.id} // fork: the split host names a dragged tab from it and styles it while dragged
+      data-dragging={isDragging}
       onMouseDown={preventTabMiddleButtonDefault}
       onMouseUp={preventTabMiddleButtonDefault}
       onAuxClick={(event) => onAuxClick(event, surface)}
       onContextMenu={(event) => onContextMenu(event, surface)}
       {...listeners}
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+      }}
       className={cn(
         "cursor-pointer group/tab flex h-6 max-w-36 shrink-0 items-center gap-0.5 rounded-md pr-2 pl-1.5 text-xs",
         props.ownsDesktopTitleBar && "[-webkit-app-region:no-drag]",
@@ -1126,7 +1146,11 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   const gt = useGT();
   const messages = useMessages();
   const focusedSurface = props.surfaces.find((surface) => surface.id === props.activeSurfaceId);
-  const ownsDesktopTitleBar = isElectron && props.mode === "inline";
+  const cell = useRightPanelCell(); // fork: split panel cells
+  const ownsDesktopTitleBar = isElectron && props.mode === "inline" && (cell?.ownsTitleBar ?? true);
+  // fork: a hosted cell sits in its own frame; the split host provides the one panel shell
+  const Frame = cell === null ? PreviewPanelShell : RightPanelCellFrame;
+  const inactiveCell = cell !== null && !cell.focused; // fork: only the focused cell takes the new-surface shortcut
   const browserProfiles = useBrowserDefaults().profiles;
   const { resolvedTheme } = useTheme();
   const tabListRef = useRef<HTMLDivElement>(null);
@@ -1145,6 +1169,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     !addSurfaceMenuOpen && document.querySelector(LAUNCHER_SHORTCUT_BLOCKING_LAYERS) !== null;
   const onNewSurfaceKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented || event.isComposing) return;
+    if (inactiveCell) return;
     if (
       resolveShortcutCommand(event, props.keybindings, {
         context: { ...props.getShortcutContext(), rightPanelOpen: true },
@@ -1162,6 +1187,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   // Forwarded from a focused browser page. Focusing the trigger here would let ChatView's
   // window-focus handler see a plain button and refocus the composer, closing the menu.
   const onMenuAction = useEffectEvent((action: string) => {
+    if (inactiveCell) return;
     if (action === "rightPanel.new" && !addSurfaceMenuBlocked()) setAddSurfaceMenuOpen(true);
   });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes document keydown and the desktop menu action (forwarded from a focused browser page) for the new surface shortcut while the panel is open
@@ -1323,8 +1349,18 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         ),
       });
     }
+    // fork: split panel cells
+    const splitMenu = cell?.tabMenu(surface.id, event.currentTarget as Element) ?? null;
+    if (splitMenu !== null) {
+      splitMenu.items.forEach((item, index) =>
+        items.push({
+          ...item,
+          ...(index === 0 && items.length > 0 ? { separatorBefore: true } : {}),
+        }),
+      );
+    }
     items.push(
-      { id: "close", label: gt("Close") },
+      { id: "close", label: gt("Close"), ...(splitMenu === null ? {} : { separatorBefore: true }) },
       {
         id: "close-others",
         label: gt("Close others"),
@@ -1347,6 +1383,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       { x: event.clientX, y: event.clientY },
       contextMenuSourceOf(event),
     );
+    if (action !== null && splitMenu?.run(action)) return; // fork: split panel cells
     switch (action) {
       case "open-in-main-view":
         if (surface.kind === "thread" || surface.kind === "linked-thread") {
@@ -1454,7 +1491,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   };
 
   return (
-    <PreviewPanelShell
+    <Frame
       workspaceArea
       workspaceFocusKey={`panel:${props.environmentId}:${props.activeSurfaceId ?? "empty"}`}
       workspaceLabel={
@@ -1492,6 +1529,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           props.mode === "inline" && props.maximized && COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
         )}
         data-right-panel-tabbar
+        ref={cell?.barRef} // fork: a tab dropped on the bar moves into this cell
       >
         <ScrollArea
           radius="none"
@@ -1712,7 +1750,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           props.children
         )}
       </div>
-    </PreviewPanelShell>
+    </Frame>
   );
 }
 
