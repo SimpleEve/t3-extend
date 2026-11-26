@@ -290,7 +290,12 @@ function flatten<T extends SplitState>(
  * leave their cell, new ones land in a cell, empty cells fold away, and the flat active surface
  * follows the focused cell. Idempotent, and returns `next` itself when nothing needs repair.
  */
-export function reconcileSplit<T extends SplitState>(prev: T, next: T): T {
+export function reconcileSplit<T extends SplitState>(
+  prev: T,
+  next: T,
+  /** The update is a user action that does not close a view. */
+  userAction = false,
+): T {
   if (prev.layout === undefined && next.layout === undefined) return next;
   const checked = next.layout === undefined ? null : sanitizeLayout(next.layout);
   if (checked === null) return stripLayout(next);
@@ -366,10 +371,17 @@ export function reconcileSplit<T extends SplitState>(prev: T, next: T): T {
   const nextActive = next.activeSurfaceId;
   const activatedCell =
     nextActive !== null && nextActive !== prevActive ? cellOfSurface(layout, nextActive) : null;
-  // A removal makes the flat code pick a neighbor from any cell; only a deliberate activation moves focus.
+  // Closing the selected tab makes the flat code activate the neighbor at its index, from any
+  // cell; that is not the user choosing a cell. Anything else that activates is, and so is an
+  // update that is itself a user action other than a close: it may swap the tab for that same neighbor.
+  const prevIndex = prev.surfaces.findIndex((surface) => surface.id === prevActive);
+  const removalNeighbor =
+    prevActive === null || surfaceIds.has(prevActive) || prevIndex < 0
+      ? undefined
+      : next.surfaces[Math.min(prevIndex, next.surfaces.length - 1)]?.id;
   const deliberate =
     activatedCell !== null &&
-    (prevActive === null || surfaceIds.has(prevActive) || unassigned.includes(nextActive ?? ""));
+    (userAction || nextActive !== removalNeighbor || unassigned.includes(nextActive ?? ""));
   let focusedCellId = layout.focusedCellId;
   if (deliberate && activatedCell !== null) {
     focusedCellId = activatedCell.id;

@@ -437,13 +437,19 @@ const upsertSurface = (
   activeSurfaceId: activate ? surface.id : current.activeSurfaceId,
 });
 
+// fork: set by a user action's updater, read once by the reconcile that follows it
+let choosing = false;
+
 const updateThreadStateMap = (
   byThreadKey: Record<string, ThreadRightPanelState>,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): Record<string, ThreadRightPanelState> => {
   const current = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const next = reconcileSplit(current, updater(current)); // fork: keep cells in step with surfaces
+  choosing = false;
+  const updated = updater(current); // fork: this updater may set `choosing`
+  const next = reconcileSplit(current, updated, choosing); // fork: keep cells in step with surfaces
+  choosing = false;
   if (
     !next.isOpen &&
     next.activeSurfaceId === null &&
@@ -553,6 +559,7 @@ const userActionOnThread = (
   closesView: boolean,
 ): Partial<RightPanelStoreState> => ({
   ...updateThread(state, threadKey, (current) => {
+    choosing = !closesView; // fork: a close's fallback activation is not a choice
     const next = updater(current);
     if (next === current) return current;
     const removedDevices = current.surfaces.filter(

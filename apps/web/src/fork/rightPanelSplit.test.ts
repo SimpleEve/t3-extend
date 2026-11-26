@@ -436,3 +436,46 @@ describe("panels of other threads", () => {
     expect(panel().layout).toBeDefined();
   });
 });
+
+describe("an action that swaps the selected tab for one in another cell", () => {
+  const focus = (surface: string) => apply({ kind: "focus", cellId: cellIdOf(surface) });
+
+  it("follows a folder navigation into a file that is already open in the other cell", () => {
+    const store = useRightPanelStore.getState();
+    open("x.ts", "foo.ts"); // opening a file closes a standalone explorer, so it comes last
+    store.open(ref, "files");
+    split("foo.ts", "right"); // [x.ts files | foo.ts]
+    focus("x.ts");
+    store.activateSurface(ref, "files");
+    store.navigateFolder(ref, "files", "foo.ts", "foo.ts");
+    expect(panel().surfaces.some((s) => s.id === "files")).toBe(false);
+    expect(panel().activeSurfaceId).toBe(file("foo.ts"));
+    expect(focusedCellOf(panel().layout!)?.tabIds).toEqual([file("foo.ts")]);
+  });
+
+  it("follows opening a device that is already open in the other cell", () => {
+    const store = useRightPanelStore.getState();
+    const target = { hostId: "h", deviceId: "d", platform: "ios" as const, name: "Phone" };
+    open("x.ts");
+    store.openDevice(ref, target);
+    store.open(ref, "device"); // a placeholder beside the real one
+    const real = "device:h:d";
+    apply({ kind: "split", cellId: "c1", surfaceId: real, direction: "right" });
+    apply({ kind: "focus", cellId: "c1" });
+    store.activateSurface(ref, "device");
+    store.openDevice(ref, target);
+    expect(panel().surfaces.some((s) => s.id === "device")).toBe(false);
+    expect(panel().activeSurfaceId).toBe(real);
+    expect(focusedCellOf(panel().layout!)?.tabIds).toEqual([real]);
+  });
+
+  it("still keeps the focus put when closing the selected tab picks a neighbor from another cell", () => {
+    open("a", "b", "c");
+    split("c", "right"); // [a b | c]
+    focus("a");
+    useRightPanelStore.getState().closeSurface(ref, file("b"));
+    useRightPanelStore.getState().closeSurface(ref, file("a"));
+    expect(panel().layout).toBeUndefined();
+    expect(panel().activeSurfaceId).toBe(file("c"));
+  });
+});
