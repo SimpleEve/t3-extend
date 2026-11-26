@@ -990,11 +990,12 @@ function RightPanelTab(
     onStartRename,
     onFinishRename,
   } = props;
-  const hosted = useRightPanelCell() !== null; // fork: split panel cells
+  const hosted = useRightPanelCell() !== null;
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: surface.id,
     disabled: props.dragDisabled,
   });
+  const lifted = hosted && isDragging; // fork: a hosted tab stays put and dims while the host's overlay moves
   const sideChatShell = useQuietThreadShell(
     surface.kind === "thread" && props.environmentId !== null
       ? scopeThreadRef(props.environmentId, surface.threadId)
@@ -1125,12 +1126,12 @@ function RightPanelTab(
       {...listeners}
       ref={setNodeRef}
       style={{
-        transform: hosted && isDragging ? undefined : CSS.Translate.toString(transform), // fork: the overlay moves, not the tab
+        transform: lifted ? undefined : CSS.Translate.toString(transform),
         transition,
       }}
       className={cn(
         "cursor-pointer group/tab flex h-6 max-w-36 shrink-0 items-center gap-0.5 rounded-md pr-2 pl-1.5 text-xs",
-        hosted && isDragging && "opacity-40", // fork: split panel cells
+        lifted && "opacity-40",
         props.ownsDesktopTitleBar && "[-webkit-app-region:no-drag]",
         props.active
           ? "bg-accent text-foreground"
@@ -1151,6 +1152,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   const ownsDesktopTitleBar = isElectron && props.mode === "inline" && (cell?.ownsTitleBar ?? true);
   // fork: a hosted cell sits in its own frame; the split host provides the one panel shell
   const Frame = cell === null ? PreviewPanelShell : RightPanelCellFrame;
+  const inactiveCell = cell !== null && !cell.focused; // fork: only the focused cell takes the new-surface shortcut
   const browserProfiles = useBrowserDefaults().profiles;
   const { resolvedTheme } = useTheme();
   const tabListRef = useRef<HTMLDivElement>(null);
@@ -1169,7 +1171,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     !addSurfaceMenuOpen && document.querySelector(LAUNCHER_SHORTCUT_BLOCKING_LAYERS) !== null;
   const onNewSurfaceKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented || event.isComposing) return;
-    if (cell !== null && !cell.focused) return; // fork: only the focused cell takes the shortcut
+    if (inactiveCell) return;
     if (
       resolveShortcutCommand(event, props.keybindings, {
         context: { ...props.getShortcutContext(), rightPanelOpen: true },
@@ -1187,7 +1189,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   // Forwarded from a focused browser page. Focusing the trigger here would let ChatView's
   // window-focus handler see a plain button and refocus the composer, closing the menu.
   const onMenuAction = useEffectEvent((action: string) => {
-    if (cell !== null && !cell.focused) return; // fork: only the focused cell takes the action
+    if (inactiveCell) return;
     if (action === "rightPanel.new" && !addSurfaceMenuBlocked()) setAddSurfaceMenuOpen(true);
   });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes document keydown and the desktop menu action (forwarded from a focused browser page) for the new surface shortcut while the panel is open

@@ -782,6 +782,10 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 - 单个 `DndContext` 在宿主里（@dnd-kit，没有引入停靠库）；格子里的标签栏只渲染 `SortableContext`。拖动时 `[data-preview-viewport]` 暂时 `pointer-events:none`，否则 webview 会吃掉拖动。
 - 新建标签、关闭标签、单键切标签的快捷键都作用于焦点格；"关闭其他/右侧/全部"限定在被点的那一格。最大化保留分屏。
 
-上游文件里的接线（都带 `// fork:`）：`rightPanelStore.ts`（5）、`components/RightPanelTabs.tsx`（19）、`components/ChatView.tsx`（6）、`components/chat/ChatRightPanel.tsx`（3）、`components/chat/RightPanelSurfaceContent.tsx`（1）、`hooks/useRightPanelSurfaceClose.ts`（3）、`reopenClosedView.ts`（1）、`catalogs/zh-Hans/index.ts`（2）。同步上游时 `RightPanelTabs.tsx` 最容易冲突：`SortableTabList` 的 `DndContext` 跳过、`useSortable` 前先算标题、`Frame` 的选择和新建快捷键的 `cell.focused` 判断要确认还在。
+上游文件里的接线（都带 `// fork:`）：`rightPanelStore.ts`、`components/RightPanelTabs.tsx`（约 14 处）、`components/ChatView.tsx`、`components/chat/ChatRightPanel.tsx`、`components/chat/RightPanelSurfaceContent.tsx`、`hooks/useRightPanelSurfaceClose.ts`（只多导出 `closeSurfaces`）、`lib/workspaceFocus.ts`（F6 进面板落到焦点格）、`reopenClosedView.ts`、`catalogs/zh-Hans/index.ts`。同步上游时 `RightPanelTabs.tsx` 最容易冲突：`SortableTabList` 的 `DndContext` 跳过、`Frame` 的选择、新建快捷键的 `inactiveCell` 判断、标签的 `data-surface-id` 要确认还在。
+
+- 存储版本：`rightPanelStore` 的版本号现在是 17；同步上游时如果上游也升了版本，取 max(上游, fork)+1，别两边撞在同一个数字上。
+- 单格时标签的拖动不再限制为水平方向（为了能拖到别的格和边缘）。
+- 新标签落点的规则：新开的标签进入焦点格；只有"原地替换"（文件夹导航、设备占位符换成设备）且发生在焦点格里，新标签才占旧标签的位置。其他情况（比如打开附件顺带删掉独立浏览器）一律进焦点格。
 
 没做：手机端不拆（手机本来就是单格）；焦点切换的 workspace 方向键导航目前只认第一格；`vp run i18n:check` 在这个仓库里不是 task，用 `node scripts/i18n-check.ts`。
