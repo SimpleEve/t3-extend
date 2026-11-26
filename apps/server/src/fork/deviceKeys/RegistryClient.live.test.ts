@@ -235,6 +235,72 @@ describe("against the real registry", () => {
       }).pipe(Effect.provide(layerLive)),
   );
 
+  it.live(
+    "hides this computer from the devices it chose, who still see it as an identity only, and never as removed",
+    () =>
+      Effect.gen(function* () {
+        const { registry, client, service, directory, identity } = yield* start;
+        yield* service.join({ invite: registry.invite("computer"), name: "Studio" });
+        const self = Option.getOrThrow(yield* identity.peek);
+        const laptop = yield* joinOther(registry.invite("computer"), {
+          name: "Laptop",
+          kind: "computer",
+          environmentId: "env-laptop",
+        });
+        const phone = yield* joinOther(registry.invite("phone"), {
+          name: "Pixel",
+          kind: "phone",
+          environmentId: "env-phone",
+        });
+        const status = yield* service.setVisibility({
+          mode: "hidden_from_selected",
+          deviceIds: [laptop.key.id],
+        });
+        assert.equal(status.visibility?.registry, "synced");
+
+        // The next sync reads back what the registry now holds for this computer.
+        yield* service.refresh;
+        const own = Option.getOrThrow((yield* directory.state).list).devices.find(
+          (device) => device.id === self.id,
+        );
+        assert.deepEqual(own?.visibility, {
+          mode: "hidden_from_selected",
+          deviceIds: [laptop.key.id],
+        });
+        const asLaptop = yield* client.listDevices(laptop.target);
+        assert.deepEqual(
+          asLaptop.devices.map((device) => device.name),
+          ["Laptop", "Pixel"],
+        );
+        assert.deepEqual(
+          asLaptop.hiddenPeers?.map((peer) => peer.id),
+          [self.id],
+        );
+        const asPhone = yield* client.listDevices(phone.target);
+        assert.sameMembers(
+          asPhone.devices.map((device) => device.name),
+          ["Studio", "Laptop", "Pixel"],
+        );
+        assert.isUndefined(asPhone.hiddenPeers);
+
+        // The laptop cannot remove what it cannot see; the registry answers as if there were nothing.
+        const refused = yield* client.removeDevice(laptop.target, self.id).pipe(Effect.flip);
+        assert.equal(refused.code, "not_found");
+        assert.isTrue(
+          Option.getOrThrow((yield* directory.state).list).devices.some(
+            (device) => device.id === self.id,
+          ),
+        );
+
+        // Opening it again makes the computer reappear for the laptop.
+        yield* service.setVisibility({ mode: "visible_to_all", deviceIds: [] });
+        assert.sameMembers(
+          (yield* client.listDevices(laptop.target)).devices.map((device) => device.name),
+          ["Studio", "Laptop", "Pixel"],
+        );
+      }).pipe(Effect.provide(layerLive)),
+  );
+
   it.live("leave takes this computer out of the registry's list", () =>
     Effect.gen(function* () {
       const { registry, client, service } = yield* start;

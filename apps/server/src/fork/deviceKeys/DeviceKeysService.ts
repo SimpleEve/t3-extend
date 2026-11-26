@@ -1,8 +1,10 @@
 // fork: the device-key capability as service methods (design 3.9). The WebSocket handlers, the
 // `t3x devices` CLI and tests all call these; none of them carries logic of its own.
 import {
+  DEVICE_VISIBILITY_MAX_DEVICES,
   DeviceKeysError,
   type DeviceKind,
+  type DeviceVisibility,
   type DevicesInviteResult,
   type DevicesRemoveResult,
   type DevicesRenameResult,
@@ -13,6 +15,7 @@ import {
 } from "@t3tools/contracts";
 import { signAssertion } from "@t3tools/shared/forkDeviceKeys/assertion";
 import { decodeInvite, redemptionOf } from "@t3tools/shared/forkDeviceKeys/invite";
+import { normalizeVisibility } from "@t3tools/shared/forkDeviceKeys/visibility";
 import { canonicalOrigin } from "@t3tools/shared/forkDeviceKeys/proof";
 import { normalizeDeviceName } from "@t3tools/shared/forkDeviceKeys/subdomain";
 import * as Clock from "effect/Clock";
@@ -39,6 +42,8 @@ const fail = (reason: DeviceKeysError["reason"], message: string, registryCode?:
     message,
     ...(registryCode === undefined ? {} : { registryCode }),
   });
+
+const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 const INVITE_CODES = new Set(["invite_invalid", "invite_expired", "invite_used", "kind_mismatch"]);
 
@@ -83,6 +88,13 @@ export class DeviceKeysService extends Context.Service<
       deviceId: string,
       name: string,
     ) => Effect.Effect<DevicesRenameResult, DeviceKeysError>;
+    /**
+     * Who may see this computer and sign in to it. The local file and the sessions change first, so
+     * the setting holds whatever the registry answers; the returned status says whether the registry has it.
+     */
+    readonly setVisibility: (
+      input: DeviceVisibility,
+    ) => Effect.Effect<DevicesStatus, DeviceKeysError>;
     /** The caller has already decided this is the local owner; the target comes from our own list. */
     readonly signAssertion: (
       input: DevicesSignAssertionInput,
@@ -295,6 +307,19 @@ const make = Effect.gen(function* () {
         .pipe(Effect.mapError(fromRegistryError));
       yield* resyncSoon;
       return renamed;
+    }),
+    setVisibility: Effect.fn("DeviceKeysService.setVisibility")(function* (input) {
+      const { membership } = yield* requireTarget;
+      if (
+        input.deviceIds.length > DEVICE_VISIBILITY_MAX_DEVICES ||
+        input.deviceIds.some((id) => !DEVICE_ID_PATTERN.test(id) || id === membership.deviceId)
+      ) {
+        return yield* fail("invalid_input", "Pick other devices from your server's list.");
+      }
+      yield* directory.setVisibility(normalizeVisibility(input));
+      // Delivers the setting to the registry and settles its state; the local change stands either way.
+      yield* resyncSoon;
+      return yield* directory.status;
     }),
     signAssertion: Effect.fn("DeviceKeysService.signAssertion")(function* (input) {
       const { membership, key } = yield* requireTarget;

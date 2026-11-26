@@ -21,10 +21,11 @@ import * as DeviceKeysService from "../fork/deviceKeys/DeviceKeysService.ts";
 import { layerServices } from "../fork/deviceKeys/layer.ts";
 import { renderTerminalQrCode } from "../startupAccess.ts";
 import { tunnelCommand } from "./devicesTunnel.ts"; // fork: 8.3
+import { visibilityCommand } from "./devicesVisibility.ts";
 import { authLocationFlags, resolveCliAuthConfig, type CliAuthLocationFlags } from "./config.ts";
 import { reportDeviceErrors } from "./devicesReport.ts"; // fork: 8.3
 
-const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
+export const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
   flags: CliAuthLocationFlags,
   run: Effect.Effect<A, E, DeviceKeysService.DeviceKeysService | DeviceDirectory.DeviceDirectory>,
   options?: { readonly quietLogs?: boolean },
@@ -244,6 +245,7 @@ export const devicesCommand = Command.make("devices").pipe(
     inviteCommand,
     removeCommand,
     leaveCommand,
+    visibilityCommand(runWithDevices),
     tunnelCommand,
   ]),
 );

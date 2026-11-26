@@ -1,5 +1,6 @@
 import {
   DeviceKeysError,
+  type DeviceVisibility,
   FORK_DEVICE_KEYS_WS_METHODS,
   T3X_LOCAL_OWNER_SUBJECT,
 } from "@t3tools/contracts";
@@ -40,6 +41,7 @@ export const makeDeviceRpcHandlers = Effect.fn("makeDeviceRpcHandlers")(function
     [M.rename]: ({ deviceId, name }: { readonly deviceId: string; readonly name: string }) =>
       guarded(service.rename(deviceId, name)),
     [M.refresh]: () => guarded(service.refresh),
+    [M.setVisibility]: (input: DeviceVisibility) => guarded(service.setVisibility(input)),
     [M.signAssertion]: (input: {
       readonly audienceEnvironmentId: string;
       readonly dpopThumbprint: string;

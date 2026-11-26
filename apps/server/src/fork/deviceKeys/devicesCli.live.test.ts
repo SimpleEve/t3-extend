@@ -49,6 +49,16 @@ const registrySpy = (baseDir: string) => {
   };
 };
 
+/** A registry nobody can reach: every ask fails like a dropped connection. */
+const offlineRegistry = (baseDir: string) => {
+  const preload = NodePath.join(baseDir, "registry-offline.mjs");
+  NodeFS.writeFileSync(
+    preload,
+    'globalThis.fetch = async () => { throw new TypeError("fetch failed"); };\n',
+  );
+  return { NODE_OPTIONS: `--import ${preload}` };
+};
+
 const run = (baseDir: string, ...args: ReadonlyArray<string>) => runWith({}, baseDir, ...args);
 
 const runWith = (env: Record<string, string>, baseDir: string, ...args: ReadonlyArray<string>) =>
@@ -169,6 +179,64 @@ describe("t3x devices", () => {
       assert.include(joined.err + joined.out, "not valid for a computer");
       // One line on stderr, not a logged stack trace.
       assert.equal(joined.err.trim().split("\n").length, 1, joined.err);
+    }).pipe(Effect.scoped),
+  );
+
+  it.live(
+    "visibility saves the choice on this computer, shows it, and refuses what it cannot name",
+    () =>
+      Effect.gen(function* () {
+        const baseDir = yield* homeDir;
+        yield* seedHome(baseDir);
+        const offline = offlineRegistry(baseDir);
+        const visibility = (...args: ReadonlyArray<string>) =>
+          runWith(offline, baseDir, "visibility", ...args);
+        const saved = () =>
+          NodeFS.readFileSync(
+            NodePath.join(baseDir, "userdata", "secrets", "fork-device-visibility.bin"),
+            "utf8",
+          );
+
+        const initial = yield* visibility("show");
+        assert.equal(initial.code, 0, initial.err);
+        assert.include(initial.out, "Visible to all devices.");
+
+        const none = yield* visibility("none");
+        assert.equal(none.code, 0, none.err);
+        assert.include(none.out, "Hidden from all devices.");
+        // The server cannot be reached here: the choice is saved and applied, and the report says so.
+        assert.include(none.out, "has not received this setting yet");
+        assert.equal(decodeJson(saved()).visibility.mode, "hidden_from_all");
+
+        const hide = yield* visibility("hide", "laptop");
+        assert.equal(hide.code, 0, hide.err);
+        assert.include(hide.out, "Hidden from: Laptop.");
+        const only = yield* visibility("only", "Laptop", "--json");
+        assert.equal(only.code, 0, only.err);
+        const json = decodeJson(only.out) as { mode: string; deviceIds: ReadonlyArray<string> };
+        assert.equal(json.mode, "visible_to_selected");
+        assert.equal(json.deviceIds.length, 1);
+        assert.equal((yield* visibility("show")).out.includes("Visible only to: Laptop."), true);
+
+        const missing = yield* visibility("hide", "Nobody");
+        assert.notEqual(missing.code, 0);
+        assert.include(missing.err + missing.out, "No device named Nobody");
+        const own = yield* visibility("hide", "Studio");
+        assert.notEqual(own.code, 0);
+        assert.include(own.err + own.out, "cannot be in its own list");
+        assert.equal(decodeJson(saved()).visibility.mode, "visible_to_selected");
+
+        assert.equal((yield* visibility("all")).code, 0);
+        assert.equal(decodeJson(saved()).visibility.mode, "visible_to_all");
+      }).pipe(Effect.scoped),
+  );
+
+  it.live("visibility needs a joined computer", () =>
+    Effect.gen(function* () {
+      const baseDir = yield* homeDir;
+      const result = yield* run(baseDir, "visibility", "none");
+      assert.notEqual(result.code, 0);
+      assert.include(result.err + result.out, "has not joined a server");
     }).pipe(Effect.scoped),
   );
 });

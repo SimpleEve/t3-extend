@@ -125,6 +125,12 @@ const rejectedPass = (reason: string | undefined): ConnectionAttemptError | Peer
       return new PeerHasNotSynced();
     case "device_revoked":
       return deviceConnectionBlocked("This device was removed from your server.", "authentication");
+    case "device_hidden":
+      // This computer chose not to be seen by this device. It is not a removal, so nothing asks the registry.
+      return deviceConnectionBlocked(
+        "That computer is not available to this device.",
+        "authentication",
+      );
     case "time_window":
       return new ConnectionBlockedError({
         reason: "authentication",
