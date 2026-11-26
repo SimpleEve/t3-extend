@@ -95,6 +95,10 @@ function Harness(props: {
       surface.id,
       <div key={surface.id} data-test-content={surface.id}>
         {surface.id}
+        <button type="button" data-test-button={surface.id}>
+          inside
+        </button>
+        <div data-browser-surface-slot={`guest:${surface.id}`} />
       </div>,
     ]),
   );
@@ -353,5 +357,57 @@ describe("RightPanelSplitHost", () => {
       expect(closed).toHaveLength(1);
     });
     expect(closed[0]).toEqual(["file:a.ts", "file:b.ts", "file:c.ts"]);
+  });
+
+  describe("which cell holds the focus", () => {
+    const focusedCell = (container: HTMLElement) =>
+      container
+        .querySelector<HTMLElement>("[data-right-panel-cell][data-cell-focused='true']")
+        ?.querySelector("[data-test-content]")
+        ?.getAttribute("data-test-content");
+
+    async function splitPanel() {
+      await page.viewport(1280, 800);
+      const panel = seededPanel();
+      cutRight("file:c.ts");
+      const screen = await render(<Harness width={900} />, { container: stage() });
+      await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:c.ts"));
+      return { panel, screen };
+    }
+
+    it("moves to a cell that is pressed with a pointer", async () => {
+      const { panel, screen } = await splitPanel();
+      using _panel = panel;
+      await using _screen = screen;
+      const inside = screen.container.querySelector<HTMLElement>("[data-test-button='file:b.ts']")!;
+      await send("pointerdown", inside, 10, 10, 1);
+      await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:b.ts"));
+    });
+
+    it("moves to a cell that takes the keyboard focus", async () => {
+      const { panel, screen } = await splitPanel();
+      using _panel = panel;
+      await using _screen = screen;
+      await act(async () =>
+        screen.container.querySelector<HTMLElement>("[data-test-button='file:b.ts']")!.focus(),
+      );
+      await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:b.ts"));
+    });
+
+    it("moves to the cell of a browser guest that reports a press", async () => {
+      const { panel, screen } = await splitPanel();
+      using _panel = panel;
+      await using _screen = screen;
+      // A guest's wrapper lives outside the cells; its press arrives as a replayed pointerdown.
+      const guest = document.createElement("div");
+      guest.dataset.previewViewport = "guest:file:b.ts";
+      document.body.append(guest);
+      try {
+        await send("pointerdown", guest, 10, 10, 1);
+        await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:b.ts"));
+      } finally {
+        guest.remove();
+      }
+    });
   });
 });

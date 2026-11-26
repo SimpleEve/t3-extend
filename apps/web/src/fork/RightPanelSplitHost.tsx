@@ -18,6 +18,7 @@ import {
   type ComponentProps,
   type CSSProperties,
   type ReactNode,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -230,6 +231,27 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
 
   const apply = (operation: SplitOperation) =>
     useRightPanelStore.getState().applySplit(threadRef, operation);
+
+  const focusable = layout !== null && fits;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- a browser guest's press reaches the page only as an event replayed on its wrapper, which sits outside the cells
+  useEffect(() => {
+    if (!focusable) return;
+    const onPress = (event: PointerEvent) => {
+      const guest =
+        event.target instanceof Element ? event.target.closest("[data-preview-viewport]") : null;
+      const tabId = guest?.getAttribute("data-preview-viewport");
+      if (!tabId) return;
+      const slot = Array.from(
+        areaRef.current?.querySelectorAll("[data-browser-surface-slot]") ?? [],
+      ).find((element) => element.getAttribute("data-browser-surface-slot") === tabId);
+      const cellId = slot
+        ?.closest("[data-right-panel-cell]")
+        ?.getAttribute("data-right-panel-cell");
+      if (cellId) useRightPanelStore.getState().applySplit(threadRef, { kind: "focus", cellId });
+    };
+    document.addEventListener("pointerdown", onPress, true);
+    return () => document.removeEventListener("pointerdown", onPress, true);
+  }, [focusable, threadRef]);
 
   const folded = layout !== null && !fits;
   const surfacesById = new Map<string, RightPanelSurface>(

@@ -39,13 +39,15 @@ export function useRightPanelCell(): RightPanelCellValue | null {
  */
 export function RightPanelCellFrame(props: ComponentProps<typeof PreviewPanelShell>) {
   const cell = useRightPanelCell();
+  const claimFocus = () => {
+    if (cell !== null && !cell.focused) cell.focus();
+  };
   return (
     <div
       data-right-panel-cell={cell?.cellId}
       data-cell-focused={cell?.focused ?? true}
-      onMouseDownCapture={() => {
-        if (cell !== null && !cell.focused) cell.focus();
-      }}
+      onPointerDownCapture={claimFocus}
+      onFocusCapture={claimFocus}
       onMouseDown={props.onMouseDown}
       onMouseUp={props.onMouseUp}
       className={cn(
