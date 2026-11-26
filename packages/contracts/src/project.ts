@@ -286,15 +286,20 @@ export const ProjectSearchEntriesInput = Schema.Struct({
 export type ProjectSearchEntriesInput = typeof ProjectSearchEntriesInput.Type;
 
 /**
- * Present only on a symbolic link. `target` is the link's own text (what `readlink` prints), so a
- * relative link stays relative. `broken` means nothing readable sits behind it, so it cannot be
- * opened; its `kind` is "file". `cycle` means it points at a folder that contains the one being
- * listed, so it must not be expanded.
+ * Present only on a symbolic link; at most one of the flags is set, and a flagged entry has `kind`
+ * "file". `target` is the link's own text (what `readlink` prints), so a relative link stays
+ * relative. It is left out for an ordinary link that stays inside the workspace, which keeps
+ * link-heavy folders such as `node_modules` small, and sent for every other link.
  */
 export const ProjectEntrySymlink = Schema.Struct({
-  target: Schema.String,
+  target: Schema.optional(Schema.String),
+  // Nothing readable sits behind it, so it cannot be opened.
   broken: Schema.optional(Schema.Boolean),
+  // Points at a folder that contains the one listed, so it must not be expanded. Its `kind` is
+  // "file" so that clients which ignore this field do not expand it without end.
   cycle: Schema.optional(Schema.Boolean),
+  // Following it took too long, so nothing is known about the target. Listing again retries.
+  unresolved: Schema.optional(Schema.Boolean),
 });
 export type ProjectEntrySymlink = typeof ProjectEntrySymlink.Type;
 

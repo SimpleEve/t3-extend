@@ -1,13 +1,11 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFSP from "node:fs/promises";
-import * as NodeTimersPromises from "node:timers/promises";
 
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as RcMap from "effect/RcMap";
 import * as Schema from "effect/Schema";
@@ -33,6 +31,7 @@ import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as WorkspacePaths from "./WorkspacePaths.ts";
 import * as WorkspaceSearchIndex from "./WorkspaceSearchIndex.ts";
+import { makeSymlinkLookups, SYMLINK_UNRESOLVED } from "./symlinkLookups.ts";
 
 export class WorkspaceEntriesWindowsPathUnsupportedError extends Schema.TaggedError<WorkspaceEntriesWindowsPathUnsupportedError>()(
   "WorkspaceEntriesWindowsPathUnsupportedError",
@@ -128,8 +127,8 @@ const IGNORE_CHECK_CHUNK_SIZE = 1000;
 /** Children classified at once when listing a folder; each symlink costs a realpath and a stat. */
 const SYMLINK_RESOLVE_BATCH_SIZE = 64;
 
-/** Longest a link may take to resolve before it is listed as broken. */
-const SYMLINK_RESOLVE_TIMEOUT_MS = 3_000;
+/** Longest one listing queues links for a lookup slot; the ones left over are listed unresolved. */
+const SYMLINK_LISTING_WAIT_MS = 5_000;
 
 const resolveBrowseTarget = Effect.fn("WorkspaceEntries.resolveBrowseTarget")(function* (
   input: FilesystemBrowseInput,
@@ -160,30 +159,34 @@ const resolveBrowseTarget = Effect.fn("WorkspaceEntries.resolveBrowseTarget")(fu
 });
 
 // A link to an unresponsive network share must not hold up the local entries beside it.
-const SYMLINK_TARGET_STAT_TIMEOUT = Duration.seconds(1);
-// A timed-out stat cannot be cancelled and keeps a libuv worker (4 by default) busy,
-// so cap target stats in flight to leave most of the pool to other fs work.
-const MAX_PENDING_SYMLINK_TARGET_STATS = 2;
+const SYMLINK_TARGET_TIMEOUT_MS = 1_000;
+// A timed-out lookup cannot be cancelled and keeps a libuv worker (4 by default) busy,
+// so cap target lookups in flight to leave most of the pool to other fs work.
+const MAX_PENDING_SYMLINK_TARGET_LOOKUPS = 2;
 
 /** @public */
 export const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   const workspacePaths = yield* WorkspacePaths.WorkspacePaths;
   const workspaceSearchIndexes = yield* WorkspaceSearchIndex.WorkspaceSearchIndexMap;
-  let pendingSymlinkTargetStats = 0;
-  const statSymlinkTarget = (candidate: { readonly name: string; readonly fullPath: string }) => {
-    if (pendingSymlinkTargetStats >= MAX_PENDING_SYMLINK_TARGET_STATS) {
-      return Promise.resolve(null);
-    }
-    pendingSymlinkTargetStats++;
-    return NodeFSP.stat(candidate.fullPath)
-      .then(
-        (stats) => (stats.isDirectory() ? candidate : null),
-        () => null,
-      )
-      .finally(() => {
-        pendingSymlinkTargetStats--;
-      });
+  // One pool for `browse` and `list`: separate caps would add up to the whole libuv pool.
+  const lookUpSymlinkTarget = makeSymlinkLookups({
+    maxPending: MAX_PENDING_SYMLINK_TARGET_LOOKUPS,
+    timeoutMs: SYMLINK_TARGET_TIMEOUT_MS,
+  });
+  const statSymlinkTarget = async (candidate: {
+    readonly name: string;
+    readonly fullPath: string;
+  }) => {
+    const isDirectory = await lookUpSymlinkTarget(
+      () =>
+        NodeFSP.stat(candidate.fullPath).then(
+          (stats) => stats.isDirectory(),
+          () => false,
+        ),
+      SYMLINK_TARGET_TIMEOUT_MS,
+    );
+    return isDirectory === true ? candidate : null;
   };
   const vcsProcess = yield* VcsProcess.VcsProcess;
 
@@ -296,12 +299,8 @@ export const make = Effect.gen(function* () {
       if (symlinkCandidates.length > 0) {
         const resolvedSymlinks = yield* Effect.forEach(
           symlinkCandidates,
-          (candidate) =>
-            Effect.promise(() => statSymlinkTarget(candidate)).pipe(
-              Effect.timeoutOption(SYMLINK_TARGET_STAT_TIMEOUT),
-              Effect.map(Option.getOrNull),
-            ),
-          { concurrency: MAX_PENDING_SYMLINK_TARGET_STATS },
+          (candidate) => Effect.promise(() => statSymlinkTarget(candidate)),
+          { concurrency: MAX_PENDING_SYMLINK_TARGET_LOOKUPS },
         );
         for (const candidate of resolvedSymlinks) {
           if (candidate !== null) entries.push(candidate);
@@ -479,9 +478,9 @@ export const make = Effect.gen(function* () {
                 return folders;
               })());
             type ListedChild = Pick<ProjectEntry, "kind" | "symlink">;
-            // A link shows up wherever it points, outside the workspace included, so it can be
-            // browsed. One into the workspace's own `.git` stays hidden, and one that leads
-            // nowhere readable is kept but marked, since a missing link is still worth seeing.
+            // A link is listed wherever it points, except into the workspace's own `.git`; a broken
+            // one is kept and marked. The link text is only sent where it says something, as a
+            // package manager can fill a folder with thousands of ordinary links.
             const resolveSymlink = async (
               linkPath: string,
               linkText: string,
@@ -504,34 +503,30 @@ export const make = Effect.gen(function* () {
               }
               const stat = await NodeFSP.stat(resolved).catch(() => undefined);
               if (stat === undefined) return broken;
-              if (stat.isFile()) return { kind: "file", symlink: { target: linkText } };
-              if (!stat.isDirectory()) return undefined;
-              const folders = await loadVisitedFolders();
-              return {
-                kind: "directory",
-                symlink: folders.some((folder) => isSameOrInside(resolved, folder))
-                  ? { target: linkText, cycle: true }
-                  : { target: linkText },
-              };
+              if (!stat.isFile() && !stat.isDirectory()) return undefined;
+              const kind = stat.isFile() ? "file" : "directory";
+              if (kind === "directory") {
+                const folders = await loadVisitedFolders();
+                // Sent as a file: clients that predate `cycle` expand every directory.
+                if (folders.some((folder) => isSameOrInside(resolved, folder))) {
+                  return { kind: "file", symlink: { target: linkText, cycle: true } };
+                }
+              }
+              return { kind, symlink: insideRoot ? {} : { target: linkText } };
             };
-            // A link into an unresponsive network share must not hold up the entries beside it.
-            const resolveSymlinkWithin = async (name: string) => {
+            const lookupDeadline = performance.now() + SYMLINK_LISTING_WAIT_MS;
+            const listSymlink = async (name: string): Promise<ListedChild | undefined> => {
               const linkPath = path.join(directory, name);
+              // Reads the link itself, in the folder just listed; only following it can hang.
               const linkText = await NodeFSP.readlink(linkPath).catch(() => undefined);
               if (linkText === undefined) return undefined;
-              const stop = new AbortController();
-              try {
-                return await Promise.race([
-                  resolveSymlink(linkPath, linkText),
-                  NodeTimersPromises.setTimeout(
-                    SYMLINK_RESOLVE_TIMEOUT_MS,
-                    { kind: "file", symlink: { target: linkText, broken: true } } as const,
-                    { signal: stop.signal },
-                  ).catch(() => undefined),
-                ]);
-              } finally {
-                stop.abort();
-              }
+              const child = await lookUpSymlinkTarget(
+                () => resolveSymlink(linkPath, linkText),
+                lookupDeadline - performance.now(),
+              );
+              return child === SYMLINK_UNRESOLVED
+                ? { kind: "file", symlink: { target: linkText, unresolved: true } }
+                : child;
             };
             // Bound filesystem work for directories such as pnpm node_modules.
             const listed: Array<ListedChild | undefined> = [];
@@ -544,7 +539,7 @@ export const make = Effect.gen(function* () {
                       if (child.name === ".git") return undefined;
                       if (child.isDirectory()) return { kind: "directory" };
                       if (child.isFile()) return { kind: "file" };
-                      return child.isSymbolicLink() ? resolveSymlinkWithin(child.name) : undefined;
+                      return child.isSymbolicLink() ? listSymlink(child.name) : undefined;
                     }),
                 )),
               );

@@ -180,8 +180,9 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         const root = yield* workspaceEntries.list({ cwd, directoryPath: "" });
         expect(root.entries.toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
           { path: "dangling", kind: "file", symlink: { target: "missing", broken: true } },
-          { path: "link.txt", kind: "file", symlink: { target: "real.txt" } },
-          { path: "linkdir", kind: "directory", symlink: { target: "realdir" } },
+          // An ordinary link that stays inside only needs the mark.
+          { path: "link.txt", kind: "file", symlink: {} },
+          { path: "linkdir", kind: "directory", symlink: {} },
           { path: "outside-link", kind: "directory", symlink: { target: outside } },
           {
             path: "outside.txt",
@@ -274,11 +275,17 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
             ["b", false],
             ["self", true],
           ]);
+          // Clients that predate `cycle` expand every directory, so a loop is never sent as one.
           expect(root.find((entry) => entry.path === "self")).toEqual({
             path: "self",
-            kind: "directory",
+            kind: "file",
             symlink: { target: ".", cycle: true },
           });
+          for (const directoryPath of ["", "a", "a/to-b", "away"]) {
+            for (const entry of yield* list(directoryPath)) {
+              if (entry.symlink?.cycle) expect(entry.kind).toBe("file");
+            }
+          }
           // A link into a sibling folder is fine on its own...
           expect(
             (yield* list("a")).map((entry) => [entry.path, entry.symlink?.cycle === true]),
@@ -305,7 +312,105 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         }),
     );
 
-    it.effect("resolves a folder of many symlinks in bounded batches", () =>
+    // Stands in for a link into an unresponsive mount: `realpath` on a `hung-` link never settles
+    // until the test releases it, as a stuck call only returns when the OS gives up.
+    const withHungLinks = () => {
+      const realpath = NodeFSP.realpath;
+      const releases: Array<() => void> = [];
+      const spy = vi.spyOn(NodeFSP, "realpath").mockImplementation((async (target: string) => {
+        if (!/[\\/]hung-[^\\/]*$/.test(target)) return await realpath(target);
+        return await new Promise<string>((_, reject) => {
+          releases.push(() => reject(new Error("released")));
+        });
+      }) as typeof NodeFSP.realpath);
+      return {
+        count: () => releases.length,
+        release: () => {
+          spy.mockRestore();
+          for (const release of releases.splice(0)) release();
+        },
+      };
+    };
+
+    it.effect("lists links it cannot follow in time as unresolved, holding only two lookups", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, "real.txt");
+        const names = Array.from({ length: 6 }, (_, index) => `hung-${index}`);
+        for (const name of names) {
+          yield* fileSystem.symlink("real.txt", path.join(cwd, name));
+        }
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const list = workspaceEntries
+          .list({ cwd, directoryPath: "" })
+          .pipe(
+            Effect.map(({ entries }) => entries.toSorted((a, b) => a.path.localeCompare(b.path))),
+          );
+        const unresolved = [
+          ...names.map((name) => ({
+            path: name,
+            kind: "file",
+            symlink: { target: "real.txt", unresolved: true },
+          })),
+          { path: "real.txt", kind: "file" },
+        ];
+        const hung = withHungLinks();
+        yield* Effect.gen(function* () {
+          expect(yield* list).toEqual(unresolved);
+          // The links past the cap never started a call that could take another worker.
+          expect(hung.count()).toBe(2);
+          // While both slots are stuck, another listing gives up without starting anything.
+          expect(yield* list).toEqual(unresolved);
+          expect(hung.count()).toBe(2);
+        }).pipe(Effect.ensuring(Effect.sync(hung.release)));
+        // The stuck calls returned, so listing again resolves the links.
+        expect((yield* list).filter((entry) => entry.symlink)).toEqual(
+          names.map((name) => ({ path: name, kind: "file", symlink: {} })),
+        );
+      }),
+    );
+
+    it.effect("keeps resolving the other links while one lookup is stuck", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, "real.txt");
+        yield* writeTextFile(cwd, "mixed/.keep");
+        yield* writeTextFile(cwd, "healthy/.keep");
+        const links = Array.from({ length: 150 }, (_, index) => `link-${index}`);
+        for (const name of [
+          "mixed/hung-only",
+          ...links.flatMap((link) => [`mixed/${link}`, `healthy/${link}`]),
+        ]) {
+          yield* fileSystem.symlink("../real.txt", path.join(cwd, name));
+        }
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const hung = withHungLinks();
+        yield* Effect.gen(function* () {
+          // Two listings at once queue for the same slots; waiting for a busy slot is not failure.
+          const results = yield* Effect.all(
+            ["mixed", "healthy"].map((directoryPath) =>
+              workspaceEntries.list({ cwd, directoryPath }),
+            ),
+            { concurrency: 2 },
+          );
+          expect(
+            results.map(({ entries }) =>
+              entries.filter((entry) => entry.symlink?.unresolved).map((entry) => entry.path),
+            ),
+          ).toEqual([["mixed/hung-only"], []]);
+        }).pipe(Effect.ensuring(Effect.sync(hung.release)));
+      }),
+    );
+
+    it.effect("resolves a folder of many symlinks a few at a time", () =>
       Effect.gen(function* () {
         const platform = yield* HostProcess.Platform;
         if (platform === "win32") return;
@@ -347,7 +452,8 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
           ].toSorted(),
         );
         expect(entries.every((entry) => entry.kind === "directory")).toBe(true);
-        expect(maxInFlight).toBeLessThanOrEqual(64);
+        // Each in-flight call can hold a libuv worker, of which there are four.
+        expect(maxInFlight).toBeLessThanOrEqual(2);
       }),
     );
 
