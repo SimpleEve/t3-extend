@@ -468,3 +468,35 @@ describe("an action that swaps the selected tab for one in another cell", () => 
     expect(panel().activeSurfaceId).toBe(file("c"));
   });
 });
+
+describe("where a tab that appears while another disappears lands", () => {
+  const attachment = {
+    type: "file" as const,
+    id: "att",
+    name: "report.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 42,
+  };
+
+  it("puts an attachment in the focused cell even though it also removes another cell's explorer", () => {
+    const store = useRightPanelStore.getState();
+    open("a", "c");
+    store.open(ref, "files");
+    split("c", "right"); // [a files | c], the focus on the right
+    store.openAttachment(ref, attachment);
+    expect(cellTabs()).toEqual([["file:a"], ["file:c", "attachment:att"]]);
+    expect(focusedCellOf(panel().layout!)?.activeId).toBe("attachment:att");
+  });
+
+  it("keeps a placeholder's seat for the device that replaces it", () => {
+    const store = useRightPanelStore.getState();
+    const target = { hostId: "h", deviceId: "d", platform: "ios" as const, name: "Phone" };
+    open("a", "c");
+    store.open(ref, "device");
+    split("c", "right"); // [a device | c]
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+    store.activateSurface(ref, "device");
+    store.openDevice(ref, target);
+    expect(cellTabs()).toEqual([["file:a", "device:h:d"], ["file:c"]]);
+  });
+});

@@ -285,6 +285,12 @@ function flatten<T extends SplitState>(
   } as T;
 }
 
+const isFileLike = (id: string) => id === "files" || id.startsWith("file:");
+
+/** The swaps the store makes in place: an explorer or file for another, a device placeholder for a device. */
+const isSeatSwap = (oldId: string, newId: string) =>
+  (isFileLike(oldId) && isFileLike(newId)) || (oldId === "device" && newId.startsWith("device:"));
+
 /**
  * Makes a state's layout agree with its flat surfaces after any update: surfaces that vanished
  * leave their cell, new ones land in a cell, empty cells fold away, and the flat active surface
@@ -330,9 +336,14 @@ export function reconcileSplit<T extends SplitState>(
     const [replacedId] = removed.size === 1 ? [...removed.keys()] : [];
     const replaced = replacedId === undefined ? undefined : removed.get(replacedId);
     const [only] = unassigned.length === 1 ? unassigned : [];
-    if (replacedId !== undefined && replaced !== undefined && only !== undefined) {
-      // One surface swapped for another (a folder opened in place, a placeholder replaced):
-      // the newcomer takes the old one's seat.
+    if (
+      replacedId !== undefined &&
+      replaced !== undefined &&
+      only !== undefined &&
+      replaced.cellId === layout.focusedCellId &&
+      isSeatSwap(replacedId, only)
+    ) {
+      // A folder opened in place, or a placeholder replaced: the newcomer takes the old one's seat.
       targets.set(only, replaced.cellId);
       placements.set(only, { index: replaced.index, activate: replaced.wasActive });
       delete homes[replacedId];
