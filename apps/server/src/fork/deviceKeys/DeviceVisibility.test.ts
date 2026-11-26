@@ -179,12 +179,15 @@ describe("turning hiding on", () => {
       const { set, phone, laptop, sessions, sessionFor, live } = yield* arrange;
       yield* sessionFor(phone, "phone");
       yield* sessionFor(laptop, "computer");
+      // Sessions from a pairing link, a LAN or Tailscale pairing and the desktop app are not devices.
       yield* sessions.issue({ subject: "desktop-bootstrap", method: "bearer-access-token" });
+      yield* sessions.issue({ subject: "one-time-token", method: "bearer-access-token" });
       yield* set(mode.visibility({ phone: phone.id }));
       const expected = [
         ...(mode.revokes.includes("phone") ? [] : subjectsOf([phone], "phone")),
         ...(mode.revokes.includes("laptop") ? [] : subjectsOf([laptop], "computer")),
         "desktop-bootstrap",
+        "one-time-token",
       ];
       assert.sameMembers(yield* live, expected);
     }).pipe(Effect.provide(layerHarness)),
