@@ -362,7 +362,18 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
       cell.tabIds.includes(overId),
     );
     if (target === undefined) return;
-    apply({ kind: "move", surfaceId, cellId: target.id, index: target.tabIds.indexOf(overId) });
+    // Within a cell the sort order decides; from another cell the half of the tab under the pointer does.
+    const pointer = pointerOf(event);
+    const after =
+      source?.id !== target.id &&
+      pointer !== null &&
+      pointer.x > over.rect.left + over.rect.width / 2;
+    apply({
+      kind: "move",
+      surfaceId,
+      cellId: target.id,
+      index: target.tabIds.indexOf(overId) + (after ? 1 : 0),
+    });
   };
 
   // The defaults would read out droppable ids such as "body:c2".

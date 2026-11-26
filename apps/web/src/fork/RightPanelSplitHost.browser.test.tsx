@@ -271,6 +271,34 @@ describe("RightPanelSplitHost", () => {
     ]);
   });
 
+  it("drops a tab from another cell after the tab it is released on when the pointer is on its right half", async () => {
+    await page.viewport(1280, 800);
+    using _panel = seededPanel();
+    await using screen = await render(<Harness width={900} />, { container: stage() });
+    cutRight("file:c.ts");
+    await vi.waitFor(() =>
+      expect(screen.container.querySelectorAll("[data-right-panel-cell]")).toHaveLength(2),
+    );
+    const target = tab(screen.container, "b.ts").getBoundingClientRect();
+    const right = { x: target.right - 4, y: target.top + target.height / 2 };
+
+    const held = await drag(
+      tab(screen.container, "c.ts"),
+      [{ x: right.x - 30, y: right.y }, right],
+      () => {
+        expect(document.querySelector("[data-right-panel-drop-preview]")).toBeNull();
+      },
+    );
+    await held.drop();
+
+    await vi.waitFor(() => expect(panelState().layout).toBeUndefined());
+    expect(panelState().surfaces.map((surface) => surface.id)).toEqual([
+      "file:a.ts",
+      "file:b.ts",
+      "file:c.ts",
+    ]);
+  });
+
   it("folds a layout into one tab strip while the panel is too narrow, and unfolds it when wide", async () => {
     await page.viewport(1280, 800);
     using _panel = seededPanel();
