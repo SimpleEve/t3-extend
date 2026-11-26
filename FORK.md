@@ -776,7 +776,7 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 
 - 数据：`rightPanelStore` 里每个线程多一个可选的 `layout`（存储版本 16→17）。`surfaces` 和 `activeSurfaceId` 保持扁平，`activeSurfaceId` 恒等于焦点格选中的标签，所以上游所有读它的代码照旧。没有 `layout` 就是一格；数据坏了退回一格。形状固定：一刀外切（行或列），每一半最多再垂直切一刀，不是通用的树；同方向的第三刀被拒绝。两列（或两行）的比例各自独立。
 - 逻辑都在 `apps/web/src/fork/`：`rightPanelSplit.ts`（布局模型、`reconcileSplit`、`applySplitOperation`，有单测）、`rightPanelSplitGeometry.ts`（最小格尺寸、落点区域）、`rightPanelSplitMenu.ts`、`rightPanelCell.tsx`（格子的上下文和边框）、`RightPanelSplitDivider.tsx`、`RightPanelSplitHost.tsx`（宿主，含拖放）、`rightPanelSplitContents.ts`。中文在 `catalogs/zh-Hans/rightPanelSplit.ts`。
-- `reconcileSplit` 挂在 `updateThreadStateMap` 上：所有改标签的老动作（开、关、换、重开）都先走原来的逻辑，再被它修成合法布局（删掉已不存在的标签；新标签放进它的 home 格或焦点格；一关一开视为替换，新标签占旧标签的格子和位置；空格子合并，折回一格就丢掉 layout）。已关闭标签的原来格子记在 `homes` 里，"重新打开关闭的视图"回到原格，原格没了就去焦点格。
+- `reconcileSplit` 挂在 `updateThreadStateMap` 上，带一个意图参数（`choose` 用户选了某个标签、`close` 关闭、`auto` 程序自己改）：所有改标签的老动作都先走原来的逻辑，再被它修成合法布局（删掉已不存在的标签；新标签一律放进焦点格；只有焦点格里的"原地替换"（文件夹导航、设备占位符换成设备）让新标签占旧标签的位置；空格子合并，折回一格就丢掉 layout）。删掉当前标签后上游代码回退选中的那个标签不算用户选择，焦点格不动。已关闭标签的原来格子记在 `homes` 里，但只有"重新打开关闭的视图"会用：`reopenClosedView` 重开前发 `focus-home`，把焦点切到记录的原格（浏览器用旧的 `browser:<tabId>` 查，原格不在就不动），重开的标签随后进入焦点格。普通地再打开同一个标签（同一个 Diff、同一个文件、复用的终端 id）一律进当前焦点格。
 - 宿主只渲染一次 `PreviewPanelShell`，格子是同一层 `position:absolute` 的平铺列表（key 是格子 id），重排时内容不卸载。位置来自容器上的 CSS 变量，拖分隔条直接改变量，松手才写 store，没有逐帧写 store，也没有新的持续重绘动画。分隔条两侧各让出 4px：浏览器 webview 画在页面之上，不让出的话两格都是浏览器时分隔条被整条盖住，鼠标抓不到。
 - 面板小到放不下当前布局时（每格最小 280×200）折叠成一条带全部标签的扁平标签栏，宽了再展开；窄面板不显示左右拆分的落点。
 - 单个 `DndContext` 在宿主里（@dnd-kit，没有引入停靠库）；格子里的标签栏只渲染 `SortableContext`。拖动时 `[data-preview-viewport]` 暂时 `pointer-events:none`，否则 webview 会吃掉拖动。

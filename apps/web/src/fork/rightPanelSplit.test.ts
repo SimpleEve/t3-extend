@@ -3,6 +3,7 @@ import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { useClosedViewStore } from "../closedViewStore";
+import { reopenClosedView } from "../reopenClosedView";
 import {
   migratePersistedRightPanelState,
   selectThreadRightPanelState,
@@ -243,45 +244,99 @@ describe("focus and selection", () => {
 });
 
 describe("closing and reopening", () => {
-  it("returns a reopened surface to the cell it was closed in", () => {
+  const reopen = (name: string) =>
+    reopenClosedView(
+      {
+        kind: "panel-tab",
+        threadRef: ref,
+        surface: {
+          id: `file:${name}` as const,
+          kind: "file",
+          relativePath: name,
+          revealLine: null,
+          revealRequestId: 1,
+        },
+      },
+      { openPreview: (() => undefined) as never, workspaceAvailable: true },
+    );
+
+  it("returns a tab reopened from the closed views to the cell it was closed in", async () => {
     open("a", "b", "c", "d");
     split("d", "right"); // [a b c | d]
-    useRightPanelStore.getState().applySplit(ref, { kind: "focus", cellId: cellIdOf("d") });
+    apply({ kind: "focus", cellId: cellIdOf("d") });
     useRightPanelStore.getState().closeSurface(ref, file("b"));
     expect(cellTabs()).toEqual([["file:a", "file:c"], ["file:d"]]);
-    // Focus is on the right cell, yet b was closed in the left one.
-    useRightPanelStore.getState().applySplit(ref, { kind: "focus", cellId: cellIdOf("d") });
-    useRightPanelStore.getState().openFile(ref, "b");
+    // The focus is on the right cell, yet b was closed in the left one.
+    await reopen("b");
     expect(cellTabs()).toEqual([["file:a", "file:c", "file:b"], ["file:d"]]);
+    expect(focusedCellOf(panel().layout!)?.tabIds).toContain(file("b"));
   });
 
-  it("opens it in the focused cell when its old cell is gone", () => {
+  it("reopens in the focused cell when the old cell is gone", async () => {
     open("a", "b", "c");
     split("c", "right");
     useRightPanelStore.getState().closeSurface(ref, file("c"));
     expect(panel().layout).toBeUndefined();
     open("d");
     split("d", "right");
-    useRightPanelStore.getState().applySplit(ref, { kind: "focus", cellId: cellIdOf("a") });
-    useRightPanelStore.getState().openFile(ref, "c");
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+    await reopen("c");
     expect(focusedCellOf(panel().layout!)?.tabIds).toEqual([file("a"), file("b"), file("c")]);
   });
 
-  it("lets a reopened browser inherit its closed tab's cell", () => {
+  it("lets a reopened browser find its closed tab's cell by the old id", () => {
     open("a", "b", "c");
     useRightPanelStore.getState().openBrowser(ref, "old");
     split("c", "right");
-    useRightPanelStore.getState().applySplit(ref, { kind: "focus", cellId: cellIdOf("c") });
-    useRightPanelStore.getState().applySplit(ref, { kind: "focus", cellId: cellIdOf("a") });
+    apply({ kind: "focus", cellId: cellIdOf("a") });
     useRightPanelStore.getState().closeSurface(ref, "browser:old");
-    useRightPanelStore.getState().applySplit(ref, { kind: "focus", cellId: cellIdOf("c") });
-    useRightPanelStore
-      .getState()
-      .applySplit(ref, { kind: "adopt-home", from: "browser:old", to: "browser:new-id" });
+    apply({ kind: "focus", cellId: cellIdOf("c") });
+    apply({ kind: "focus-home", id: "browser:old" });
     useRightPanelStore.getState().openBrowser(ref, "new-id");
-    expect(cellIdOf("a")).toBe(
+    expect(
       cellsOf(panel().layout!).find((cell) => cell.tabIds.includes("browser:new-id"))!.id,
-    );
+    ).toBe(cellIdOf("a"));
+  });
+
+  it("leaves the focus alone when the closed tab's cell is gone or unknown", () => {
+    open("a", "b", "c");
+    split("c", "right");
+    const before = panel().layout!.focusedCellId;
+    apply({ kind: "focus-home", id: "file:never-closed" });
+    expect(panel().layout!.focusedCellId).toBe(before);
+  });
+
+  /** [a b | <target> y]: the right cell keeps a second tab, so it survives the target closing. */
+  const rightCellWith = (target: string) => {
+    open("a", "b", "y");
+    if (target.startsWith("file:")) open(target.slice(5));
+    else useRightPanelStore.getState().open(ref, target as "diff");
+    const id = target.startsWith("file:") ? target : target;
+    apply({ kind: "split", cellId: "c1", surfaceId: id, direction: "right" });
+    apply({
+      kind: "move",
+      surfaceId: file("y"),
+      cellId: cellsOf(panel().layout!).find((c) => c.tabIds.includes(id))!.id,
+    });
+    useRightPanelStore.getState().closeSurface(ref, id);
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+  };
+
+  it("opens a new Diff in the focused cell after the one in the other cell was closed", () => {
+    rightCellWith("diff");
+    const left = cellIdOf("a");
+    useRightPanelStore.getState().open(ref, "diff");
+    const holder = cellsOf(panel().layout!).find((cell) => cell.tabIds.includes("diff"))!;
+    expect(holder.id).toBe(left);
+    expect(focusedCellOf(panel().layout!)?.id).toBe(left);
+  });
+
+  it("opens a file in the focused cell even though it was closed in the other one", () => {
+    rightCellWith("file:foo.ts");
+    const left = cellIdOf("a");
+    open("foo.ts");
+    expect(cellIdOf("foo.ts")).toBe(left);
+    expect(focusedCellOf(panel().layout!)?.id).toBe(left);
   });
 });
 
@@ -465,9 +520,26 @@ describe("an action that swaps the selected tab for one in another cell", () => 
     split("c", "right"); // [a b | c]
     focus("a");
     useRightPanelStore.getState().closeSurface(ref, file("b"));
+    // b was not the selected tab of the left cell, so nothing moves.
+    expect(cellIdOf("a")).toBe(focusedCellOf(panel().layout!)?.id);
+    expect(panel().activeSurfaceId).toBe(file("a"));
     useRightPanelStore.getState().closeSurface(ref, file("a"));
     expect(panel().layout).toBeUndefined();
     expect(panel().activeSurfaceId).toBe(file("c"));
+  });
+
+  it("keeps the focus in a cell when the app drops its selected browser and falls back to another cell's", () => {
+    const store = useRightPanelStore.getState();
+    open("a");
+    store.openBrowser(ref, "L");
+    store.openBrowser(ref, "R");
+    apply({ kind: "split", cellId: "c1", surfaceId: "browser:R", direction: "right" }); // [a L | R]
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+    store.activateSurface(ref, "browser:L");
+    store.reconcileBrowserSurfaces(ref, ["R"], new Set());
+    // The fallback the flat code picks is R, in the other cell; that is not the user choosing it.
+    expect(focusedCellOf(panel().layout!)?.id).toBe(cellIdOf("a"));
+    expect(panel().activeSurfaceId).toBe(file("a"));
   });
 });
 

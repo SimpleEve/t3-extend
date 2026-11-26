@@ -285,6 +285,9 @@ function flatten<T extends SplitState>(
   } as T;
 }
 
+/** Why a state changed: the user chose something, closed a view, or the app did it. */
+export type SplitIntent = "choose" | "close" | "auto";
+
 const isFileLike = (id: string) => id === "files" || id.startsWith("file:");
 
 /** The swaps the store makes in place: an explorer or file for another, a device placeholder for a device. */
@@ -299,8 +302,7 @@ const isSeatSwap = (oldId: string, newId: string) =>
 export function reconcileSplit<T extends SplitState>(
   prev: T,
   next: T,
-  /** The update is a user action that does not close a view. */
-  userAction = false,
+  intent: SplitIntent = "auto",
 ): T {
   if (prev.layout === undefined && next.layout === undefined) return next;
   const checked = next.layout === undefined ? null : sanitizeLayout(next.layout);
@@ -328,9 +330,7 @@ export function reconcileSplit<T extends SplitState>(
     .map((surface): string => surface.id)
     .filter((id) => !assigned.has(id));
   const homes: Record<string, string> = { ...layout.homes };
-  // Terminals are not reopened, and their ids are handed out again, so a new one must not
-  // be pulled back to the cell an earlier terminal with that id closed in.
-  for (const [id, where] of removed) if (!id.startsWith("terminal:")) homes[id] = where.cellId;
+  for (const [id, where] of removed) homes[id] = where.cellId;
 
   if (unassigned.length > 0) {
     const placements = new Map<string, { index?: number; activate: boolean }>();
@@ -350,11 +350,9 @@ export function reconcileSplit<T extends SplitState>(
       placements.set(only, { index: replaced.index, activate: replaced.wasActive });
       delete homes[replacedId];
     } else {
+      // A new tab always opens in the focused cell; reopening a closed view moves the focus first.
       for (const id of unassigned) {
-        const home = homes[id];
-        const target =
-          home !== undefined && findCell(layout, home) !== null ? home : layout.focusedCellId;
-        targets.set(id, target);
+        targets.set(id, layout.focusedCellId);
         placements.set(id, { activate: next.activeSurfaceId === id });
       }
     }
@@ -384,17 +382,13 @@ export function reconcileSplit<T extends SplitState>(
   const nextActive = next.activeSurfaceId;
   const activatedCell =
     nextActive !== null && nextActive !== prevActive ? cellOfSurface(layout, nextActive) : null;
-  // Closing the selected tab makes the flat code activate the neighbor at its index, from any
-  // cell; that is not the user choosing a cell. Anything else that activates is, and so is an
-  // update that is itself a user action other than a close: it may swap the tab for that same neighbor.
-  const prevIndex = prev.surfaces.findIndex((surface) => surface.id === prevActive);
-  const removalNeighbor =
-    prevActive === null || surfaceIds.has(prevActive) || prevIndex < 0
-      ? undefined
-      : next.surfaces[Math.min(prevIndex, next.surfaces.length - 1)]?.id;
+  // Losing the selected tab makes the flat code activate some other tab, from any cell, unless the
+  // user chose one; that fallback is not a choice of cell. A tab that appears, or an activation
+  // while the selected tab stays, is.
+  const selectedTabSurvived = prevActive === null || surfaceIds.has(prevActive);
   const deliberate =
     activatedCell !== null &&
-    (userAction || nextActive !== removalNeighbor || unassigned.includes(nextActive ?? ""));
+    (intent === "choose" || selectedTabSurvived || unassigned.includes(nextActive ?? ""));
   let focusedCellId = layout.focusedCellId;
   if (deliberate && activatedCell !== null) {
     focusedCellId = activatedCell.id;
@@ -434,8 +428,8 @@ export type SplitOperation =
   | { kind: "move"; surfaceId: string; cellId: string; index?: number }
   | { kind: "focus"; cellId: string }
   | { kind: "ratio"; target: "outer" | 0 | 1; ratio: number }
-  /** A reopened surface gets a new id; it should return where the closed one sat. */
-  | { kind: "adopt-home"; from: string; to: string };
+  /** Moves the focus to the cell a closed surface sat in, so reopening it lands there; no-op if unknown or gone. */
+  | { kind: "focus-home"; id: string };
 
 function soleCellOf(state: SplitState): PanelCell {
   const tabIds = state.surfaces.map((surface): string => surface.id);
@@ -658,11 +652,11 @@ export function applySplitOperation<T extends SplitState>(saved: T, op: SplitOpe
         ? state
         : { ...state, layout: { ...layout, groups: [g0, g1] } };
     }
-    case "adopt-home": {
-      const layout = state.layout;
-      const home = layout?.homes[op.from];
-      if (layout === undefined || home === undefined) return state;
-      return { ...state, layout: { ...layout, homes: { ...layout.homes, [op.to]: home } } };
+    case "focus-home": {
+      const home = state.layout?.homes[op.id];
+      if (state.layout === undefined || home === undefined) return state;
+      if (findCell(state.layout, home) === null) return state;
+      return commit(state, { layout: state.layout }, home);
     }
   }
 }

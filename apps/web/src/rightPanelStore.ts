@@ -12,6 +12,7 @@ import { useClosedViewStore } from "./closedViewStore";
 import {
   applySplitOperation,
   reconcileSplit,
+  type SplitIntent,
   restoreSplit,
   type PanelLayout,
   type SplitOperation,
@@ -437,19 +438,14 @@ const upsertSurface = (
   activeSurfaceId: activate ? surface.id : current.activeSurfaceId,
 });
 
-// fork: set by a user action's updater, read once by the reconcile that follows it
-let choosing = false;
-
 const updateThreadStateMap = (
   byThreadKey: Record<string, ThreadRightPanelState>,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
+  intent: SplitIntent = "auto", // fork: lets reconcileSplit tell a choice from a closing fallback
 ): Record<string, ThreadRightPanelState> => {
   const current = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  choosing = false;
-  const updated = updater(current); // fork: this updater may set `choosing`
-  const next = reconcileSplit(current, updated, choosing); // fork: keep cells in step with surfaces
-  choosing = false;
+  const next = reconcileSplit(current, updater(current), intent); // fork: keep cells in step with surfaces
   if (
     !next.isOpen &&
     next.activeSurfaceId === null &&
@@ -490,9 +486,10 @@ const updateThread = (
   state: RightPanelStoreData,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
+  intent: SplitIntent = "auto", // fork: see updateThreadStateMap
 ): RightPanelStoreData => {
   const current = state.byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, updater);
+  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, updater, intent); // fork: pass it on
   const next = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
   let threadPanelVisibilityByThreadKey = state.threadPanelVisibilityByThreadKey;
 
@@ -558,25 +555,29 @@ const userActionOnThread = (
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
   closesView: boolean,
 ): Partial<RightPanelStoreState> => ({
-  ...updateThread(state, threadKey, (current) => {
-    choosing = !closesView; // fork: a close's fallback activation is not a choice
-    const next = updater(current);
-    if (next === current) return current;
-    const removedDevices = current.surfaces.filter(
-      (surface) =>
-        surface.kind === "device" && !next.surfaces.some((entry) => entry.id === surface.id),
-    );
-    if (removedDevices.length === 0) return next;
-    return {
-      ...next,
-      dismissedDeviceSurfaceIds: [
-        ...new Set([
-          ...(next.dismissedDeviceSurfaceIds ?? []),
-          ...removedDevices.map((surface) => surface.id),
-        ]),
-      ],
-    };
-  }),
+  ...updateThread(
+    state,
+    threadKey,
+    (current) => {
+      const next = updater(current);
+      if (next === current) return current;
+      const removedDevices = current.surfaces.filter(
+        (surface) =>
+          surface.kind === "device" && !next.surfaces.some((entry) => entry.id === surface.id),
+      );
+      if (removedDevices.length === 0) return next;
+      return {
+        ...next,
+        dismissedDeviceSurfaceIds: [
+          ...new Set([
+            ...(next.dismissedDeviceSurfaceIds ?? []),
+            ...removedDevices.map((surface) => surface.id),
+          ]),
+        ],
+      };
+    },
+    closesView ? "close" : "choose",
+  ), // fork: a close's fallback activation is not a choice
   userActionRevisionByThreadKey: {
     ...state.userActionRevisionByThreadKey,
     [threadKey]: (state.userActionRevisionByThreadKey[threadKey] ?? 0) + 1,
