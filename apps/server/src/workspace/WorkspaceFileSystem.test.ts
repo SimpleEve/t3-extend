@@ -527,6 +527,33 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceFileSystemLive", (i
     );
 
     it.effect.skipIf(!symlinksSupported)(
+      "says a binary file reached through a link out of the workspace is outside it",
+      () =>
+        Effect.gen(function* () {
+          const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          const cwd = yield* makeTempDir;
+          const outsideDir = yield* makeTempDir;
+          yield* writeTextFile(cwd, "inside.bin", "a\0b");
+          yield* writeTextFile(outsideDir, "image.bin", "a\0b");
+          yield* fileSystem.symlink(path.join(outsideDir, "image.bin"), path.join(cwd, "away.bin"));
+          yield* fileSystem.symlink("inside.bin", path.join(cwd, "near.bin"));
+
+          const read = (relativePath: string) =>
+            workspaceFileSystem.readFile({ cwd, relativePath }).pipe(Effect.flip);
+          const away = yield* read("away.bin");
+          expect(away).toBeInstanceOf(WorkspaceFileSystem.WorkspaceBinaryFileError);
+          expect(away).toMatchObject({ outsideWorkspace: true });
+          for (const relativePath of ["inside.bin", "near.bin"]) {
+            const error = yield* read(relativePath);
+            expect(error).toBeInstanceOf(WorkspaceFileSystem.WorkspaceBinaryFileError);
+            expect(error).not.toHaveProperty("outsideWorkspace");
+          }
+        }),
+    );
+
+    it.effect.skipIf(!symlinksSupported)(
       "reads through symlinks that resolve outside the workspace root, and still refuses to write",
       () =>
         Effect.gen(function* () {

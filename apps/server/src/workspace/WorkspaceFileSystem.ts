@@ -95,6 +95,8 @@ export class WorkspaceBinaryFileError extends Schema.TaggedError<WorkspaceBinary
     workspaceRoot: Schema.String,
     relativePath: Schema.String,
     resolvedPath: Schema.String,
+    // Clients preview a binary file as media, and say so when a link led it out of the workspace.
+    outsideWorkspace: Schema.optional(Schema.Boolean),
   },
 ) {
   override get message(): string {
@@ -480,6 +482,7 @@ export const make = Effect.gen(function* () {
               workspaceRoot: input.cwd,
               relativePath: input.relativePath,
               resolvedPath: realTargetPath,
+              ...(target.outsideWorkspace ? { outsideWorkspace: true } : {}),
             });
           if (fileBytes.includes(0)) return yield* binaryFileError();
           // Fatal decoding rejects invalid UTF-8, since U+FFFD contents would corrupt the file on save.

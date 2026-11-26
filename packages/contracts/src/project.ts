@@ -286,10 +286,9 @@ export const ProjectSearchEntriesInput = Schema.Struct({
 export type ProjectSearchEntriesInput = typeof ProjectSearchEntriesInput.Type;
 
 /**
- * Present only on a symbolic link; at most one of the flags is set, and a flagged entry has `kind`
- * "file". `target` is the link's own text (what `readlink` prints), so a relative link stays
- * relative. It is left out for an ordinary link that stays inside the workspace, which keeps
- * link-heavy folders such as `node_modules` small, and sent for every other link.
+ * Present only on a symbolic link; at most one flag is set, and a flagged entry has `kind` "file".
+ * `target` is the link's own text. It is left off a link git ignores, and off a folder's links
+ * inside the workspace when there are over 200; clients show a plain "link" then.
  */
 export const ProjectEntrySymlink = Schema.Struct({
   target: Schema.optional(Schema.String),
@@ -544,6 +543,7 @@ type ProjectFileFailureContext = {
   readonly resolvedWorkspaceRoot?: string;
   readonly operation?: ProjectFileOperation;
   readonly operationPath?: string;
+  readonly outsideWorkspace?: boolean;
   readonly cause?: unknown;
 };
 
@@ -557,6 +557,8 @@ export class ProjectReadFileError extends Schema.TaggedError<ProjectReadFileErro
     resolvedWorkspaceRoot: Schema.optional(TrimmedNonEmptyString),
     operation: Schema.optional(ProjectFileOperation),
     operationPath: Schema.optional(Schema.NonEmptyString),
+    // Set on `binary_file`: a link in the workspace led out of it, as it does for a text read.
+    outsideWorkspace: Schema.optional(Schema.Boolean),
     message: TrimmedNonEmptyString,
     cause: Schema.optional(Schema.Defect()),
   },
