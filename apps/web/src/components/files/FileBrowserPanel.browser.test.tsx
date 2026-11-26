@@ -18,7 +18,7 @@ const entries: readonly ProjectEntry[] = [
 const loadingDirectories: ReadonlySet<string> = new Set();
 const directory: {
   entries: readonly ProjectEntry[];
-  load: () => Promise<void>;
+  load: (path: string) => Promise<void>;
   refresh: () => void;
   ready: boolean;
   error: null;
@@ -43,8 +43,16 @@ const pathSearch = {
 
 vi.mock("./useDirectoryEntries", () => ({ useDirectoryEntries: () => directory }));
 vi.mock("~/state/queries", () => ({ useProjectPathSearch: () => pathSearch }));
+const fileMenu = {
+  buildItems: (_target: { filePath: string; isDirectory?: boolean }) =>
+    [] as Array<{ id: string; label: string }>,
+};
 vi.mock("~/fileContextMenu", () => ({
-  useFileContextMenu: () => ({ buildItems: () => [], activate: () => Promise.resolve() }),
+  useFileContextMenu: () => ({
+    buildItems: (target: { filePath: string; isDirectory?: boolean }) =>
+      fileMenu.buildItems(target),
+    activate: () => Promise.resolve(),
+  }),
 }));
 vi.mock("~/hooks/useWorkspaceMutationRefresh", () => ({ useWorkspaceMutationRefresh: () => {} }));
 
@@ -169,45 +177,151 @@ describe("FileBrowserPanel", () => {
     await vi.waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
   });
 
-  it("marks symbolic links, opens ones that lead somewhere, and leaves broken and looping ones shut", async () => {
-    const onOpenFile = vi.fn();
-    using _listing = withDirectoryListing([
-      { path: "data", kind: "directory", symlink: { target: "/mnt/data" } },
-      { path: "up", kind: "directory", symlink: { target: "..", cycle: true } },
-      { path: "gone.txt", kind: "file", symlink: { target: "missing.txt", broken: true } },
-      { path: "notes.txt", kind: "file", symlink: { target: "/mnt/notes.txt" } },
-      { path: "README.md", kind: "file" },
+  const linkListing: readonly ProjectEntry[] = [
+    { path: "data", kind: "directory", symlink: { target: "/mnt/data" } },
+    { path: "up", kind: "file", symlink: { target: "..", cycle: true } },
+    { path: "gone.txt", kind: "file", symlink: { target: "missing.txt", broken: true } },
+    { path: "slow.txt", kind: "file", symlink: { target: "/mnt/slow.txt", unresolved: true } },
+    { path: "notes.txt", kind: "file", symlink: { target: "/mnt/notes.txt" } },
+    { path: "alias.md", kind: "file", symlink: {} },
+    { path: "README.md", kind: "file" },
+  ];
+  const renderLinks = (cwd: string, onOpenFile: (path: string) => void) => (
+    <FileBrowserPanel
+      environmentId={EnvironmentId.make("env-files-symlinks")}
+      cwd={cwd}
+      projectName="repo"
+      selectedPath={null}
+      selectedPathRevealId={0}
+      onOpenFile={onOpenFile}
+      workspaceMutationId={null}
+    />
+  );
+  const decorations = (path: string) =>
+    [...(findTreeRow(path)?.querySelectorAll<HTMLElement>("[title]") ?? [])].map((element) => [
+      element.title,
+      element.querySelector("svg")?.getAttribute("data-icon-name"),
     ]);
-    await using _screen = await render(
-      <FileBrowserPanel
-        environmentId={EnvironmentId.make("env-files-symlinks")}
-        cwd="/repo-symlinks"
-        projectName="repo"
-        selectedPath={null}
-        selectedPathRevealId={0}
-        onOpenFile={onOpenFile}
-        workspaceMutationId={null}
-      />,
-    );
+
+  it("marks symbolic links, opens ones that lead somewhere, and leaves the rest shut", async () => {
+    const onOpenFile = vi.fn();
+    using _listing = withDirectoryListing(linkListing);
+    await using _screen = await render(renderLinks("/repo-symlinks", onOpenFile));
     await vi.waitFor(() => expect(findTreeRow("notes.txt")).not.toBeNull());
-    const decorationTitles = (path: string) =>
-      [...(findTreeRow(path)?.querySelectorAll<HTMLElement>("[title]") ?? [])].map(
-        (element) => element.title,
-      );
 
-    expect(decorationTitles("data/")).toEqual(["Symbolic link to /mnt/data"]);
-    expect(decorationTitles("notes.txt")).toEqual(["Symbolic link to /mnt/notes.txt"]);
-    expect(decorationTitles("gone.txt")).toEqual(["Broken symbolic link to missing.txt"]);
-    expect(decorationTitles("README.md")).toEqual([]);
-    // A link back to a parent folder is a leaf: no folder row to expand, and nothing to open.
+    expect(decorations("data/")).toEqual([["Symbolic link to /mnt/data", "t3-tree-icon-symlink"]]);
+    expect(decorations("alias.md")).toEqual([["Symbolic link", "t3-tree-icon-symlink"]]);
+    expect(decorations("gone.txt")).toEqual([
+      ["Broken symbolic link to missing.txt", "t3-tree-icon-symlink-broken"],
+    ]);
+    expect(decorations("slow.txt")).toEqual([
+      [
+        "Symbolic link to /mnt/slow.txt (not resolved yet, refresh to retry)",
+        "t3-tree-icon-symlink-unresolved",
+      ],
+    ]);
+    expect(decorations("README.md")).toEqual([]);
+    // A link back to a parent folder is a leaf: no folder row to expand.
     expect(findTreeRow("up/")).toBeNull();
-    expect(decorationTitles("up")[0]).toContain("is not expanded");
+    expect(decorations("up")).toEqual([
+      ["Symbolic link to .. (loops back to a parent folder)", "t3-tree-icon-symlink-cycle"],
+    ]);
+    // It still looks like a folder, not a file: Pierre's file icon is hidden under a folder one.
+    const iconSlot = findTreeRow("up")!.querySelector<HTMLElement>('[data-item-section="icon"]')!;
+    expect(getComputedStyle(iconSlot, "::after").maskImage).toContain("data:image/svg+xml");
+    expect(getComputedStyle(iconSlot.firstElementChild!).visibility).toBe("hidden");
 
-    findTreeRow("gone.txt")!.click();
-    findTreeRow("up")!.click();
+    for (const path of ["gone.txt", "slow.txt", "up"]) {
+      findTreeRow(path)!.click();
+      // The click still answers, by selecting the row.
+      await vi.waitFor(() => expect(findTreeRow(path)!.getAttribute("aria-selected")).toBe("true"));
+    }
     findTreeRow("notes.txt")!.click();
     await vi.waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(1));
     expect(onOpenFile).toHaveBeenCalledWith("notes.txt");
+  });
+
+  it("offers no way to open a broken or unresolved link, and treats a loop as a folder", async () => {
+    using _listing = withDirectoryListing(linkListing);
+    using buildItems = vi
+      .spyOn(fileMenu, "buildItems")
+      .mockReturnValue([{ id: "open", label: "Open it" }]);
+    await using _screen = await render(renderLinks("/repo-symlink-menu", () => {}));
+    using _menu = { [Symbol.dispose]: () => dismissContextMenu() };
+    await vi.waitFor(() => expect(findTreeRow("notes.txt")).not.toBeNull());
+    const openMenu = async (path: string) => {
+      findTreeRow(path)!.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          button: 2,
+        }),
+      );
+      await expect
+        .element(page.getByRole("menuitem", { name: "Copy mention", exact: true }))
+        .toBeVisible();
+    };
+    const openItem = page.getByRole("menuitem", { name: "Open it", exact: true });
+
+    for (const path of ["gone.txt", "slow.txt"]) {
+      await openMenu(path);
+      expect(openItem.query()).toBeNull();
+      dismissContextMenu();
+    }
+    expect(buildItems).not.toHaveBeenCalled();
+
+    await openMenu("up");
+    await expect.element(openItem).toBeVisible();
+    expect(buildItems).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filePath: "up", isDirectory: true }),
+    );
+  });
+
+  it("does not expand all into links or anything behind them", async () => {
+    using _listing = withDirectoryListing([
+      { path: "src", kind: "directory" },
+      { path: "src/deep", kind: "directory" },
+      { path: "data", kind: "directory", symlink: { target: "/mnt/data" } },
+      // Loaded because the user opened `data` earlier; what it holds is behind the link too.
+      { path: "data/inner", kind: "directory" },
+      { path: "data/notes.txt", kind: "file" },
+      // The tree folds a folder that only holds one folder into that folder's row.
+      { path: "solo", kind: "directory" },
+      { path: "solo/only-link", kind: "directory", symlink: { target: "/mnt/only" } },
+      { path: "solo/only-link/below", kind: "directory" },
+      { path: "solo/only-link/note.txt", kind: "file" },
+      // Here the link is the folder folded away, not the one the row ends at.
+      { path: "chain", kind: "directory", symlink: { target: "/mnt/chain" } },
+      { path: "chain/sub", kind: "directory" },
+    ]);
+    using load = vi.spyOn(directory, "load");
+    await using _screen = await render(renderLinks("/repo-symlink-expand", () => {}));
+    await vi.waitFor(() => expect(findTreeRow("data/")).not.toBeNull());
+
+    await userEvent.click(page.getByRole("button", { name: "Expand all folders" }));
+    await expect.element(page.getByRole("button", { name: "Collapse all folders" })).toBeVisible();
+    // `solo` shares its row with the link below it; opening `solo` alone leaves the link shut.
+    await vi.waitFor(() =>
+      expect(load.mock.calls.map(([path]) => path).toSorted()).toEqual(["solo", "src", "src/deep"]),
+    );
+    expect(findTreeRow("solo/only-link/")!.getAttribute("aria-expanded")).toBe("false");
+    expect(findTreeRow("data/")!.getAttribute("aria-expanded")).toBe("false");
+    // A shared row keeps the mark whichever of its folders is the link.
+    expect(decorations("solo/only-link/")).toEqual([
+      ["Symbolic link to /mnt/only", "t3-tree-icon-symlink"],
+    ]);
+    expect(decorations("chain/sub/")).toEqual([
+      ["Symbolic link to /mnt/chain", "t3-tree-icon-symlink"],
+    ]);
+    expect(findTreeRow("chain/sub/")!.getAttribute("aria-expanded")).toBe("false");
+
+    // A link still opens by hand, and expand all leaves the folders inside it shut.
+    findTreeRow("data/")!.click();
+    await vi.waitFor(() => expect(findTreeRow("data/inner/")).not.toBeNull());
+    expect(findTreeRow("data/inner/")!.getAttribute("aria-expanded")).toBe("false");
+    expect(load.mock.calls.map(([path]) => path)).toContain("data");
+    expect(load.mock.calls.map(([path]) => path)).not.toContain("data/inner");
   });
 
   it("keeps an expanded folder open when a very large listing rebuilds the tree", async () => {

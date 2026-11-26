@@ -1,7 +1,14 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { Spinner } from "~/components/ui/spinner";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { ArrowLeftIcon, ChevronRightIcon, LinkIcon, UnlinkIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ChevronRightIcon,
+  CircleQuestionMarkIcon,
+  LinkIcon,
+  RepeatIcon,
+  UnlinkIcon,
+} from "lucide-react";
 import { T, useGT, useMessages, Var } from "gt-react";
 import { useState } from "react";
 
@@ -19,6 +26,13 @@ import {
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { useTheme } from "~/hooks/useTheme";
 import { cn } from "~/lib/utils";
+import {
+  isExpandableEntry,
+  isFolderEntry,
+  isOpenableEntry,
+  projectSymlinkState,
+  projectSymlinkTitle,
+} from "@t3tools/client-runtime/project-symlink";
 import { isHostPath } from "@t3tools/shared/path";
 
 import {
@@ -30,7 +44,6 @@ import {
   isListableHostFolder,
 } from "./filePath";
 import { useProjectEntriesQuery } from "./projectFilesQueryState";
-import { symlinkEntryTitle } from "./symlinkEntry";
 
 interface FileBreadcrumbsProps {
   readonly cwd: string;
@@ -164,10 +177,24 @@ function BreadcrumbMenuContent(props: {
             }}
           >
             {children.map((entry) => {
-              const isCurrentFile = entry.kind === "file" && entry.path === props.currentFilePath;
+              const isCurrentFile = isOpenableEntry(entry) && entry.path === props.currentFilePath;
+              const symlinkTitle = entry.symlink && projectSymlinkTitle(entry.symlink, messages);
+              const symlinkState = entry.symlink && projectSymlinkState(entry.symlink);
+              const SymlinkIcon =
+                symlinkState === "broken"
+                  ? UnlinkIcon
+                  : symlinkState === "cycle"
+                    ? RepeatIcon
+                    : symlinkState === "unresolved"
+                      ? CircleQuestionMarkIcon
+                      : LinkIcon;
               const row = (
                 <>
-                  <PierreEntryIcon pathValue={entry.path} kind={entry.kind} theme={resolvedTheme} />
+                  <PierreEntryIcon
+                    pathValue={entry.path}
+                    kind={isFolderEntry(entry) ? "directory" : "file"}
+                    theme={resolvedTheme}
+                  />
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -183,23 +210,28 @@ function BreadcrumbMenuContent(props: {
                     </TooltipTrigger>
                     <TooltipPopup side="right">
                       {entry.path}
-                      {entry.symlink ? (
-                        <span className="block text-muted-foreground">
-                          {symlinkEntryTitle(entry.symlink)}
-                        </span>
+                      {symlinkTitle ? (
+                        <span className="block text-muted-foreground">{symlinkTitle}</span>
                       ) : null}
                     </TooltipPopup>
                   </Tooltip>
                   {entry.symlink ? (
-                    entry.symlink.broken ? (
-                      <UnlinkIcon className="size-3 shrink-0 opacity-60" aria-hidden />
-                    ) : (
-                      <LinkIcon className="size-3 shrink-0 opacity-60" aria-hidden />
-                    )
+                    <SymlinkIcon className="size-3 shrink-0 opacity-60" aria-hidden />
                   ) : null}
                 </>
               );
-              return entry.kind === "directory" ? (
+              if (!isExpandableEntry(entry) && !isOpenableEntry(entry)) {
+                // A disabled item takes no pointer events, so a wrapper triggers the hint.
+                return (
+                  <Tooltip key={entry.path}>
+                    <TooltipTrigger render={<div />}>
+                      <MenuItem disabled>{row}</MenuItem>
+                    </TooltipTrigger>
+                    <TooltipPopup side="right">{symlinkTitle ?? entry.path}</TooltipPopup>
+                  </Tooltip>
+                );
+              }
+              return isExpandableEntry(entry) ? (
                 <MenuItem
                   key={entry.path}
                   closeOnClick={false}
@@ -212,7 +244,6 @@ function BreadcrumbMenuContent(props: {
                 <MenuRadioItem
                   key={entry.path}
                   value={entry.path}
-                  disabled={entry.symlink?.broken === true}
                   closeOnClick
                   aria-current={isCurrentFile ? "page" : undefined}
                 >

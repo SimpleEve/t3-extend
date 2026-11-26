@@ -53,6 +53,13 @@ const T3_FILE_ICON_SPRITE = `
       <path d="M8 2v3M2 8h3M16 19v3M19 16h3" />
     </g>
   </symbol>
+  <!-- Lucide Repeat and Circle Question Mark icons, ISC license. -->
+  <symbol id="t3-tree-icon-symlink-cycle" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3" />
+  </symbol>
+  <symbol id="t3-tree-icon-symlink-unresolved" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+  </symbol>
   <!-- Lucide Diff icon, ISC license. -->
   <symbol id="t3-file-icon-diff" viewBox="0 0 24 24">
     <path fill="none" style="stroke: light-dark(#199f43, #5ecc71)" stroke-width="2" stroke-linecap="round" d="M12 3v14M5 10h14M5 21h14" />

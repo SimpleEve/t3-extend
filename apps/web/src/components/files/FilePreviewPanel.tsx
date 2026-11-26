@@ -1687,7 +1687,11 @@ export default function FilePreviewPanel({
           ) : null}
         </div>
       ) : null}
-      {relativePath && !attachment && !isHostFile && !canWriteFiles && !fileAccess.isPending ? (
+      {relativePath && file.data?.outsideWorkspace ? (
+        <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
+          <T>Read-only (outside the workspace)</T>
+        </div>
+      ) : relativePath && !attachment && !isHostFile && !canWriteFiles && !fileAccess.isPending ? (
         <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
           <T>Read-only connection. Unsaved edits are kept until write access returns.</T>
         </div>
