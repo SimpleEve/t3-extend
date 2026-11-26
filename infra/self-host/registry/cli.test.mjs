@@ -120,8 +120,12 @@ describe("./t3x devices, revoke, rename, release, info", () => {
     const laptop = join_("computer", "Laptop");
     const studio = join_("computer", "Studio");
     join_("phone", "Pixel");
-    const plain = cli(["devices"]).out;
-    assert.doesNotMatch(plain, /可见性/);
+    const plain = cli(["devices"]).out.split("\n");
+    assert.equal(plain.filter((l) => /可见性：对所有设备可见$/.test(l)).length, 3);
+    assert.doesNotMatch(
+      plain.find((l) => l.startsWith("Pixel")),
+      /可见性/,
+    );
 
     store.setVisibility(mac.id, "hidden_from_all", []);
     store.setVisibility(laptop.id, "hidden_from_selected", [studio.id]);

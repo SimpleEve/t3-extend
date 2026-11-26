@@ -41,14 +41,16 @@ function parseFlags(args, { valued = [], boolean = [] }) {
   return { flags, rest };
 }
 
-/** Empty for the default, so a registry nobody has touched lists exactly as before. */
+/** Every computer says who can see it; a phone has no such setting. */
 function visibilityNote(device, devices) {
   const { mode, deviceIds } = device.visibility;
-  if (device.kind !== "computer" || mode === "visible_to_all") return "";
+  if (device.kind !== "computer") return "";
   const names = deviceIds
     .map((id) => devices.find((d) => d.id === id)?.name ?? `已移除的设备 ${id.slice(0, 8)}`)
     .join("、");
   switch (mode) {
+    case "visible_to_all":
+      return "可见性：对所有设备可见";
     case "hidden_from_all":
       return "可见性：对所有设备隐藏";
     case "hidden_from_selected":
