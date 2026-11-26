@@ -619,7 +619,15 @@ function moveSurface<T extends SplitState>(
 }
 
 /** Applies one user gesture to the split. Refused gestures return `state` untouched. */
-export function applySplitOperation<T extends SplitState>(state: T, op: SplitOperation): T {
+export function applySplitOperation<T extends SplitState>(saved: T, op: SplitOperation): T {
+  // Saved data may not match its tabs; act on the repaired layout, not the stored one.
+  const layout = resolveSplitLayout(saved);
+  const state: T =
+    layout === (saved.layout ?? null)
+      ? saved
+      : layout === null
+        ? stripLayout(saved)
+        : { ...saved, layout };
   switch (op.kind) {
     case "split":
       return splitSurface(state, op);

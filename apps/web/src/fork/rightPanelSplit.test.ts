@@ -10,6 +10,7 @@ import {
 } from "../rightPanelStore";
 import {
   allowedSplitDirections,
+  applySplitOperation,
   cellsOf,
   focusedCellOf,
   resolveSplitLayout,
@@ -521,5 +522,44 @@ describe("arranging cells and the proactive panel", () => {
     const before = revision();
     apply({ kind: "focus", cellId: cellIdOf("a") });
     expect(revision()).toBeGreaterThan(before);
+  });
+});
+
+describe("operations on saved data that no longer matches its tabs", () => {
+  const surface = (name: string) => ({
+    id: `file:${name}` as const,
+    kind: "file" as const,
+    relativePath: name,
+    revealLine: null,
+    revealRequestId: 1,
+  });
+
+  it("repairs the layout before it acts, instead of carrying stale tabs along", () => {
+    const state = {
+      isOpen: true,
+      surfaces: [surface("a"), surface("b"), surface("c")],
+      activeSurfaceId: file("a"),
+      dismissedDeviceSurfaceIds: [],
+      maximized: false,
+      layout: {
+        axis: "row" as const,
+        ratio: 0.5,
+        groups: [
+          {
+            cells: [{ id: "c1", tabIds: [file("a"), file("gone")], activeId: file("a") }],
+            ratio: 0.5,
+          },
+          { cells: [{ id: "c2", tabIds: [file("b")], activeId: file("b") }], ratio: 0.5 },
+        ],
+        focusedCellId: "c1",
+        seq: 2,
+        homes: {},
+      },
+    };
+    const next = applySplitOperation(state, { kind: "ratio", target: "outer", ratio: 0.3 });
+    const tabs = cellsOf(next.layout!).flatMap((cell) => cell.tabIds);
+    expect(tabs).not.toContain(file("gone"));
+    expect([...tabs].sort()).toEqual([file("a"), file("b"), file("c")]);
+    expect(next.layout?.ratio).toBe(0.3);
   });
 });
