@@ -34,6 +34,8 @@ import {
 import { PreviewPanelShell } from "../components/preview/PreviewPanelShell";
 import type { PreviewPanelInlineSize } from "../hooks/usePreviewPanelInlineSize";
 import { useT } from "../hooks/useT";
+import { isElectron } from "../env";
+import { cn } from "../lib/utils";
 import { observeResize } from "../lib/observeResize";
 import { useRightPanelStore, type RightPanelSurface } from "../rightPanelStore";
 import { TranslatedDndContext as DndContext } from "./TranslatedDndContext";
@@ -177,6 +179,10 @@ function layoutCells(layout: PanelLayout): HostCell[] {
 }
 
 const NO_CONTROLS = <></>;
+
+/** The top-left cell's bar is not the one that owns the title bar, but it sits on the window's top edge too. */
+const TOP_LEFT_DRAGS_WINDOW =
+  "[&_[data-right-panel-tabbar]]:[-webkit-app-region:drag] [&_[data-right-panel-tabbar]_button]:[-webkit-app-region:no-drag] [&_[data-active-tab]]:[-webkit-app-region:no-drag]";
 
 /** Grabbing a tab from any cell: where it can land is worked out from the cells' rectangles. */
 function pointerOf(event: DragMoveEvent | DragEndEvent): { x: number; y: number } | null {
@@ -491,7 +497,14 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
               return surface === undefined ? [] : [surface];
             });
             return (
-              <div key={cell.id} className="absolute min-h-0 min-w-0" style={cell.box}>
+              <div
+                key={cell.id}
+                className={cn(
+                  "absolute min-h-0 min-w-0",
+                  isElectron && cell.topLeft && !cell.topRight && TOP_LEFT_DRAGS_WINDOW,
+                )}
+                style={cell.box}
+              >
                 <HostedCell
                   tabs={tabs}
                   cellId={cell.id}

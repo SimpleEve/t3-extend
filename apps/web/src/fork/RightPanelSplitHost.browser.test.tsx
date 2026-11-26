@@ -15,6 +15,8 @@ import {
 import { RightPanelSplitHost } from "./RightPanelSplitHost";
 import { cellsOf, resolveSplitLayout } from "./rightPanelSplit";
 
+vi.mock(import("~/env"), async (original) => ({ ...(await original()), isElectron: true }));
+
 const environmentId = EnvironmentId.make("environment-local");
 const threadRef = scopeThreadRef(environmentId, ThreadId.make("thread-split"));
 const noop = () => {};
@@ -326,6 +328,30 @@ describe("RightPanelSplitHost", () => {
     await screen.rerender(<Harness width={900} />);
     await vi.waitFor(() => expect(area()?.getAttribute("data-right-panel-split")).toBe("split"));
     expect(screen.container.querySelector('[data-test-content="file:c.ts"]')).toBe(content);
+  });
+
+  it("lets the window be dragged by the tab bars along the top, not by the lower ones", async () => {
+    await page.viewport(1280, 800);
+    using _panel = seededPanel();
+    cutRight("file:c.ts");
+    useRightPanelStore.getState().openFile(threadRef, "d.ts");
+    const right = cellsOf(panelState().layout!).find((cell) => cell.tabIds.includes("file:c.ts"))!;
+    useRightPanelStore.getState().applySplit(threadRef, {
+      kind: "split",
+      cellId: right.id,
+      surfaceId: "file:d.ts",
+      direction: "bottom",
+    });
+    await using screen = await render(<Harness width={900} />, { container: stage() });
+    const region = (element: Element) =>
+      getComputedStyle(element).getPropertyValue("-webkit-app-region");
+    const bars = () => [
+      ...screen.container.querySelectorAll<HTMLElement>("[data-right-panel-tabbar]"),
+    ];
+    await vi.waitFor(() => expect(bars()).toHaveLength(3));
+    expect(bars().map(region)).toEqual(["drag", "drag", "none"]);
+    const tabOfLeft = bars()[0]!.querySelector("[data-active-tab]")!;
+    expect(region(tabOfLeft)).toBe("no-drag");
   });
 
   it("restores a divider to half on a double click", async () => {
