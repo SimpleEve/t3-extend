@@ -1,10 +1,11 @@
-import { useDroppable } from "@dnd-kit/core";
 import { createContext, useContext, type ComponentProps } from "react";
 
 import { PreviewPanelShell } from "../components/preview/PreviewPanelShell";
 import { cn } from "../lib/utils";
-import type { SplitTabMenuAction } from "./rightPanelSplitMenu";
 import type { ContextMenuItem } from "@t3tools/contracts";
+import type { SplitTabMenuAction } from "./rightPanelSplitMenu";
+
+export type { SplitTabMenuAction };
 
 export interface RightPanelCellValue {
   readonly cellId: string;
@@ -58,15 +59,4 @@ export function RightPanelCellFrame(props: ComponentProps<typeof PreviewPanelShe
       {props.children}
     </div>
   );
-}
-
-/** Registers a cell's content area as a drop target; the split host draws the preview. */
-export function RightPanelCellDropArea() {
-  const cell = useRightPanelCell();
-  const { setNodeRef } = useDroppable({
-    id: `body:${cell?.cellId ?? ""}`,
-    disabled: cell === null,
-  });
-  if (cell === null) return null;
-  return <div ref={setNodeRef} aria-hidden className="pointer-events-none absolute inset-0 z-10" />;
 }

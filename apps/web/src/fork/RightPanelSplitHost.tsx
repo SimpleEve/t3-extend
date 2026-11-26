@@ -312,9 +312,15 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
     setPreview(null);
   };
 
+  // The tab as it is drawn, so a renamed device or a side chat is called what its tab says.
+  const titleOf = (active: Active) =>
+    Array.from(areaRef.current?.querySelectorAll("[data-surface-id]") ?? [])
+      .find((element) => element.getAttribute("data-surface-id") === String(active.id))
+      ?.textContent?.trim() ?? "";
+
   const onDragStart = (event: DragStartEvent) => {
     const surfaceId = String(event.active.id);
-    const title = String(event.active.data.current?.surfaceTitle ?? "");
+    const title = titleOf(event.active);
     setDrag({ surfaceId, title, cellId: cellOfTab(surfaceId)?.id ?? focusedCellId });
     restoreGuests.current = suspendGuestPointerEvents();
   };
@@ -383,7 +389,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
   };
 
   // The defaults would read out droppable ids such as "body:c2".
-  const titleOf = (active: Active) => String(active.data.current?.surfaceTitle ?? "");
+
   const accessibility = {
     announcements: {
       onDragStart: ({ active }) => t("Picked up tab {title}.", { title: titleOf(active) }),
@@ -529,7 +535,10 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
         </div>
         <DragOverlay dropAnimation={null}>
           {drag === null ? null : (
-            <div className="flex h-6 max-w-36 items-center rounded-md bg-accent px-2 text-xs text-foreground shadow-md ring-1 ring-border">
+            <div
+              data-right-panel-drag-chip
+              className="flex h-6 max-w-36 items-center rounded-md bg-accent px-2 text-xs text-foreground shadow-md ring-1 ring-border"
+            >
               <span className="truncate">{drag.title}</span>
             </div>
           )}
@@ -571,6 +580,7 @@ function HostedCell(props: {
   const { tabs, cellId, surfaces, layout } = props;
   const t = useT();
   const { setNodeRef } = useDroppable({ id: `bar:${cellId}` });
+  const { setNodeRef: setBodyRef } = useDroppable({ id: `body:${cellId}` });
   const value: RightPanelCellValue = {
     cellId,
     focused: props.focused,
@@ -620,6 +630,12 @@ function HostedCell(props: {
       >
         {props.content}
       </RightPanelTabs>
+      {/* Where a dropped tab lands: the cell below its tab bar. */}
+      <div
+        ref={setBodyRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--workspace-topbar-height)]"
+      />
     </RightPanelCellProvider>
   );
 }

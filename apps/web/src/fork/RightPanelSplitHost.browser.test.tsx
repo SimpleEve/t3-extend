@@ -231,7 +231,10 @@ describe("RightPanelSplitHost", () => {
     const held = await drag(
       tab(screen.container, "c.ts"),
       [{ x: body.left + 100, y: body.top + 100 }, edge],
-      () => expect(previewZone()).toBe("right"),
+      () => {
+        expect(previewZone()).toBe("right");
+        expect(document.querySelector("[data-right-panel-drag-chip]")?.textContent).toBe("c.ts");
+      },
     );
     await held.drop();
 

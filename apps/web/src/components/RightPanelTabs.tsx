@@ -38,11 +38,10 @@ import {
 } from "@dnd-kit/core";
 import { TranslatedDndContext as DndContext } from "../fork/TranslatedDndContext"; // fork: dnd-kit announcements in the interface language
 import {
-  RightPanelCellDropArea,
   RightPanelCellFrame,
+  type SplitTabMenuAction,
   useRightPanelCell,
 } from "../fork/rightPanelCell"; // fork: split panel cells
-import type { SplitTabMenuAction } from "../fork/rightPanelSplitMenu"; // fork: split panel cells
 import { restrictToFirstScrollableAncestor, restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -991,6 +990,11 @@ function RightPanelTab(
     onStartRename,
     onFinishRename,
   } = props;
+  const hosted = useRightPanelCell() !== null; // fork: split panel cells
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: surface.id,
+    disabled: props.dragDisabled,
+  });
   const sideChatShell = useQuietThreadShell(
     surface.kind === "thread" && props.environmentId !== null
       ? scopeThreadRef(props.environmentId, surface.threadId)
@@ -1002,12 +1006,6 @@ function RightPanelTab(
       : sideChatShell.lineage.sideChat === true
         ? sideChatShell.title
         : formatSubagentDisplayTitle(sideChatShell.title);
-  const hosted = useRightPanelCell() !== null; // fork: split panel cells
-  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: surface.id,
-    disabled: props.dragDisabled,
-    data: { surfaceTitle: title }, // fork: the drag overlay names the tab
-  });
   const sideChatState = sideChatTabState(sideChatShell);
   const content = (
     <>
@@ -1119,6 +1117,7 @@ function RightPanelTab(
   return (
     <div
       data-active-tab={props.active}
+      data-surface-id={surface.id} // fork: the split host names a dragged tab from it
       onMouseDown={preventTabMiddleButtonDefault}
       onMouseUp={preventTabMiddleButtonDefault}
       onAuxClick={(event) => onAuxClick(event, surface)}
@@ -1730,8 +1729,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           />
         ) : null}
       </div>
-      <div className="relative flex min-h-0 flex-1 flex-col" data-right-panel-surface-content>
-        <RightPanelCellDropArea /> {/* fork: split panel cells */}
+      <div className="flex min-h-0 flex-1 flex-col" data-right-panel-surface-content>
         {props.activeSurfaceId === null ? (
           <RightPanelEmptyState
             onAddBrowser={props.onAddBrowser}
