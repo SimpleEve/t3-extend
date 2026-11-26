@@ -13,6 +13,7 @@ import {
   applySplitOperation,
   cellsOf,
   focusedCellOf,
+  type PanelLayout,
   resolveSplitLayout,
   sanitizeLayout,
   type SplitDirection,
@@ -535,26 +536,27 @@ describe("operations on saved data that no longer matches its tabs", () => {
   });
 
   it("repairs the layout before it acts, instead of carrying stale tabs along", () => {
+    const layout: PanelLayout = {
+      axis: "row",
+      ratio: 0.5,
+      groups: [
+        {
+          cells: [{ id: "c1", tabIds: [file("a"), file("gone")], activeId: file("a") }],
+          ratio: 0.5,
+        },
+        { cells: [{ id: "c2", tabIds: [file("b")], activeId: file("b") }], ratio: 0.5 },
+      ],
+      focusedCellId: "c1",
+      seq: 2,
+      homes: {},
+    };
     const state = {
       isOpen: true,
       surfaces: [surface("a"), surface("b"), surface("c")],
       activeSurfaceId: file("a"),
       dismissedDeviceSurfaceIds: [],
       maximized: false,
-      layout: {
-        axis: "row" as const,
-        ratio: 0.5,
-        groups: [
-          {
-            cells: [{ id: "c1", tabIds: [file("a"), file("gone")], activeId: file("a") }],
-            ratio: 0.5,
-          },
-          { cells: [{ id: "c2", tabIds: [file("b")], activeId: file("b") }], ratio: 0.5 },
-        ],
-        focusedCellId: "c1",
-        seq: 2,
-        homes: {},
-      },
+      layout,
     };
     const next = applySplitOperation(state, { kind: "ratio", target: "outer", ratio: 0.3 });
     const tabs = cellsOf(next.layout!).flatMap((cell) => cell.tabIds);
