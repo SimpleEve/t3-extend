@@ -248,6 +248,7 @@ t3x devices tunnel status      # Show whether the tunnel client is installed and
 t3x devices list               # Read the locally stored device list only, with no network
 t3x devices invite             # Make an invite for another device. The default is a phone; --kind computer makes one for a computer
 t3x devices remove <name>      # Remove a device
+t3x devices visibility show    # Who can see this computer. Also: all, none, hide <device…>, only <device…>
 t3x devices leave              # Take this computer out
 ```
 
@@ -281,6 +282,10 @@ Pick any one of these:
 It takes effect in about a minute. A removed device cannot get new access, and its tunnel is refused at the next heartbeat (about 30 seconds). **A computer that was offline when it was removed** is revoked only after it reconnects to the server. A removed computer shows Join my server and needs a new invite to come back. By default its subdomain is not given to anyone else. To take it back, use `./t3x release <subdomain>`.
 
 If you remove a device from another process, such as `t3x devices remove` or `t3x auth session revoke` on a computer, the running server drops the old connections only at the next sync (about 60 seconds).
+
+### Hiding a computer from other devices
+
+A computer can hide itself from chosen devices: Settings → Sharing & access → Your server → Visibility, or `t3x devices visibility`. See [Your own server](../user/remote-access.md#hiding-a-computer) for the four modes. The registry must be the version that stores the setting (database schema 2, migrated on the first start, with no rollback to the older image). `./t3x devices` lists every device and marks what each computer hides; `./t3x revoke` works on a hidden computer too.
 
 ### Behavior to know
 

@@ -59,6 +59,8 @@ function fakeRegistry(options: { registryId?: string } = {}) {
     joinedAs: undefined as string | undefined,
     proofsChecked: 0,
     unreachable: false,
+    // Computers that hide from the asking phone: left out of `devices`, listed by identity only.
+    hidden: new Set<string>(),
   };
   const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), { status, headers });
@@ -134,10 +136,15 @@ function fakeRegistry(options: { registryId?: string } = {}) {
       if (caller === undefined) return json(401, { error: "device_unknown" });
       check(caller.jwk);
       // Like the registry: `online` and the sync times move without `rev`, so there is no 304.
+      const all = [...devices.values()];
+      const hiddenPeers = all
+        .filter((d) => state.hidden.has(d.id))
+        .map(({ id, kind, jwk }) => ({ id, kind, jwk }));
       return json(200, {
         registryId: options.registryId ?? REGISTRY_ID,
         rev,
-        devices: [...devices.values()],
+        devices: all.filter((d) => !state.hidden.has(d.id)),
+        ...(hiddenPeers.length === 0 ? {} : { hiddenPeers }),
       });
     }
     return json(404, { error: "not_found" });
@@ -385,6 +392,35 @@ describe("keeping the list current", () => {
     expect(after.rev).toBe(rev);
     expect(after.devices.find((d) => d.id === "mac-id")?.online).toBe(true);
     expect(views).toHaveLength(2);
+  });
+
+  it("treats a computer that hides from this phone as gone, and the phone itself as still joined", async () => {
+    const { sync, registry, views, storage } = await joined();
+    registry.state.now += 45;
+    await sync.refresh({ force: true });
+    expect(joinedState(sync.state()).devices.map((d) => d.id)).toContain("mac-id");
+
+    registry.state.hidden.add("mac-id");
+    registry.state.now += 45;
+    await sync.refresh({ force: true });
+    const hidden = joinedState(sync.state());
+    expect(hidden.unreachable).toBe(false);
+    expect(hidden.devices.map((d) => d.id)).toEqual([registry.state.joinedAs]);
+    // The connection code is handed a list without the computer, as it would after a removal.
+    const view = views.at(-1) as { computers: ReadonlyArray<{ deviceId: string }> } | null;
+    expect(view).not.toBeNull();
+    expect(view!.computers.map((c) => c.deviceId)).toEqual([]);
+    // Nothing of this phone is forgotten: no "removed", no key deleted.
+    expect(storage.deleted).toEqual([]);
+    expect(storage.items.has(MEMBERSHIP_ITEM)).toBe(true);
+
+    // Shown again: the next refresh brings it back.
+    registry.state.hidden.delete("mac-id");
+    registry.state.now += 45;
+    await sync.refresh({ force: true });
+    expect(joinedState(sync.state()).devices.map((d) => d.id)).toContain("mac-id");
+    const back = views.at(-1) as { computers: ReadonlyArray<{ deviceId: string }> };
+    expect(back.computers.map((c) => c.deviceId)).toEqual(["mac-id"]);
   });
 
   it("treats a 304 as a protocol error, never as an answer", async () => {

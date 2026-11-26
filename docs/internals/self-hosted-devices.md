@@ -80,6 +80,28 @@ What a session can do is bounded by scope, not by the operating system:
   quickly. The `access:write` restriction on phones protects against a
   misled client, not against a hostile one.
 
+## Hiding a computer: the computer decides, the registry only hides
+
+A computer's visibility setting is judged twice, and only one of them is a security boundary.
+The computer refuses a pass from a device its own saved setting excludes (`device_hidden`),
+reading the file on every pass rather than trusting its in-memory copy, so a change made by the
+CLI in another process counts at once, and an unreadable file hides the computer from everyone.
+The registry filters `GET /v1/devices` per viewer, which only makes a hidden computer vanish from
+that device's list like a removed one. A registry that is old, unreachable or wrong cannot let a
+device in, and it cannot delete a key: the hidden device's own entry is always in its list, so
+the "no longer a member" path is never taken.
+
+Hiding is one-way, and that is why the filtered list is not enough. A computer A that hides from
+B must still sign in to B, so B has to check A's pass against A's key. The registry therefore
+sends B A's identity (id, kind, public key, nothing else) in `hiddenPeers`. A hidden peer is not
+in `devices`, so it never becomes a listed device or an environment; B keeps its sessions, and
+treats its pass like any other. A computer that predates the field ignores it, so it also cannot
+sign in to a computer that hides from it, which is the old-client degradation.
+
+The setting is pushed to the registry afterwards and compared on every sync (a computer's own
+entry carries it back). An answer without it means the registry is too old, and the page says so;
+the local setting still applies.
+
 ## The tunnel listener and `X-T3x-Client-IP`
 
 frpc forwards to a second HTTP listener bound to `127.0.0.1` on a system-chosen
@@ -97,7 +119,9 @@ Caddy-written header.
 
 ## The device list is fetched in full every time
 
-`GET /v1/devices` always returns the whole list. A conditional request keyed on
+`GET /v1/devices` always returns the whole list the asker may see (see
+[Hiding a computer](#hiding-a-computer-the-computer-decides-the-registry-only-hides); `rev` still counts
+membership and setting changes for the whole registry, not per viewer). A conditional request keyed on
 `rev` would be wrong: `online` and `lastSeenAt` change with time while `rev`
 only changes when membership does, so a computer would show itself and its
 peers as offline until a device was added or removed. A successful sync always
