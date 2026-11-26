@@ -95,13 +95,13 @@ function revealInScrollers(target: HTMLElement) {
   }
 }
 
-/** Keeps area focus local, like VS Code's layout service focusPart/visible-neighbour actions. */
 // fork: keyboard entry into a split right panel goes to its focused cell, not the first in the DOM
 const entryScope = (area: HTMLElement): ParentNode => {
   if (area.querySelectorAll("[data-right-panel-cell]").length < 2) return area;
   return area.querySelector('[data-right-panel-cell][data-cell-focused="true"]') ?? area;
 };
 
+/** Keeps area focus local, like VS Code's layout service focusPart/visible-neighbour actions. */
 export function createWorkspaceFocusController(doc: Document) {
   const lastFocused = new Map<string, HTMLElement>();
   let lastArea: string | undefined;
