@@ -191,11 +191,15 @@ describe("t3x devices", () => {
         const offline = offlineRegistry(baseDir);
         const visibility = (...args: ReadonlyArray<string>) =>
           runWith(offline, baseDir, "visibility", ...args);
-        const saved = () =>
-          NodeFS.readFileSync(
-            NodePath.join(baseDir, "userdata", "secrets", "fork-device-visibility.bin"),
-            "utf8",
-          );
+        const savedMode = () =>
+          (
+            decodeJson(
+              NodeFS.readFileSync(
+                NodePath.join(baseDir, "userdata", "secrets", "fork-device-visibility.bin"),
+                "utf8",
+              ),
+            ) as { visibility: { mode: string } }
+          ).visibility.mode;
 
         const initial = yield* visibility("show");
         assert.equal(initial.code, 0, initial.err);
@@ -206,7 +210,7 @@ describe("t3x devices", () => {
         assert.include(none.out, "Hidden from all devices.");
         // The server cannot be reached here: the choice is saved and applied, and the report says so.
         assert.include(none.out, "has not received this setting yet");
-        assert.equal(decodeJson(saved()).visibility.mode, "hidden_from_all");
+        assert.equal(savedMode(), "hidden_from_all");
 
         const hide = yield* visibility("hide", "laptop");
         assert.equal(hide.code, 0, hide.err);
@@ -224,10 +228,10 @@ describe("t3x devices", () => {
         const own = yield* visibility("hide", "Studio");
         assert.notEqual(own.code, 0);
         assert.include(own.err + own.out, "cannot be in its own list");
-        assert.equal(decodeJson(saved()).visibility.mode, "visible_to_selected");
+        assert.equal(savedMode(), "visible_to_selected");
 
         assert.equal((yield* visibility("all")).code, 0);
-        assert.equal(decodeJson(saved()).visibility.mode, "visible_to_all");
+        assert.equal(savedMode(), "visible_to_all");
       }).pipe(Effect.scoped),
   );
 

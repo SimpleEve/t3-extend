@@ -362,7 +362,7 @@ const make = Effect.gen(function* () {
         yield* Ref.update(state, (latest) => ({
           ...latest,
           visibility,
-          visibilityRegistry: "pending",
+          visibilityRegistry: "pending" as const,
         }));
         yield* publish;
       }
@@ -374,7 +374,7 @@ const make = Effect.gen(function* () {
       list: yield* readList(membership),
       removed: Option.isNone(membership) && current.removed,
       visibility: yield* readVisibility,
-      visibilityRegistry: "unknown",
+      visibilityRegistry: "unknown" as const,
     });
     yield* publish;
   });
