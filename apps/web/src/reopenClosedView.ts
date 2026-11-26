@@ -115,6 +115,12 @@ export async function reopenClosedView(
         : { colorScheme: view.snapshot.colorScheme }),
     });
     if (result._tag === "Failure") return false;
+    // fork: a reopened browser has a new tab id; it returns to the cell its closed tab sat in
+    panels.applySplit(ref, {
+      kind: "adopt-home",
+      from: `browser:${view.snapshot.tabId}`,
+      to: `browser:${result.value.tabId}`,
+    });
     panels.openBrowser(ref, result.value.tabId);
     return true;
   }

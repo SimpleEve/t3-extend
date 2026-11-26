@@ -1,8 +1,11 @@
 import { usePreviewPanelInlineSize } from "../../hooks/usePreviewPanelInlineSize";
+import { RightPanelSplitHost, type RightPanelSplitHostProps } from "../../fork/RightPanelSplitHost"; // fork: split panel cells
 import { RightPanelSheet } from "../RightPanelSheet";
 import { RightPanelTabs, type RightPanelTabsProps } from "../RightPanelTabs";
 
 type ChatRightPanelProps = Omit<RightPanelTabsProps, "mode" | "inlineSize" | "maximized"> & {
+  /** fork: when set, the inline panel is hosted as one cell or a split of up to four. */
+  readonly split?: Pick<RightPanelSplitHostProps, "threadRef" | "layout" | "contents">;
   readonly sheet: boolean;
   readonly maximized: boolean;
   readonly workspaceLayoutElement: HTMLElement | null;
@@ -25,6 +28,7 @@ export function ChatRightPanel(props: ChatRightPanelProps) {
     onCloseSheet,
     maximized,
     layoutControls,
+    split,
     ...tabs
   } = props;
   const inlineSize = usePreviewPanelInlineSize({
@@ -32,6 +36,17 @@ export function ChatRightPanel(props: ChatRightPanelProps) {
     widthStorageKey,
   });
   if (!sheet) {
+    if (split) {
+      const { children: _unused, ...hosted } = tabs; // fork: contents come from `split.contents`
+      return (
+        <RightPanelSplitHost
+          {...split}
+          tabs={hosted}
+          maximized={maximized}
+          inlineSize={inlineSize}
+        />
+      );
+    }
     return <RightPanelTabs {...tabs} mode="inline" maximized={maximized} inlineSize={inlineSize} />;
   }
   return (

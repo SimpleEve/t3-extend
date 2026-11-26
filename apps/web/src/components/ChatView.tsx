@@ -400,6 +400,8 @@ import { observeResize } from "~/lib/observeResize";
 import { ThreadVisitWatermark } from "./chat/ThreadVisitWatermark";
 import { ChatTerminalDrawers } from "./chat/ChatTerminalDrawers";
 import { ChatRightPanel } from "./chat/ChatRightPanel";
+import { resolveSplitLayout } from "../fork/rightPanelSplit"; // fork: split panel cells
+import { splitContents } from "../fork/rightPanelSplitContents"; // fork: split panel cells
 import { useDraftEnvironmentRouting } from "./chat/useDraftEnvironmentRouting";
 import { branchMismatchBannerItem, extensionStatusBannerItem } from "./chat/ThreadActivityBanners";
 import { ThreadNow } from "./chat/ThreadNow";
@@ -1186,6 +1188,7 @@ export default function ChatView(props: ChatViewProps) {
   const rightPanelPresenceValue = {
     activeSurface: activeRightPanelSurface,
     surfaces: rightPanelState.surfaces,
+    layout: resolveSplitLayout(rightPanelState), // fork: split panel cells
   };
   const rightPanelPresence = usePanelPresence(
     rightPanelOpen && activeThreadRef !== null,
@@ -1200,6 +1203,7 @@ export default function ChatView(props: ChatViewProps) {
   const rightPanelControlsAtRoot = rightPanelPresent && !shouldUsePlanSidebarSheet;
   const renderedRightPanelSurface = rightPanelPresence.value?.activeSurface ?? null;
   const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
+  const renderedRightPanelLayout = rightPanelPresence.value?.layout ?? null; // fork: split panel cells
   const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
     activePreviewMiniPlayer?.source ?? null,
     renderedRightPanelSurface,
@@ -3513,6 +3517,13 @@ export default function ChatView(props: ChatViewProps) {
       }}
     />
   ) : null;
+  // fork: split panel cells
+  const rightPanelContents = splitContents(
+    rightPanelContent,
+    renderedRightPanelLayout,
+    renderedRightPanelSurfaces,
+    renderedRightPanelSurface,
+  );
   const panelToggleControlProps = {
     terminalAvailable: activeProject !== null,
     terminalOpen: terminalUiState.terminalOpen,
@@ -4246,6 +4257,11 @@ export default function ChatView(props: ChatViewProps) {
 
       {rightPanelPresent && activeThreadRef && !embedded ? (
         <ChatRightPanel
+          split={{
+            threadRef: activeThreadRef,
+            layout: renderedRightPanelLayout,
+            contents: rightPanelContents,
+          }} // fork: split panel cells
           sheet={shouldUsePlanSidebarSheet}
           workspaceLayoutElement={workspaceLayoutElement}
           widthStorageKey={`t3code:preview-panel-width:${activeThreadKey}`}
