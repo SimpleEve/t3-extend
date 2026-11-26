@@ -6,7 +6,12 @@ import type {
   ContextMenuItem as TreeContextMenuItem,
   ContextMenuOpenContext as TreeContextMenuOpenContext,
 } from "@pierre/trees";
-import type { ContextMenuSource, EnvironmentId, ProjectEntry } from "@t3tools/contracts";
+import type {
+  ContextMenuSource,
+  EnvironmentId,
+  ProjectEntry,
+  ProjectEntrySymlink,
+} from "@t3tools/contracts";
 import { FileTree, useFileTree, useFileTreeSearch, useFileTreeSelector } from "@pierre/trees/react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
@@ -45,6 +50,7 @@ import {
 } from "./fileTreeExpansion";
 import { buildFileTreePathUpdates, shouldRebuildFileTree } from "./fileTreePathReconciliation";
 import { loadFileAncestors } from "./loadFileAncestors";
+import { isExpandableDirectory, isOpenableFile, symlinkEntryTitle } from "./symlinkEntry";
 import { useDirectoryEntries } from "./useDirectoryEntries";
 import { useProjectPathSearch } from "~/state/queries";
 import { isMacPlatform } from "~/lib/utils";
@@ -66,7 +72,7 @@ interface FileBrowserPanelProps {
 }
 
 function treePath(entry: ProjectEntry): string {
-  return entry.kind === "directory" ? `${entry.path}/` : entry.path;
+  return isExpandableDirectory(entry) ? `${entry.path}/` : entry.path;
 }
 
 function RefreshFilesButton(props: { isPending: boolean; onRefresh: () => void }) {
@@ -153,16 +159,33 @@ function buildTreeEntries(
     }
   }
   const entries = [...result.values()];
+  // A link back to a parent folder is a leaf in the tree, so its kind here is the tree's.
   const entryKinds: ReadonlyMap<string, ProjectEntry["kind"]> = new Map(
-    entries.map((entry) => [entry.path, entry.kind] as const),
+    entries.map(
+      (entry) => [entry.path, isExpandableDirectory(entry) ? "directory" : "file"] as const,
+    ),
+  );
+  const openableFiles: ReadonlySet<string> = new Set(
+    entries.filter(isOpenableFile).map((entry) => entry.path),
+  );
+  const symlinks: ReadonlyMap<string, ProjectEntrySymlink> = new Map(
+    entries.flatMap((entry) => (entry.symlink ? [[entry.path, entry.symlink] as const] : [])),
   );
   const treePaths = entries.map(treePath);
-  const directories = entries.filter((entry) => entry.kind === "directory");
+  const directories = entries.filter(isExpandableDirectory);
   const directoryPaths = directories.map(treePath);
   // Expanding a folder lists it, and an ignored one such as `node_modules` can hold tens of
   // thousands, so expand all skips ignored folders. They still open by hand.
   const expandableDirectoryPaths = directories.filter((entry) => !entry.ignored).map(treePath);
-  return { entries, entryKinds, treePaths, directoryPaths, expandableDirectoryPaths };
+  return {
+    entries,
+    entryKinds,
+    openableFiles,
+    symlinks,
+    treePaths,
+    directoryPaths,
+    expandableDirectoryPaths,
+  };
 }
 
 export default function FileBrowserPanel({
@@ -201,9 +224,17 @@ export default function FileBrowserPanel({
     undefined,
     messages,
   );
-  const { entries, entryKinds, treePaths, directoryPaths, expandableDirectoryPaths } =
-    buildTreeEntries(directoryEntries, pathSearch.entries, pathSearch.isPending, query);
-  const entryKindsRef = useRef(entryKinds);
+  const {
+    entries,
+    entryKinds,
+    openableFiles,
+    symlinks,
+    treePaths,
+    directoryPaths,
+    expandableDirectoryPaths,
+  } = buildTreeEntries(directoryEntries, pathSearch.entries, pathSearch.isPending, query);
+  const openableFilesRef = useRef(openableFiles);
+  const symlinksRef = useRef(symlinks);
   const previousTreePathsRef = useRef<readonly string[] | null>(null);
   const syncingSelectionRef = useRef(false);
   const treeSelectionPathRef = useRef<string | null>(null);
@@ -326,18 +357,24 @@ export default function FileBrowserPanel({
         return;
       }
       const selectedPath = selectedPaths.at(-1)?.replace(/\/$/, "");
-      if (selectedPath && entryKindsRef.current.get(selectedPath) === "file") {
+      if (selectedPath && openableFilesRef.current.has(selectedPath)) {
         treeSelectionPathRef.current = selectedPath;
         onOpenFile(panelPath(selectedPath));
       }
     },
     paths: [],
-    renderRowDecoration: ({ item, row }) =>
-      row.kind === "directory" &&
-      row.isExpanded &&
-      loadingDirectoriesRef.current.has(item.path.replace(/\/$/, ""))
-        ? { icon: "t3-tree-icon-loading", title: gt("Loading…") }
-        : null,
+    renderRowDecoration: ({ item, row }) => {
+      const path = item.path.replace(/\/$/, "");
+      if (row.kind === "directory" && row.isExpanded && loadingDirectoriesRef.current.has(path)) {
+        return { icon: "t3-tree-icon-loading", title: gt("Loading…") };
+      }
+      const symlink = symlinksRef.current.get(path);
+      if (!symlink) return null;
+      return {
+        icon: symlink.broken ? "t3-tree-icon-symlink-broken" : "t3-tree-icon-symlink",
+        title: symlinkEntryTitle(symlink),
+      };
+    },
     search: false,
     onSearchChange: (value) => setQuery(value ?? ""),
     unsafeCSS: PIERRE_TREE_UNSAFE_CSS,
@@ -348,6 +385,13 @@ export default function FileBrowserPanel({
     loadingDirectoriesRef.current = loadingDirectories;
     model.setComposition(model.getComposition());
   }, [loadingDirectories, model]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- makes the Pierre tree model re-render row decorations and keeps the click handlers' link state current when listings change
+  useEffect(() => {
+    openableFilesRef.current = openableFiles;
+    if (symlinksRef.current === symlinks) return;
+    symlinksRef.current = symlinks;
+    model.setComposition(model.getComposition());
+  }, [model, openableFiles, symlinks]);
   const search = useFileTreeSearch(model);
   // Pierre restores the unfiltered tree when a search has no matches.
   const hasNoSearchMatches = search.value.trim().length > 0 && search.matchingPaths.length === 0;
@@ -470,7 +514,6 @@ export default function FileBrowserPanel({
   useEffect(() => {
     if (!ready) return;
     if (previousTreePathsRef.current === treePaths) return;
-    entryKindsRef.current = entryKinds;
     const previousTreePaths = previousTreePathsRef.current;
     previousTreePathsRef.current = treePaths;
     if (previousTreePaths === null) {
@@ -492,7 +535,7 @@ export default function FileBrowserPanel({
     if (followedRevealRef.current !== null) {
       model.scrollToPath(followedRevealRef.current, { focus: false, offset: "center" });
     }
-  }, [ready, entryKinds, model, treePaths]);
+  }, [ready, model, treePaths]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- expands every directory in the Pierre tree model while expand-all is on and no search is active
   useEffect(() => {
@@ -690,7 +733,7 @@ export default function FileBrowserPanel({
             // Pierre emits no change for its sole selected row; read before the click to avoid double opens.
             const selected = model.getSelectedPaths();
             const path = selected.length === 1 ? selected[0] : undefined;
-            if (!path || entryKindsRef.current.get(path) !== "file") return;
+            if (!path || !openableFilesRef.current.has(path)) return;
             const clickedSelectedRow = event.nativeEvent
               .composedPath()
               .some(

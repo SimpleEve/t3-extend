@@ -169,6 +169,47 @@ describe("FileBrowserPanel", () => {
     await vi.waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
   });
 
+  it("marks symbolic links, opens ones that lead somewhere, and leaves broken and looping ones shut", async () => {
+    const onOpenFile = vi.fn();
+    using _listing = withDirectoryListing([
+      { path: "data", kind: "directory", symlink: { target: "/mnt/data" } },
+      { path: "up", kind: "directory", symlink: { target: "..", cycle: true } },
+      { path: "gone.txt", kind: "file", symlink: { target: "missing.txt", broken: true } },
+      { path: "notes.txt", kind: "file", symlink: { target: "/mnt/notes.txt" } },
+      { path: "README.md", kind: "file" },
+    ]);
+    await using _screen = await render(
+      <FileBrowserPanel
+        environmentId={EnvironmentId.make("env-files-symlinks")}
+        cwd="/repo-symlinks"
+        projectName="repo"
+        selectedPath={null}
+        selectedPathRevealId={0}
+        onOpenFile={onOpenFile}
+        workspaceMutationId={null}
+      />,
+    );
+    await vi.waitFor(() => expect(findTreeRow("notes.txt")).not.toBeNull());
+    const decorationTitles = (path: string) =>
+      [...(findTreeRow(path)?.querySelectorAll<HTMLElement>("[title]") ?? [])].map(
+        (element) => element.title,
+      );
+
+    expect(decorationTitles("data/")).toEqual(["Symbolic link to /mnt/data"]);
+    expect(decorationTitles("notes.txt")).toEqual(["Symbolic link to /mnt/notes.txt"]);
+    expect(decorationTitles("gone.txt")).toEqual(["Broken symbolic link to missing.txt"]);
+    expect(decorationTitles("README.md")).toEqual([]);
+    // A link back to a parent folder is a leaf: no folder row to expand, and nothing to open.
+    expect(findTreeRow("up/")).toBeNull();
+    expect(decorationTitles("up")[0]).toContain("is not expanded");
+
+    findTreeRow("gone.txt")!.click();
+    findTreeRow("up")!.click();
+    findTreeRow("notes.txt")!.click();
+    await vi.waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(1));
+    expect(onOpenFile).toHaveBeenCalledWith("notes.txt");
+  });
+
   it("keeps an expanded folder open when a very large listing rebuilds the tree", async () => {
     using _listing = withDirectoryListing(entries);
     const renderPanel = () => (

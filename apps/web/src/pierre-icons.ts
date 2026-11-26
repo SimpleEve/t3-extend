@@ -39,6 +39,20 @@ const T3_FILE_ICON_SPRITE = `
   <symbol id="t3-tree-icon-loading" viewBox="0 0 24 24">
     <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 12a9 9 0 1 1-6.219-8.56" />
   </symbol>
+  <!-- Lucide Link and Unlink icons, ISC license. -->
+  <symbol id="t3-tree-icon-symlink" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </g>
+  </symbol>
+  <symbol id="t3-tree-icon-symlink-broken" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" />
+      <path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" />
+      <path d="M8 2v3M2 8h3M16 19v3M19 16h3" />
+    </g>
+  </symbol>
   <!-- Lucide Diff icon, ISC license. -->
   <symbol id="t3-file-icon-diff" viewBox="0 0 24 24">
     <path fill="none" style="stroke: light-dark(#199f43, #5ecc71)" stroke-width="2" stroke-linecap="round" d="M12 3v14M5 10h14M5 21h14" />

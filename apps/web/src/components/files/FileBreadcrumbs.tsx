@@ -1,7 +1,7 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { Spinner } from "~/components/ui/spinner";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { ArrowLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, LinkIcon, UnlinkIcon } from "lucide-react";
 import { T, useGT, useMessages, Var } from "gt-react";
 import { useState } from "react";
 
@@ -30,6 +30,7 @@ import {
   isListableHostFolder,
 } from "./filePath";
 import { useProjectEntriesQuery } from "./projectFilesQueryState";
+import { symlinkEntryTitle } from "./symlinkEntry";
 
 interface FileBreadcrumbsProps {
   readonly cwd: string;
@@ -180,8 +181,22 @@ function BreadcrumbMenuContent(props: {
                     >
                       {entry.label}
                     </TooltipTrigger>
-                    <TooltipPopup side="right">{entry.path}</TooltipPopup>
+                    <TooltipPopup side="right">
+                      {entry.path}
+                      {entry.symlink ? (
+                        <span className="block text-muted-foreground">
+                          {symlinkEntryTitle(entry.symlink)}
+                        </span>
+                      ) : null}
+                    </TooltipPopup>
                   </Tooltip>
+                  {entry.symlink ? (
+                    entry.symlink.broken ? (
+                      <UnlinkIcon className="size-3 shrink-0 opacity-60" aria-hidden />
+                    ) : (
+                      <LinkIcon className="size-3 shrink-0 opacity-60" aria-hidden />
+                    )
+                  ) : null}
                 </>
               );
               return entry.kind === "directory" ? (
@@ -197,6 +212,7 @@ function BreadcrumbMenuContent(props: {
                 <MenuRadioItem
                   key={entry.path}
                   value={entry.path}
+                  disabled={entry.symlink?.broken === true}
                   closeOnClick
                   aria-current={isCurrentFile ? "page" : undefined}
                 >
