@@ -32,7 +32,10 @@ const inlineSize = (width: number) => ({
   observeRow: () => noop,
 });
 
-function Harness(props: { readonly width: number }) {
+function Harness(props: {
+  readonly width: number;
+  readonly closeSurfaces?: (surfaces: readonly RightPanelSurface[]) => void;
+}) {
   const panel = useRightPanelStore((state) =>
     selectThreadRightPanelState(state.byThreadKey, threadRef),
   );
@@ -103,6 +106,7 @@ function Harness(props: { readonly width: number }) {
       threadRef={threadRef}
       layout={layout}
       contents={contents}
+      closeSurfaces={props.closeSurfaces ?? noop}
     />
   );
 }
@@ -309,5 +313,45 @@ describe("RightPanelSplitHost", () => {
     const background = (cell: HTMLElement) =>
       getComputedStyle(cell.querySelector("[data-active-tab='true']")!).backgroundColor;
     expect(background(cells()[0]!)).not.toBe(background(cells()[1]!));
+  });
+
+  it("closes every tab of a folded panel from 'Close all', not just one cell's", async () => {
+    await page.viewport(1280, 800);
+    using _panel = seededPanel();
+    cutRight("file:c.ts");
+    const closed: string[][] = [];
+    await using screen = await render(
+      <Harness width={500} closeSurfaces={(surfaces) => closed.push(surfaces.map((s) => s.id))} />,
+      { container: stage() },
+    );
+    await vi.waitFor(() =>
+      expect(
+        screen.container
+          .querySelector("[data-right-panel-split]")
+          ?.getAttribute("data-right-panel-split"),
+      ).toBe("folded"),
+    );
+    await act(async () => {
+      tab(screen.container, "a.ts").dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 20,
+          clientY: 20,
+        }),
+      );
+    });
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-context-menu="true"]')).not.toBeNull(),
+    );
+    const item = [
+      ...document.querySelectorAll<HTMLElement>('[data-context-menu="true"] button'),
+    ].find((button) => button.textContent?.trim().startsWith("Close all"));
+    // The menu ignores a pointer click for a moment after it opens.
+    await vi.waitFor(async () => {
+      await act(async () => item!.click());
+      expect(closed).toHaveLength(1);
+    });
+    expect(closed[0]).toEqual(["file:a.ts", "file:b.ts", "file:c.ts"]);
   });
 });

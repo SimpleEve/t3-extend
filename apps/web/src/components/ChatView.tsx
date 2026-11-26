@@ -2194,6 +2194,7 @@ export default function ChatView(props: ChatViewProps) {
     closeOtherSurfaces: closeOtherRightPanelSurfacesStable,
     closeSurfacesToRight: closeRightPanelSurfacesToRightStable,
     closeAllSurfaces: closeAllRightPanelSurfacesStable,
+    closeSurfaces: closeRightPanelSurfaceList, // fork: the split host closes a cell's range
   } = useRightPanelSurfaceClose({
     threadRef: activeThreadRef,
     terminalLabelsById: activeTerminalLabelsById,
@@ -4261,6 +4262,7 @@ export default function ChatView(props: ChatViewProps) {
             threadRef: activeThreadRef,
             layout: renderedRightPanelLayout,
             contents: rightPanelContents,
+            closeSurfaces: closeRightPanelSurfaceList,
           }} // fork: split panel cells
           sheet={shouldUsePlanSidebarSheet}
           workspaceLayoutElement={workspaceLayoutElement}

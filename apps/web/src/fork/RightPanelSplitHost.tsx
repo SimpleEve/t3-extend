@@ -69,6 +69,8 @@ export interface RightPanelSplitHostProps {
   readonly layout: PanelLayout | null;
   /** What each visible surface shows, by surface id; built once per chat render so cells skip re-rendering. */
   readonly contents: ReadonlyMap<string, ReactNode>;
+  /** Closes exactly these surfaces, with the usual confirmations; each cell decides its own range. */
+  readonly closeSurfaces: (surfaces: readonly RightPanelSurface[]) => void;
 }
 
 interface HostCell {
@@ -472,6 +474,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
                     if (layout !== null && !folded) apply({ kind: "focus", cellId: cell.id });
                   }}
                   onOperation={apply}
+                  closeSurfaces={props.closeSurfaces}
                 />
               </div>
             );
@@ -517,6 +520,7 @@ function HostedCell(props: {
   readonly layout: PanelLayout | null;
   readonly onFocus: () => void;
   readonly onOperation: (operation: SplitOperation) => void;
+  readonly closeSurfaces: (surfaces: readonly RightPanelSurface[]) => void;
 }) {
   const { tabs, cellId, surfaces, layout } = props;
   const t = useT();
@@ -558,7 +562,15 @@ function HostedCell(props: {
         surfaces={surfaces}
         activeSurfaceId={props.activeId}
         {...(props.hasControls ? {} : { layoutControls: NO_CONTROLS })}
-        onCloseAllSurfaces={() => tabs.onCloseAllSurfaces(surfaces[0])}
+        onCloseOtherSurfaces={(surface) =>
+          props.closeSurfaces(surfaces.filter((entry) => entry.id !== surface.id))
+        }
+        onCloseSurfacesToRight={(surface) =>
+          props.closeSurfaces(
+            surfaces.slice(surfaces.findIndex((entry) => entry.id === surface.id) + 1),
+          )
+        }
+        onCloseAllSurfaces={() => props.closeSurfaces(surfaces)}
       >
         {props.content}
       </RightPanelTabs>

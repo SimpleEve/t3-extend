@@ -667,19 +667,6 @@ export function resolveSplitLayout(state: SplitState): PanelLayout | null {
   return repaired;
 }
 
-/** Surfaces sharing a cell with `surfaceId`, or all of them when the panel is not split. */
-export function surfacesSharingCell<S extends { id: string }>(
-  state: { surfaces: readonly S[]; layout?: PanelLayout | undefined },
-  surfaceId: string,
-): readonly S[] {
-  const cell = state.layout === undefined ? null : cellOfSurface(state.layout, surfaceId);
-  if (cell === null) return state.surfaces;
-  return cell.tabIds.flatMap((id) => {
-    const surface = state.surfaces.find((entry) => entry.id === id);
-    return surface === undefined ? [] : [surface];
-  });
-}
-
 /** The cell showing the panel's focus, or null when the panel is not split. */
 export function focusedCellOf(layout: PanelLayout | null): PanelCell | null {
   return layout === null ? null : findCell(layout, layout.focusedCellId);

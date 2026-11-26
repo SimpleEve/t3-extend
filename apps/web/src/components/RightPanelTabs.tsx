@@ -151,7 +151,7 @@ export interface RightPanelTabsProps {
   ) => void;
   onCloseOtherSurfaces: (surface: RightPanelSurface) => void;
   onCloseSurfacesToRight: (surface: RightPanelSurface) => void;
-  onCloseAllSurfaces: (anchor?: RightPanelSurface) => void; // fork: a split panel closes one cell
+  onCloseAllSurfaces: () => void;
   onMoveSurface?: (surfaceId: string, toIndex: number) => void;
   onCopyFilePath: (relativePath: string) => void;
   onDuplicateBrowser?: (surface: RightPanelSurface) => void;

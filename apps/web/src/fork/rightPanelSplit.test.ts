@@ -14,7 +14,6 @@ import {
   focusedCellOf,
   resolveSplitLayout,
   sanitizeLayout,
-  surfacesSharingCell,
   type SplitDirection,
 } from "./rightPanelSplit";
 
@@ -232,22 +231,12 @@ describe("focus and selection", () => {
   it("keeps a swapped surface in its seat", () => {
     open("a", "b", "c");
     useRightPanelStore.getState().open(ref, "files");
-    split("c", "right");
+    split("c", "right"); // [a b files | c]
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+    useRightPanelStore.getState().activateSurface(ref, "files");
     useRightPanelStore.getState().navigateFolder(ref, "files", "src", "src");
-    expect(panel().surfaces.some((s) => s.id === "files")).toBe(false);
-  });
-
-  it("scopes close-others and close-to-right to one cell", () => {
-    open("a", "b", "c", "d");
-    split("d", "right");
-    const state = panel();
-    expect(surfacesSharingCell(state, file("a")).map((s) => s.id)).toEqual([
-      "file:a",
-      "file:b",
-      "file:c",
-    ]);
-    expect(surfacesSharingCell(state, file("d")).map((s) => s.id)).toEqual(["file:d"]);
-    split("a", "left"); // does not matter; panel still consistent
+    expect(cellTabs()).toEqual([["file:a", "file:b", "file:src"], ["file:c"]]);
+    expect(panel().activeSurfaceId).toBe(file("src"));
   });
 });
 

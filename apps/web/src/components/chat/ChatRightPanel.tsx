@@ -5,7 +5,10 @@ import { RightPanelTabs, type RightPanelTabsProps } from "../RightPanelTabs";
 
 type ChatRightPanelProps = Omit<RightPanelTabsProps, "mode" | "inlineSize" | "maximized"> & {
   /** fork: when set, the inline panel is hosted as one cell or a split of up to four. */
-  readonly split?: Pick<RightPanelSplitHostProps, "threadRef" | "layout" | "contents">;
+  readonly split?: Pick<
+    RightPanelSplitHostProps,
+    "threadRef" | "layout" | "contents" | "closeSurfaces"
+  >;
   readonly sheet: boolean;
   readonly maximized: boolean;
   readonly workspaceLayoutElement: HTMLElement | null;

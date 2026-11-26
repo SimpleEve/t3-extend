@@ -9,7 +9,6 @@ import { getTerminalLabel } from "@t3tools/shared/terminalLabelsCopy";
 import { agentControlledBrowserCloseConfirmation } from "../components/ChatView.logic";
 import { closePreviewSession } from "../components/preview/closePreviewSession";
 import { useThreadTerminalActions } from "../components/terminal/useThreadTerminalActions";
-import { surfacesSharingCell } from "../fork/rightPanelSplit"; // fork: a split panel closes one cell
 import { m } from "../i18n/messages";
 import { confirmTerminalClose } from "../lib/terminalCloseConfirm";
 import { focusPanelTerminalAfterClose } from "../lib/terminalFocus";
@@ -50,9 +49,6 @@ export function useRightPanelSurfaceClose(input: {
   const surfaces = useRightPanelStore(
     (state) => selectThreadRightPanelState(state.byThreadKey, threadRef).surfaces,
   );
-  const layout = useRightPanelStore(
-    (state) => selectThreadRightPanelState(state.byThreadKey, threadRef).layout,
-  ); // fork: split cells
 
   const releaseSurfaceResources = (ref: ScopedThreadRef, surface: RightPanelSurface) => {
     // Without preview access, server state remains until an authorized close or restart.
@@ -173,24 +169,21 @@ export function useRightPanelSurfaceClose(input: {
     );
   });
   const closeOtherSurfaces = useStableCallback((surface: RightPanelSurface) =>
-    closeSurfaces(
-      surfacesSharingCell({ surfaces, layout }, surface.id).filter(
-        (entry) => entry.id !== surface.id,
-      ),
-    ),
+    closeSurfaces(surfaces.filter((entry) => entry.id !== surface.id)),
   );
   const closeSurfacesToRight = useStableCallback((surface: RightPanelSurface) => {
-    const inCell = surfacesSharingCell({ surfaces, layout }, surface.id); // fork
-    const surfaceIndex = inCell.findIndex((entry) => entry.id === surface.id);
+    const surfaceIndex = surfaces.findIndex((entry) => entry.id === surface.id);
     if (surfaceIndex < 0) return;
-    closeSurfaces(inCell.slice(surfaceIndex + 1));
+    closeSurfaces(surfaces.slice(surfaceIndex + 1));
   });
-  // fork: with an anchor, only the cell it sits in closes
-  const closeAllSurfaces = useStableCallback((anchor?: RightPanelSurface) =>
-    closeSurfaces(
-      anchor === undefined ? surfaces : surfacesSharingCell({ surfaces, layout }, anchor.id),
-    ),
-  );
+  const closeAllSurfaces = useStableCallback(() => closeSurfaces(surfaces));
 
-  return { closeSurface, closeOtherSurfaces, closeSurfacesToRight, closeAllSurfaces };
+  // fork: the split host decides which surfaces a close covers
+  return {
+    closeSurface,
+    closeOtherSurfaces,
+    closeSurfacesToRight,
+    closeAllSurfaces,
+    closeSurfaces,
+  };
 }
