@@ -9,6 +9,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { useClosedViewStore } from "./closedViewStore";
+import {
+  applySplitOperation,
+  reconcileSplit,
+  restoreSplit,
+  type PanelLayout,
+  type SplitOperation,
+} from "./fork/rightPanelSplit"; // fork: split panel layout
 import { m } from "./i18n/messages";
 import { resolveStorage } from "./lib/storage";
 import type { LinkedThreadTarget } from "@t3tools/client-runtime/linked-thread";
@@ -130,7 +137,7 @@ export function decodeThreadSurface(surface: object): ThreadSurface | null {
 }
 
 const RIGHT_PANEL_STORAGE_KEY = "t3code:right-panel-state:v2";
-const RIGHT_PANEL_STORAGE_VERSION = 16;
+const RIGHT_PANEL_STORAGE_VERSION = 17; // fork: 17 adds the split layout
 
 export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(
   EnvironmentId.make("pull-requests-panel"),
@@ -157,6 +164,8 @@ export interface ThreadRightPanelState {
   dismissedDeviceSurfaceIds?: string[];
   maximized?: true;
   proactiveDiffTurnId?: RunId;
+  /** fork: split cells of the panel; absent means one cell. See `fork/rightPanelSplit.ts`. */
+  layout?: PanelLayout;
 }
 
 export interface ThreadPanelVisibility {
@@ -247,6 +256,8 @@ interface RightPanelStoreState {
   closeSurfacesToRight: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeAllSurfaces: (ref: ScopedThreadRef) => void;
   moveSurface: (ref: ScopedThreadRef, surfaceId: string, toIndex: number) => void;
+  /** fork: one gesture on the panel's split cells. */
+  applySplit: (ref: ScopedThreadRef, operation: SplitOperation) => void;
   reconcileBrowserSurfaces: (
     ref: ScopedThreadRef,
     tabIds: readonly string[],
@@ -432,7 +443,7 @@ const updateThreadStateMap = (
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): Record<string, ThreadRightPanelState> => {
   const current = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const next = updater(current);
+  const next = reconcileSplit(current, updater(current)); // fork: keep cells in step with surfaces
   if (
     !next.isOpen &&
     next.activeSurfaceId === null &&
@@ -734,7 +745,7 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
                 (isOpen || rawActiveSurfaceId === "agents" ? (surfaces[0]?.id ?? null) : null);
               return [
                 threadKey,
-                {
+                restoreSplit(validThreadState?.layout, {
                   isOpen,
                   surfaces,
                   activeSurfaceId,
@@ -750,7 +761,7 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
                       }
                     : {}),
                   ...(validThreadState?.maximized === true ? { maximized: true as const } : {}),
-                },
+                }),
               ];
             }),
         )
@@ -1230,6 +1241,12 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             surfaces.splice(toIndex, 0, ...surfaces.splice(fromIndex, 1));
             return { ...current, surfaces };
           }),
+        ),
+      applySplit: (ref, operation) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) =>
+            applySplitOperation(current, operation),
+          ),
         ),
       reconcileBrowserSurfaces: (ref, tabIds, hiddenTabIds) =>
         set((state) =>
