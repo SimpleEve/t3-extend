@@ -215,6 +215,12 @@ export const T3_CLI_COMMANDS: ReadonlyArray<string> = [
   "t3 devices tunnel",
   "t3 devices tunnel install",
   "t3 devices tunnel status",
+  "t3 devices visibility",
+  "t3 devices visibility all",
+  "t3 devices visibility hide",
+  "t3 devices visibility none",
+  "t3 devices visibility only",
+  "t3 devices visibility show",
 ];
 
 export type FeedbackInput = typeof FeedbackInput.Type;
