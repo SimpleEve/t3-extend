@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFSP from "node:fs/promises";
+import * as NodeTimersPromises from "node:timers/promises";
 
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -25,7 +26,7 @@ import type {
   ProjectSearchEntriesResult,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import { isExplicitRelativePath, isWindowsAbsolutePath } from "@t3tools/shared/path";
+import { isExplicitRelativePath, isNetworkPath, isWindowsAbsolutePath } from "@t3tools/shared/path";
 import { normalizeSearchQuery } from "@t3tools/shared/searchRanking";
 
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
@@ -126,6 +127,9 @@ const IGNORE_CHECK_CHUNK_SIZE = 1000;
 
 /** Children classified at once when listing a folder; each symlink costs a realpath and a stat. */
 const SYMLINK_RESOLVE_BATCH_SIZE = 64;
+
+/** Longest a link may take to resolve before it is listed as broken. */
+const SYMLINK_RESOLVE_TIMEOUT_MS = 3_000;
 
 const resolveBrowseTarget = Effect.fn("WorkspaceEntries.resolveBrowseTarget")(function* (
   input: FilesystemBrowseInput,
@@ -445,16 +449,6 @@ export const make = Effect.gen(function* () {
             const root = await NodeFSP.realpath(normalizedCwd);
             const directory = await NodeFSP.realpath(target.absolutePath);
             const relative = path.relative(root, directory);
-            if (
-              relative === ".." ||
-              relative.startsWith(`..${path.sep}`) ||
-              path.isAbsolute(relative) ||
-              relative.split(path.sep).includes(".git") ||
-              target.relativePath.split("/").includes(".git")
-            ) {
-              throw new Error("Directory must be inside the workspace and outside .git.");
-            }
-            const children = await NodeFSP.readdir(directory, { withFileTypes: true });
             const isSameOrInside = (parent: string, child: string) => {
               const relativeChild = path.relative(parent, child);
               return (
@@ -463,6 +457,15 @@ export const make = Effect.gen(function* () {
                 !path.isAbsolute(relativeChild)
               );
             };
+            // The requested path never leaves the workspace lexically, so a folder that resolves
+            // outside it is reached through a link in the workspace, which is listed like any other.
+            if (
+              target.relativePath.split("/").includes(".git") ||
+              (isSameOrInside(root, directory) && relative.split(path.sep).includes(".git"))
+            ) {
+              throw new Error("Directory must be outside .git.");
+            }
+            const children = await NodeFSP.readdir(directory, { withFileTypes: true });
             // Reject canonical ancestors so "Expand all folders" cannot follow a cycle.
             let visitedFolders: Promise<ReadonlyArray<string>> | undefined;
             const loadVisitedFolders = () =>
@@ -475,39 +478,73 @@ export const make = Effect.gen(function* () {
                 }
                 return folders;
               })());
-            const resolveSymlinkKind = async (
-              name: string,
-            ): Promise<ProjectEntry["kind"] | undefined> => {
-              const resolved = await NodeFSP.realpath(path.join(directory, name)).catch(
-                () => undefined,
-              );
+            type ListedChild = Pick<ProjectEntry, "kind" | "symlink">;
+            // A link shows up wherever it points, outside the workspace included, so it can be
+            // browsed. One into the workspace's own `.git` stays hidden, and one that leads
+            // nowhere readable is kept but marked, since a missing link is still worth seeing.
+            const resolveSymlink = async (
+              linkPath: string,
+              linkText: string,
+            ): Promise<ListedChild | undefined> => {
+              const broken: ListedChild = {
+                kind: "file",
+                symlink: { target: linkText, broken: true },
+              };
+              const resolved = await NodeFSP.realpath(linkPath).catch(() => undefined);
+              if (resolved === undefined) return broken;
+              // Windows signs in to a network share's host with the user's credentials, so a
+              // workspace may not send it there.
+              const insideRoot = isSameOrInside(root, resolved);
               if (
-                resolved === undefined ||
-                !isSameOrInside(root, resolved) ||
-                path.relative(root, resolved).split(path.sep).includes(".git")
+                insideRoot
+                  ? path.relative(root, resolved).split(path.sep).includes(".git")
+                  : isNetworkPath(resolved)
               ) {
                 return undefined;
               }
               const stat = await NodeFSP.stat(resolved).catch(() => undefined);
-              if (stat?.isFile()) return "file";
-              if (!stat?.isDirectory()) return undefined;
+              if (stat === undefined) return broken;
+              if (stat.isFile()) return { kind: "file", symlink: { target: linkText } };
+              if (!stat.isDirectory()) return undefined;
               const folders = await loadVisitedFolders();
-              return folders.some((folder) => isSameOrInside(resolved, folder))
-                ? undefined
-                : "directory";
+              return {
+                kind: "directory",
+                symlink: folders.some((folder) => isSameOrInside(resolved, folder))
+                  ? { target: linkText, cycle: true }
+                  : { target: linkText },
+              };
+            };
+            // A link into an unresponsive network share must not hold up the entries beside it.
+            const resolveSymlinkWithin = async (name: string) => {
+              const linkPath = path.join(directory, name);
+              const linkText = await NodeFSP.readlink(linkPath).catch(() => undefined);
+              if (linkText === undefined) return undefined;
+              const stop = new AbortController();
+              try {
+                return await Promise.race([
+                  resolveSymlink(linkPath, linkText),
+                  NodeTimersPromises.setTimeout(
+                    SYMLINK_RESOLVE_TIMEOUT_MS,
+                    { kind: "file", symlink: { target: linkText, broken: true } } as const,
+                    { signal: stop.signal },
+                  ).catch(() => undefined),
+                ]);
+              } finally {
+                stop.abort();
+              }
             };
             // Bound filesystem work for directories such as pnpm node_modules.
-            const kinds: Array<ProjectEntry["kind"] | undefined> = [];
+            const listed: Array<ListedChild | undefined> = [];
             for (let offset = 0; offset < children.length; offset += SYMLINK_RESOLVE_BATCH_SIZE) {
-              kinds.push(
+              listed.push(
                 ...(await Promise.all(
                   children
                     .slice(offset, offset + SYMLINK_RESOLVE_BATCH_SIZE)
-                    .map(async (child): Promise<ProjectEntry["kind"] | undefined> => {
+                    .map(async (child): Promise<ListedChild | undefined> => {
                       if (child.name === ".git") return undefined;
-                      if (child.isDirectory()) return "directory";
-                      if (child.isFile()) return "file";
-                      return child.isSymbolicLink() ? resolveSymlinkKind(child.name) : undefined;
+                      if (child.isDirectory()) return { kind: "directory" };
+                      if (child.isFile()) return { kind: "file" };
+                      return child.isSymbolicLink() ? resolveSymlinkWithin(child.name) : undefined;
                     }),
                 )),
               );
@@ -524,12 +561,12 @@ export const make = Effect.gen(function* () {
             return {
               nestedGitRoots,
               entries: children.flatMap((child, index): ProjectEntry[] => {
-                const kind = kinds[index];
-                if (kind === undefined) return [];
+                const item = listed[index];
+                if (item === undefined) return [];
                 return [
                   {
                     path: target.relativePath ? `${target.relativePath}/${child.name}` : child.name,
-                    kind,
+                    ...item,
                   },
                 ];
               }),

@@ -1464,6 +1464,70 @@ describe("AssetAccess", () => {
     }).pipe(Effect.provide(layerTest)),
   );
 
+  it.effect.skipIf(!symlinksSupported)(
+    "serves a file a workspace link leads out to as that exact host file",
+    () =>
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const root = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-asset-link-root-" });
+        const outside = yield* fileSystem.makeTempDirectoryScoped({
+          prefix: "t3-asset-link-outside-",
+        });
+        yield* fileSystem.writeFileString(path.join(outside, "pic.png"), "outside picture");
+        yield* fileSystem.writeFileString(path.join(outside, "page.html"), "<p>outside</p>");
+        yield* fileSystem.writeFileString(path.join(outside, "notes.xyz"), "no preview type");
+        yield* fileSystem.symlink(path.join(outside, "pic.png"), path.join(root, "linked.png"));
+        yield* fileSystem.symlink(path.join(outside, "page.html"), path.join(root, "linked.html"));
+        yield* fileSystem.symlink(path.join(outside, "notes.xyz"), path.join(root, "linked.xyz"));
+        yield* fileSystem.symlink(outside, path.join(root, "linked-dir"));
+
+        const resolveLinked = (relativePath: string) =>
+          Effect.gen(function* () {
+            const result = yield* issueAssetUrl({
+              resource: {
+                _tag: "workspace-file",
+                threadId: ThreadId.make("thread-1"),
+                path: relativePath,
+              },
+              workspaceRoot: root,
+            });
+            const suffix = result.relativeUrl.slice(`${ASSET_ROUTE_PREFIX}/`.length);
+            const separator = suffix.indexOf("/");
+            return yield* resolveAsset(suffix.slice(0, separator), suffix.slice(separator + 1));
+          });
+        expect(yield* resolveLinked("linked.png")).toMatchObject({
+          kind: "file",
+          path: yield* fileSystem.realPath(path.join(outside, "pic.png")),
+        });
+        expect(yield* resolveLinked("linked-dir/pic.png")).toMatchObject({
+          kind: "file",
+          path: yield* fileSystem.realPath(path.join(outside, "pic.png")),
+        });
+        // Served as the exact file, not as a workspace page that could pull in its neighbors.
+        expect(yield* resolveLinked("linked.html")).toMatchObject({
+          kind: "file",
+          path: yield* fileSystem.realPath(path.join(outside, "page.html")),
+        });
+        // The target's own type must be previewable, as for any host file.
+        const unsupported = yield* issueAssetUrl({
+          resource: {
+            _tag: "workspace-file",
+            threadId: ThreadId.make("thread-1"),
+            path: "linked.xyz",
+          },
+          workspaceRoot: root,
+        }).pipe(Effect.flip);
+        expect(unsupported._tag).toBe("AssetPreviewTypeValidationError");
+        // A composer draft does not follow the link out.
+        const draft = yield* issueAssetUrl({
+          resource: { _tag: "draft-workspace-file", cwd: root, path: "linked.png" },
+          workspaceRoot: root,
+        }).pipe(Effect.flip);
+        expect(draft._tag).toBe("AssetWorkspaceAssetNotFoundError");
+      }).pipe(Effect.provide(layerTest)),
+  );
+
   it.effect("issues exact workspace URLs for every non-HTML preview", () =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;

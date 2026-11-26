@@ -285,10 +285,24 @@ export const ProjectSearchEntriesInput = Schema.Struct({
 });
 export type ProjectSearchEntriesInput = typeof ProjectSearchEntriesInput.Type;
 
+/**
+ * Present only on a symbolic link. `target` is the link's own text (what `readlink` prints), so a
+ * relative link stays relative. `broken` means nothing readable sits behind it, so it cannot be
+ * opened; its `kind` is "file". `cycle` means it points at a folder that contains the one being
+ * listed, so it must not be expanded.
+ */
+export const ProjectEntrySymlink = Schema.Struct({
+  target: Schema.String,
+  broken: Schema.optional(Schema.Boolean),
+  cycle: Schema.optional(Schema.Boolean),
+});
+export type ProjectEntrySymlink = typeof ProjectEntrySymlink.Type;
+
 export const ProjectEntry = Schema.Struct({
   path: TrimmedNonEmptyString,
   kind: ProjectEntryKind,
   ignored: Schema.optional(Schema.Boolean),
+  symlink: Schema.optional(ProjectEntrySymlink),
 });
 export type ProjectEntry = typeof ProjectEntry.Type;
 
@@ -491,6 +505,8 @@ export const ProjectReadFileResult = Schema.Struct({
   truncated: Schema.Boolean,
   // Omitted by older servers; false only for an absent optional file.
   exists: Schema.optional(Schema.Boolean),
+  // A link in the workspace led out of it, so the file can be read but saving is refused.
+  outsideWorkspace: Schema.optional(Schema.Boolean),
 });
 export type ProjectReadFileResult = typeof ProjectReadFileResult.Type;
 

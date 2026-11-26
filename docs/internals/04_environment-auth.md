@@ -91,8 +91,10 @@ credential never falls back to the reusable dev credential.
 ## The environment is the filesystem boundary
 
 Projects are organizational boundaries, not filesystem sandboxes. `filesystem:read` permits reading
-any file the server's OS user can read (for example, artifacts an agent writes in a temp directory);
-relative paths and writes remain constrained by
+any file the server's OS user can read (for example, artifacts an agent writes in a temp directory),
+so a workspace-relative read or listing follows a symlink out of the workspace the same way an
+absolute path would; the Files tree shows such links for that reason. Writes stay inside the
+workspace, symlinks included, and the search index stays inside it too. See
 [`WorkspaceFileSystem.ts`](../../apps/server/src/workspace/WorkspaceFileSystem.ts).
 
 Signed asset URLs are bearer credentials for a single canonical file, rechecked by device/inode
