@@ -94,7 +94,9 @@ export function RightPanelSplitDivider(props: {
       onPointerDown={(event) => {
         const element = container();
         if (event.button !== 0 || element === null) return;
+        // preventDefault keeps text from being selected while dragging, but also stops the focus.
         event.preventDefault();
+        event.currentTarget.focus();
         const rect = element.getBoundingClientRect();
         event.currentTarget.setPointerCapture(event.pointerId);
         drag.current = {

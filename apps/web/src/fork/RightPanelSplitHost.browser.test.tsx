@@ -3,7 +3,7 @@ import "~/index.css";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import { act, render } from "../../test/render";
 import { type RightPanelTabsProps } from "../components/RightPanelTabs";
@@ -355,6 +355,20 @@ describe("RightPanelSplitHost", () => {
     expect(bars().map(region)).toEqual(["drag", "drag", "none"]);
     const tabOfLeft = bars()[0]!.querySelector("[data-active-tab]")!;
     expect(region(tabOfLeft)).toBe("no-drag");
+  });
+
+  it("takes the focus when a divider is pressed, so the arrow keys then resize it", async () => {
+    await page.viewport(1280, 800);
+    using _panel = seededPanel();
+    cutRight("file:c.ts");
+    await using screen = await render(<Harness width={900} />, { container: stage() });
+    const divider = () =>
+      screen.container.querySelector<HTMLElement>("[data-right-panel-divider]")!;
+    await vi.waitFor(() => expect(divider().getAttribute("aria-valuenow")).toBe("50"));
+    await userEvent.click(divider());
+    expect(document.activeElement).toBe(divider());
+    await userEvent.keyboard("{ArrowRight}");
+    await vi.waitFor(() => expect(panelState().layout?.ratio).toBeCloseTo(0.52));
   });
 
   it("restores a divider to half on a double click", async () => {
