@@ -286,6 +286,20 @@ describe("RightPanelSplitHost", () => {
     expect(screen.container.querySelectorAll("[data-right-panel-cell]")).toHaveLength(2);
   });
 
+  it("keeps the focused cell's content mounted when the panel crosses the fold width", async () => {
+    await page.viewport(1280, 800);
+    using _panel = seededPanel();
+    cutRight("file:c.ts");
+    await using screen = await render(<Harness width={500} />, { container: stage() });
+    const area = () => screen.container.querySelector("[data-right-panel-split]");
+    await vi.waitFor(() => expect(area()?.getAttribute("data-right-panel-split")).toBe("folded"));
+    const content = screen.container.querySelector('[data-test-content="file:c.ts"]');
+    expect(content).not.toBeNull();
+    await screen.rerender(<Harness width={900} />);
+    await vi.waitFor(() => expect(area()?.getAttribute("data-right-panel-split")).toBe("split"));
+    expect(screen.container.querySelector('[data-test-content="file:c.ts"]')).toBe(content);
+  });
+
   it("restores a divider to half on a double click", async () => {
     await page.viewport(1280, 800);
     using _panel = seededPanel();

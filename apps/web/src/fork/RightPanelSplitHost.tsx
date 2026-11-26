@@ -261,7 +261,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
     layout === null || folded
       ? [
           {
-            id: layout === null ? "c1" : "folded",
+            id: layout?.focusedCellId ?? "c1", // the focused cell's key survives a fold
             tabIds: tabs.surfaces.map((surface) => surface.id),
             activeId: tabs.activeSurfaceId,
             box: WHOLE,
