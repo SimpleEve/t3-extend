@@ -74,6 +74,14 @@ describe("splitting the panel", () => {
     expect(focusedCellOf(layout)?.tabIds).toEqual([file("c")]);
   });
 
+  it("focuses the new cell when the tab that is cut out was not the selected one", () => {
+    open("a", "b", "c");
+    useRightPanelStore.getState().activateSurface(ref, file("a"));
+    split("c", "right");
+    expect(focusedCellOf(panel().layout!)?.tabIds).toEqual([file("c")]);
+    expect(panel().activeSurfaceId).toBe(file("c"));
+  });
+
   it("refuses to split out the only tab of a one-cell panel", () => {
     open("a");
     split("a", "right");
