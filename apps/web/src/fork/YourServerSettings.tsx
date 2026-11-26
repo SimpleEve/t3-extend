@@ -67,6 +67,7 @@ import { Toggle, ToggleGroup } from "../components/ui/toggle-group";
 import { SelfHostSettings } from "../components/settings/SelfHostSettings";
 import { useSearchableSetting } from "../components/settings/settingsSearch";
 import { SettingsRow } from "../components/settings/settingsLayout";
+import { VisibilityRow } from "./YourServerVisibility";
 
 const isDeviceKeysError = Schema.is(DeviceKeysError);
 
@@ -271,6 +272,7 @@ function JoinedRows({
           </Button>
         }
       />
+      <VisibilityRow environmentId={environmentId} status={current} devices={listed} />
       <RemoveDialog
         environmentId={environmentId}
         device={removing}

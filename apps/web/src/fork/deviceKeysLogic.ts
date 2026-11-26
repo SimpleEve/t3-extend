@@ -1,7 +1,13 @@
 // fork: pure decisions behind the Devices section of Settings (design Q11), kept apart from React
 // so the rules that matter, which warning shows and what the invite dialog asks, are tested alone.
 import type { DeviceDirectoryView } from "@t3tools/client-runtime/fork/deviceKeys/discovery";
-import type { DeviceKeysError, DevicesSnapshot, DevicesStatus } from "@t3tools/contracts";
+import type {
+  DeviceKeysError,
+  DeviceListEntry,
+  DevicesSnapshot,
+  DevicesStatus,
+  DeviceVisibility,
+} from "@t3tools/contracts";
 import type { Translator } from "@t3tools/client-runtime/i18n";
 
 import type { ClockWindow } from "./useClockWindow";
@@ -156,6 +162,72 @@ export function describeDevicesError(t: Translator, error: DeviceKeysError): str
       return t("Your server did not accept the request.");
     case "storage":
       return t("This computer could not save the device key.");
+  }
+}
+
+type VisibilityState = NonNullable<DevicesStatus["visibility"]>;
+
+/** The two modes that name devices need at least one to mean anything different from the other two. */
+export function visibilityDraftReady(draft: DeviceVisibility): boolean {
+  const names = draft.mode === "hidden_from_selected" || draft.mode === "visible_to_selected";
+  return !names || draft.deviceIds.length > 0;
+}
+
+/** What goes to the server: the two modes that name no devices carry no list. */
+export function visibilityToSend(draft: DeviceVisibility): DeviceVisibility {
+  const names = draft.mode === "hidden_from_selected" || draft.mode === "visible_to_selected";
+  return { mode: draft.mode, deviceIds: names ? [...new Set(draft.deviceIds)].sort() : [] };
+}
+
+/** Whether `draft` is already what the server holds, so saving would change nothing. */
+export function visibilityUnchanged(draft: DeviceVisibility, saved: VisibilityState): boolean {
+  const next = visibilityToSend(draft);
+  const current = visibilityToSend(saved);
+  return next.mode === current.mode && next.deviceIds.join() === current.deviceIds.join();
+}
+
+/** One line for the Visibility row: who can see this computer right now. */
+export function describeVisibility(
+  t: Translator,
+  visibility: DeviceVisibility,
+  devices: ReadonlyArray<Pick<DeviceListEntry, "id" | "name">>,
+): string {
+  const names = visibility.deviceIds
+    .flatMap((id) => devices.find((device) => device.id === id)?.name ?? [])
+    .join(", ");
+  switch (visibility.mode) {
+    case "visible_to_all":
+      return t("Visible to all devices.");
+    case "hidden_from_all":
+      return t("Hidden from all devices, including ones that join later.");
+    case "hidden_from_selected":
+      return names === ""
+        ? t("Hidden from the devices you chose.")
+        : t("Hidden from {names}.", { names });
+    case "visible_to_selected":
+      return names === ""
+        ? t("Visible only to the devices you chose.")
+        : t("Visible only to {names}.", { names });
+  }
+}
+
+/** What to tell about the server's copy of the setting; null when there is nothing to say. */
+export function describeVisibilityRegistry(
+  t: Translator,
+  registry: VisibilityState["registry"],
+): string | null {
+  switch (registry) {
+    case "unsupported":
+      return t(
+        "Your server needs an update before it can hide this computer from other devices' lists. This computer already refuses the sign-ins this setting rules out.",
+      );
+    case "pending":
+      return t(
+        "Your server has not received this setting yet. This computer already applies it and keeps trying.",
+      );
+    case "synced":
+    case "unknown":
+      return null;
   }
 }
 

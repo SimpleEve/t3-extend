@@ -1,4 +1,5 @@
 import { encodeInvite } from "@t3tools/shared/forkDeviceKeys/invite";
+import { DeviceKeysError } from "@t3tools/contracts";
 import type { DeviceListEntry, DevicesSnapshot, DevicesStatus } from "@t3tools/contracts";
 import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   invite: vi.fn(),
   cancelInvite: vi.fn(),
   remove: vi.fn(),
+  setVisibility: vi.fn(),
   refreshStatus: vi.fn(),
   // Environments the registry's directory knows as devices, environment id to device id.
   deviceIds: new Map<string, string>(),
@@ -42,6 +44,7 @@ vi.mock(import("~/fork/deviceKeysStore"), async (original) => ({
     invite: "invite",
     cancelInvite: "cancelInvite",
     remove: "remove",
+    setVisibility: "setVisibility",
   } as never,
   refreshDevicesStatus: mocks.refreshStatus,
 }));
@@ -51,8 +54,9 @@ vi.mock(import("~/state/environments"), async (original) => ({
 }));
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: ((command: "join" | "leave" | "invite" | "cancelInvite" | "remove") =>
-    mocks[command]) as never,
+  useAtomCommand: ((
+    command: "join" | "leave" | "invite" | "cancelInvite" | "remove" | "setVisibility",
+  ) => mocks[command]) as never,
 }));
 
 import { peerWait } from "~/fork/deviceKeysRuntime";
@@ -113,6 +117,7 @@ function setup(
     mocks.invite,
     mocks.cancelInvite,
     mocks.remove,
+    mocks.setVisibility,
     mocks.refreshStatus,
   ]) {
     command.mockReset();
@@ -124,6 +129,7 @@ function setup(
   );
   mocks.cancelInvite.mockResolvedValue(success({}));
   mocks.remove.mockResolvedValue(success({ removedAt: 1, rev: 2, pendingComputers: [] }));
+  mocks.setVisibility.mockResolvedValue(success(status()));
   peerWait.end("env-mini");
   mocks.deviceIds.clear();
   const clock = vi.spyOn(Date, "now").mockReturnValue(NOW);
@@ -371,6 +377,94 @@ describe("Your server settings, joined", () => {
     await userEvent.click(page.getByRole("button", { name: "Leave", exact: true }));
     await vi.waitFor(() => expect(mocks.leave).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => expect(mocks.refreshStatus).toHaveBeenCalled());
+  });
+});
+
+describe("Your server settings, visibility", () => {
+  const visible = (
+    mode: NonNullable<DevicesStatus["visibility"]>["mode"],
+    deviceIds: ReadonlyArray<string> = [],
+    registry: NonNullable<DevicesStatus["visibility"]>["registry"] = "synced",
+  ) => status({ visibility: { mode, deviceIds, registry } });
+
+  it("says everyone can see this computer until told otherwise", async () => {
+    using _bridge = setup({ status: visible("visible_to_all") });
+    await using _screen = await render(ui(), { router: false });
+    await expect.element(page.getByText("Visible to all devices.")).toBeVisible();
+  });
+
+  it("lists the other devices for the two modes that name devices, and saves the pick", async () => {
+    using _bridge = setup({ status: visible("visible_to_all") });
+    await using _screen = await render(ui(), { router: false });
+    await userEvent.click(page.getByRole("button", { name: "Change" }));
+    await expect.element(page.getByText("Who can see this computer").first()).toBeVisible();
+    // No list while the mode names nobody.
+    expect(page.getByRole("list", { name: "Devices" }).elements()).toHaveLength(0);
+
+    await userEvent.click(page.getByRole("radio", { name: /Hidden from selected devices/ }));
+    const list = page.getByRole("list", { name: "Devices" });
+    await expect.element(list).toBeVisible();
+    // This computer is not offered; the others are, computers first.
+    expect(list.getByRole("checkbox").elements()).toHaveLength(2);
+    await expect.element(list.getByText("Mac", { exact: true })).not.toBeInTheDocument();
+    await expect.element(list.getByText("Mac mini")).toBeVisible();
+    // Nothing picked yet: saving would mean "hidden from nobody".
+    await expect.element(page.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    await userEvent.click(list.getByRole("checkbox", { name: /Pixel/ }));
+    await userEvent.click(page.getByRole("button", { name: "Save" }));
+    await vi.waitFor(() => expect(mocks.setVisibility).toHaveBeenCalledTimes(1));
+    expect(mocks.setVisibility.mock.calls[0]![0]).toEqual({
+      environmentId: "primary",
+      input: { mode: "hidden_from_selected", deviceIds: ["phone"] },
+    });
+  });
+
+  it("sends no list for the modes that name nobody, and saves nothing when nothing changed", async () => {
+    using _bridge = setup({ status: visible("hidden_from_selected", ["phone"]) });
+    await using _screen = await render(ui(), { router: false });
+    await expect.element(page.getByText("Hidden from Pixel.")).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Change" }));
+    await expect.element(page.getByRole("button", { name: "Save" })).toBeDisabled();
+    await userEvent.click(page.getByRole("radio", { name: /Hidden from all devices/ }));
+    await userEvent.click(page.getByRole("button", { name: "Save" }));
+    await vi.waitFor(() => expect(mocks.setVisibility).toHaveBeenCalledTimes(1));
+    expect(mocks.setVisibility.mock.calls[0]![0].input).toEqual({
+      mode: "hidden_from_all",
+      deviceIds: [],
+    });
+  });
+
+  it("says plainly when the server is too old, in the row and in the dialog", async () => {
+    using _bridge = setup({ status: visible("hidden_from_all", [], "unsupported") });
+    await using _screen = await render(ui(), { router: false });
+    const notice = page.getByText(/needs an update before it can hide this computer/);
+    await expect.element(notice).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Change" }));
+    expect(
+      page.getByText(/needs an update before it can hide this computer/).elements(),
+    ).toHaveLength(2);
+  });
+
+  it("says a setting the server has not received yet is already applied here", async () => {
+    using _bridge = setup({ status: visible("hidden_from_all", [], "pending") });
+    await using _screen = await render(ui(), { router: false });
+    await expect.element(page.getByText(/has not received this setting yet/)).toBeVisible();
+  });
+
+  it("shows a refusal from this computer in the dialog and keeps it open", async () => {
+    using _bridge = setup({ status: visible("visible_to_all") });
+    mocks.setVisibility.mockResolvedValue(
+      AsyncResult.fail(
+        new DeviceKeysError({ reason: "registry_unreachable", message: "x" }),
+      ) as never,
+    );
+    await using _screen = await render(ui(), { router: false });
+    await userEvent.click(page.getByRole("button", { name: "Change" }));
+    await userEvent.click(page.getByRole("radio", { name: /Hidden from all devices/ }));
+    await userEvent.click(page.getByRole("button", { name: "Save" }));
+    await expect.element(page.getByText("Can't reach your server.")).toBeVisible();
+    await expect.element(page.getByText("Who can see this computer").first()).toBeVisible();
   });
 });
 
