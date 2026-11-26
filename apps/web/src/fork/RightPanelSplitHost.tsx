@@ -522,6 +522,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
                   activeId={cell.activeId}
                   content={cell.activeId === null ? null : (contents.get(cell.activeId) ?? null)}
                   layout={folded ? null : layout}
+                  folded={folded}
                   onFocus={() => {
                     if (layout !== null && !folded) apply({ kind: "focus", cellId: cell.id });
                   }}
@@ -573,6 +574,7 @@ function HostedCell(props: {
   readonly content: ReactNode;
   /** Null for an unsplit or folded panel, where nothing can be cut. */
   readonly layout: PanelLayout | null;
+  readonly folded: boolean;
   readonly onFocus: () => void;
   readonly onOperation: (operation: SplitOperation) => void;
   readonly closeSurfaces: (surfaces: readonly RightPanelSurface[]) => void;
@@ -593,6 +595,7 @@ function HostedCell(props: {
       const menu = splitTabMenu({
         t,
         layout,
+        folded: props.folded,
         cellId,
         tabsInCell: surfaces.length,
         cellSize: box ? { width: box.width, height: box.height } : null,

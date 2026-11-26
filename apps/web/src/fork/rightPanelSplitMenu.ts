@@ -28,6 +28,8 @@ export function splitTabMenu(input: {
   readonly t: Translator;
   /** Null while the panel is one cell. */
   readonly layout: PanelLayout | null;
+  /** The panel is too small for its layout and shows every tab in one strip, where nothing can be cut. */
+  readonly folded?: boolean;
   /** Id of the cell holding the tab; the one cell of an unsplit panel is "c1". */
   readonly cellId: string;
   readonly tabsInCell: number;
@@ -41,6 +43,7 @@ export function splitTabMenu(input: {
   const { t, layout, cellId, surfaceId } = input;
   const allowed = allowedSplitDirections(layout ?? undefined, cellId);
   const canSplit = (direction: SplitDirection) =>
+    input.folded !== true &&
     input.tabsInCell >= 2 &&
     allowed.includes(direction) &&
     (input.cellSize === null || cellFitsCut(direction, input.cellSize));

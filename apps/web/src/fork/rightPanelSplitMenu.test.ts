@@ -135,4 +135,22 @@ describe("splitTabMenu", () => {
     });
     expect(zh.items.map((item) => item.label)).toEqual(["向右拆分", "向下拆分", "移到右格"]);
   });
+
+  it("greys out every split while the panel is folded into one strip", () => {
+    const menu = splitTabMenu({
+      t,
+      layout: null,
+      folded: true,
+      cellId: "c1",
+      tabsInCell: 5,
+      cellSize: wide,
+      surfaceId: "s",
+    });
+    expect(menu.items.map((item) => [item.id, item.disabled])).toEqual([
+      ["split-right", true],
+      ["split-down", true],
+    ]);
+    expect(menu.operationFor("split-right")).toBeNull();
+    expect(menu.operationFor("split-down")).toBeNull();
+  });
 });
