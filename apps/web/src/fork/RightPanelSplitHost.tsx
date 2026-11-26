@@ -498,7 +498,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
         <div
           ref={areaRef}
           data-right-panel-split={layout === null ? "single" : folded ? "folded" : "split"}
-          className="relative min-h-0 flex-1"
+          className="relative min-h-0 flex-1 [&_[data-dragging=true]]:opacity-40 [&_[data-dragging=true]]:[transform:none!important]"
           style={layout === null ? undefined : containerVariables(layout)}
         >
           {cells.map((cell) => {

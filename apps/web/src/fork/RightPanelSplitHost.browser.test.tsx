@@ -234,6 +234,11 @@ describe("RightPanelSplitHost", () => {
       () => {
         expect(previewZone()).toBe("right");
         expect(document.querySelector("[data-right-panel-drag-chip]")?.textContent).toBe("c.ts");
+        // The tab stays where it was and dims; the chip is what moves.
+        const lifted = tab(screen.container, "c.ts");
+        expect(lifted.dataset.dragging).toBe("true");
+        expect(getComputedStyle(lifted).opacity).toBe("0.4");
+        expect(getComputedStyle(lifted).transform).toBe("none");
       },
     );
     await held.drop();
@@ -466,6 +471,17 @@ describe("RightPanelSplitHost", () => {
       await using _screen = screen;
       const inside = screen.container.querySelector<HTMLElement>("[data-test-button='file:b.ts']")!;
       await send("pointerdown", inside, 10, 10, 1);
+      await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:b.ts"));
+    });
+
+    it("moves to a cell whose add menu is opened", async () => {
+      const { panel, screen } = await splitPanel();
+      using _panel = panel;
+      await using _screen = screen;
+      const add = screen.container.querySelectorAll<HTMLElement>(
+        "[data-right-panel-cell] button[aria-label='Add panel surface']",
+      )[0]!;
+      await userEvent.click(add);
       await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:b.ts"));
     });
 

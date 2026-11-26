@@ -990,12 +990,10 @@ function RightPanelTab(
     onStartRename,
     onFinishRename,
   } = props;
-  const hosted = useRightPanelCell() !== null;
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: surface.id,
     disabled: props.dragDisabled,
   });
-  const lifted = hosted && isDragging; // fork: a hosted tab stays put and dims while the host's overlay moves
   const sideChatShell = useQuietThreadShell(
     surface.kind === "thread" && props.environmentId !== null
       ? scopeThreadRef(props.environmentId, surface.threadId)
@@ -1118,7 +1116,8 @@ function RightPanelTab(
   return (
     <div
       data-active-tab={props.active}
-      data-surface-id={surface.id} // fork: the split host names a dragged tab from it
+      data-surface-id={surface.id} // fork: the split host names a dragged tab from it and styles it while dragged
+      data-dragging={isDragging}
       onMouseDown={preventTabMiddleButtonDefault}
       onMouseUp={preventTabMiddleButtonDefault}
       onAuxClick={(event) => onAuxClick(event, surface)}
@@ -1126,12 +1125,11 @@ function RightPanelTab(
       {...listeners}
       ref={setNodeRef}
       style={{
-        transform: lifted ? undefined : CSS.Translate.toString(transform),
+        transform: CSS.Translate.toString(transform),
         transition,
       }}
       className={cn(
         "cursor-pointer group/tab flex h-6 max-w-36 shrink-0 items-center gap-0.5 rounded-md pr-2 pl-1.5 text-xs",
-        lifted && "opacity-40",
         props.ownsDesktopTitleBar && "[-webkit-app-region:no-drag]",
         props.active
           ? "bg-accent text-foreground"
@@ -1591,13 +1589,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
               })}
             </SortableTabList>
             {props.open !== false ? (
-              <Menu
-                open={addSurfaceMenuOpen}
-                onOpenChange={(open) => {
-                  if (open) cell?.focus(); // fork: what is added lands in this cell
-                  setAddSurfaceMenuOpen(open);
-                }}
-              >
+              <Menu open={addSurfaceMenuOpen} onOpenChange={setAddSurfaceMenuOpen}>
                 <MenuTrigger
                   ref={addSurfaceTriggerRef}
                   render={
