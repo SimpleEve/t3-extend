@@ -395,10 +395,9 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         const hung = withHungLinks();
         yield* Effect.gen(function* () {
           // Two listings at once queue for the same slots; waiting for a busy slot is not failure.
-          const results = yield* Effect.all(
-            ["mixed", "healthy"].map((directoryPath) =>
-              workspaceEntries.list({ cwd, directoryPath }),
-            ),
+          const results = yield* Effect.forEach(
+            ["mixed", "healthy"],
+            (directoryPath) => workspaceEntries.list({ cwd, directoryPath }),
             { concurrency: 2 },
           );
           expect(
