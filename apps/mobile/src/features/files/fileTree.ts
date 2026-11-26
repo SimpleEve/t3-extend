@@ -1,10 +1,12 @@
-import type { ProjectEntry } from "@t3tools/contracts";
+import { isExpandableEntry, isFolderEntry } from "@t3tools/client-runtime/project-symlink";
+import type { ProjectEntry, ProjectEntrySymlink } from "@t3tools/contracts";
 
 export interface FileTreeNode {
   readonly path: string;
   readonly name: string;
   readonly kind: ProjectEntry["kind"];
   readonly ignored?: boolean;
+  readonly symlink?: ProjectEntrySymlink;
   readonly children: ReadonlyArray<FileTreeNode>;
 }
 
@@ -18,6 +20,7 @@ interface MutableFileTreeNode {
   name: string;
   kind: ProjectEntry["kind"];
   ignored?: boolean;
+  symlink?: ProjectEntrySymlink;
   children: Map<string, MutableFileTreeNode>;
 }
 
@@ -40,6 +43,7 @@ function freezeNode(node: MutableFileTreeNode): FileTreeNode {
     name: node.name,
     kind: node.kind,
     ...(node.ignored ? { ignored: true } : {}),
+    ...(node.symlink ? { symlink: node.symlink } : {}),
     children: [...node.children.values()].sort(compareNodes).map(freezeNode),
   };
 }
@@ -47,11 +51,12 @@ function freezeNode(node: MutableFileTreeNode): FileTreeNode {
 const fileNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function compareNodes(
-  left: Pick<FileTreeNode, "kind" | "name">,
-  right: Pick<FileTreeNode, "kind" | "name">,
+  left: Pick<FileTreeNode, "kind" | "name" | "symlink">,
+  right: Pick<FileTreeNode, "kind" | "name" | "symlink">,
 ): number {
-  if (left.kind !== right.kind) {
-    return left.kind === "directory" ? -1 : 1;
+  const leftIsFolder = isFolderEntry(left);
+  if (leftIsFolder !== isFolderEntry(right)) {
+    return leftIsFolder ? -1 : 1;
   }
   return fileNameCollator.compare(left.name, right.name);
 }
@@ -83,6 +88,7 @@ export function buildFileTree(entries: ReadonlyArray<ProjectEntry>): ReadonlyArr
         child.kind = entry.kind;
       }
       if (isLeaf && entry.ignored) child.ignored = true;
+      if (isLeaf && entry.symlink) child.symlink = entry.symlink;
       current = child;
     }
   }
@@ -103,7 +109,7 @@ function flattenNode(
   const start = output.length;
   output.push({ node, depth });
 
-  if (node.kind === "directory" && (expanded.has(node.path) || isSearching)) {
+  if (isExpandableEntry(node) && (expanded.has(node.path) || isSearching)) {
     for (const child of node.children) {
       if (flattenNode(output, child, depth + 1, expanded, searchResultPaths)) {
         descendantMatches = true;

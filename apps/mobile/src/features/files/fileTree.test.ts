@@ -59,3 +59,24 @@ it("prunes unmatched subtrees without losing adjacent rows or their depths", () 
     "tail.txt",
   ]);
 });
+
+it("carries each link on its node, sorts loops with folders and never walks into one", () => {
+  const nodes = buildFileTree([
+    { kind: "file", path: "gone", symlink: { target: "missing", broken: true } },
+    { kind: "file", path: "plain.txt" },
+    { kind: "file", path: "up", symlink: { target: "..", cycle: true } },
+    { kind: "directory", path: "data", symlink: { target: "/mnt/data" } },
+  ]);
+  expect(nodes.map((node) => node.path)).toEqual(["data", "up", "gone", "plain.txt"]);
+  expect(nodes[0]?.symlink).toEqual({ target: "/mnt/data" });
+  expect(nodes.at(-1)).not.toHaveProperty("symlink");
+  // Even when a stale expansion names the loop, its row is not followed.
+  const withChild = nodes.map((node) =>
+    node.path === "up"
+      ? { ...node, children: [{ path: "up/x", name: "x", kind: "file" as const, children: [] }] }
+      : node,
+  );
+  expect(
+    flattenFileTree({ nodes: withChild, expanded: new Set(["up"]) }).map((row) => row.node.path),
+  ).toEqual(["data", "up", "gone", "plain.txt"]);
+});

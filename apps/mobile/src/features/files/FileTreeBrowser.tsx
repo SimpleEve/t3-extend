@@ -1,12 +1,20 @@
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 import { Button } from "../../components/ui/Button";
 import { LegendList } from "@legendapp/list/react-native";
+import {
+  isExpandableEntry,
+  isFolderEntry,
+  isOpenableEntry,
+  projectSymlinkState,
+  projectSymlinkTitle,
+  type ProjectSymlinkState,
+} from "@t3tools/client-runtime/project-symlink";
 import type { ProjectEntry } from "@t3tools/contracts";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { T, useGT } from "gt-react-native";
+import { T, useGT, useMessages } from "gt-react-native";
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Alert, Platform, Pressable, View } from "react-native";
 import { RefreshControl } from "../../components/ui/RefreshControl";
 
 import { AppText as Text } from "../../components/ui/AppText";
@@ -33,6 +41,13 @@ function cachedFileTree(entries: ReadonlyArray<ProjectEntry>): ReadonlyArray<Fil
   return tree;
 }
 
+const SYMLINK_ROW_ICONS = {
+  link: "link",
+  broken: "exclamationmark.triangle",
+  cycle: "arrow.uturn.backward",
+  unresolved: "arrow.clockwise",
+} as const satisfies Record<ProjectSymlinkState, string>;
+
 const FileTreeRow = function FileTreeRow(props: {
   readonly item: VisibleFileTreeNode;
   readonly selected: boolean;
@@ -44,31 +59,38 @@ const FileTreeRow = function FileTreeRow(props: {
 }) {
   const { node, depth } = props.item;
   const gt = useGT();
+  const messages = useMessages();
+  const symlink = node.symlink;
+  const symlinkState = symlink && projectSymlinkState(symlink);
+  const symlinkTitle = symlink && projectSymlinkTitle(symlink, messages);
+  const expandable = isExpandableEntry(node);
+  const openable = isOpenableEntry(node);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={node.path}
-      accessibilityState={{ selected: props.selected }}
+      accessibilityLabel={symlinkTitle ? `${node.path}, ${symlinkTitle}` : node.path}
+      accessibilityState={{ selected: props.selected, disabled: !expandable && !openable }}
       onPressIn={() => {
-        if (node.kind === "file") {
+        if (openable) {
           props.onPreviewFile?.(node.path);
         }
       }}
       onPress={() => {
-        if (node.kind === "directory") {
+        if (expandable) {
           props.onPressDirectory(node.path, !props.expanded);
           return;
         }
-        props.onPressFile(node.path);
+        if (openable) props.onPressFile(node.path);
       }}
+      onLongPress={symlinkTitle ? () => Alert.alert(node.name, symlinkTitle) : undefined}
       className={cn(
         "mx-2 min-h-[46px] flex-row items-center gap-2 rounded-[12px] px-2 active:bg-subtle android:min-h-[48px]",
         props.selected && "bg-thread-selected",
       )}
       style={{ paddingLeft: 8 + depth * 18 }}
     >
-      {node.kind === "directory" ? (
+      {expandable ? (
         <SymbolView
           name={props.expanded ? "chevron.down" : "chevron.right"}
           size={12}
@@ -78,13 +100,17 @@ const FileTreeRow = function FileTreeRow(props: {
       ) : (
         <View className="w-3" />
       )}
-      <PierreEntryIcon path={node.path} kind={node.kind} size={17} />
+      <PierreEntryIcon
+        path={node.path}
+        kind={isFolderEntry(node) ? "directory" : "file"}
+        size={17}
+      />
       <Text
         className={cn(
           "min-w-0 flex-1 text-sm leading-normal",
           props.selected
             ? "font-t3-bold text-thread-selected-foreground"
-            : node.ignored
+            : node.ignored || symlinkState === "broken" || symlinkState === "unresolved"
               ? "font-t3-medium text-foreground-tertiary"
               : "font-t3-medium text-foreground-secondary",
         )}
@@ -92,6 +118,14 @@ const FileTreeRow = function FileTreeRow(props: {
       >
         {node.name}
       </Text>
+      {symlinkState ? (
+        <SymbolView
+          name={SYMLINK_ROW_ICONS[symlinkState]}
+          size={12}
+          tintColorClassName="accent-icon-muted"
+          type="monochrome"
+        />
+      ) : null}
       {node.kind === "directory" && props.expanded && props.loading ? (
         <AppActivityIndicator
           size="small"
@@ -160,7 +194,7 @@ export function FileTreeBrowser(props: {
   useEffect(() => {
     const visit = (nodes: ReadonlyArray<FileTreeNode>) => {
       for (const node of nodes) {
-        if (node.kind !== "directory" || !expandedPaths.has(node.path)) continue;
+        if (!isExpandableEntry(node) || !expandedPaths.has(node.path)) continue;
         onLoadDirectory(node.path);
         visit(node.children);
       }

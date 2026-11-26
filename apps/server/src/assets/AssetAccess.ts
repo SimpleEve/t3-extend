@@ -335,6 +335,8 @@ const resolveCanonicalWorkspaceFile = Effect.fn("AssetAccess.resolveCanonicalWor
     readonly relativePath: string;
     /** The HTML entry's folder, relative to the root, when serving one of its dependencies. */
     readonly previewBaseRelativePath?: string;
+    /** Return a file a link inside the workspace leads out to; the caller must not serve it as workspace content. */
+    readonly allowOutsideRoot?: boolean;
   }) {
     const fileSystem = yield* FileSystem.FileSystem;
     const workspacePaths = yield* WorkspacePaths.WorkspacePaths;
@@ -354,7 +356,8 @@ const resolveCanonicalWorkspaceFile = Effect.fn("AssetAccess.resolveCanonicalWor
 
     const path = yield* Path.Path;
     const relative = path.relative(canonicalRoot.value, canonicalFile.value);
-    if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) return null;
+    const leavesRoot = relative.startsWith("..") || path.isAbsolute(relative);
+    if (relative === "" || (leavesRoot && input.allowOutsideRoot !== true)) return null;
 
     if (input.previewBaseRelativePath !== undefined) {
       // The opened entry's own folder may be hidden; nothing below it, or reached outside it, may.
@@ -538,6 +541,7 @@ const finalizeWorkspaceFileAsset = Effect.fn("AssetAccess.finalizeWorkspaceFileA
     const canonicalFile = yield* resolveCanonicalWorkspaceFile({
       workspaceRoot: input.workspaceRoot,
       relativePath: resolved.relativePath,
+      allowOutsideRoot: true,
     }).pipe(
       Effect.mapError(
         (cause) =>
@@ -552,7 +556,20 @@ const finalizeWorkspaceFileAsset = Effect.fn("AssetAccess.finalizeWorkspaceFileA
         resource: input.resource,
       });
     }
-    if (isDraftMedia) {
+    const canonicalWorkspaceRoot = yield* fileSystem.realPath(input.workspaceRoot).pipe(
+      Effect.mapError(
+        (cause) =>
+          new AssetWorkspaceResolutionError({
+            resource: input.resource,
+            cause,
+          }),
+      ),
+    );
+    const leavesWorkspace = !isWithinRoot(path, canonicalFile, canonicalWorkspaceRoot);
+    // A link out of the workspace serves like the absolute `media-file` path it names, which the
+    // same `filesystem:read` scope already reaches, not as workspace content: an HTML file is not
+    // a page that pulls in its neighbors, and nothing is resolved against the root when the URL is used.
+    if (isDraftMedia || leavesWorkspace) {
       return yield* finalizeAbsoluteMediaFileAsset({
         ...input,
         requestedPath: canonicalFile,
@@ -565,15 +582,6 @@ const finalizeWorkspaceFileAsset = Effect.fn("AssetAccess.finalizeWorkspaceFileA
         resource: input.resource,
       });
     }
-    const canonicalWorkspaceRoot = yield* fileSystem.realPath(input.workspaceRoot).pipe(
-      Effect.mapError(
-        (cause) =>
-          new AssetWorkspaceResolutionError({
-            resource: input.resource,
-            cause,
-          }),
-      ),
-    );
     const imageDimensions = HEADER_IMAGE_EXTENSIONS.has(
       path.extname(resolved.relativePath).toLowerCase(),
     )

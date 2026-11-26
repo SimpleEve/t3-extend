@@ -157,7 +157,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
       }),
     );
 
-    it.effect("lists symlinks as what they point to, hiding ones that cannot be opened", () =>
+    it.effect("lists symlinks as what they point to, marked with where they lead", () =>
       Effect.gen(function* () {
         const platform = yield* HostProcess.Platform;
         if (platform === "win32") return;
@@ -168,17 +168,27 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         yield* writeTextFile(cwd, "real.txt");
         yield* writeTextFile(cwd, "realdir/nested.txt");
         yield* writeTextFile(outside, "outside.txt");
+        yield* writeTextFile(outside, "deeper/inner.txt");
         yield* fileSystem.symlink("real.txt", path.join(cwd, "link.txt"));
         yield* fileSystem.symlink("realdir", path.join(cwd, "linkdir"));
         yield* fileSystem.symlink(outside, path.join(cwd, "outside-link"));
+        yield* fileSystem.symlink(path.join(outside, "outside.txt"), path.join(cwd, "outside.txt"));
         yield* fileSystem.symlink(".git", path.join(cwd, "git-link"));
         yield* fileSystem.symlink("missing", path.join(cwd, "dangling"));
 
         const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
         const root = yield* workspaceEntries.list({ cwd, directoryPath: "" });
         expect(root.entries.toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
-          { path: "link.txt", kind: "file" },
-          { path: "linkdir", kind: "directory" },
+          { path: "dangling", kind: "file", symlink: { target: "missing", broken: true } },
+          // Every link carries its text, so hovering it shows where it goes.
+          { path: "link.txt", kind: "file", symlink: { target: "real.txt" } },
+          { path: "linkdir", kind: "directory", symlink: { target: "realdir" } },
+          { path: "outside-link", kind: "directory", symlink: { target: outside } },
+          {
+            path: "outside.txt",
+            kind: "file",
+            symlink: { target: path.join(outside, "outside.txt") },
+          },
           { path: "real.txt", kind: "file" },
           { path: "realdir", kind: "directory" },
         ]);
@@ -186,39 +196,346 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
           entries: [{ path: "linkdir/nested.txt", kind: "file" }],
           truncated: false,
         });
+        // A link out of the workspace opens like any other folder; what it holds is listed
+        // under the lexical path, and links inside it resolve the same way.
+        const listedOutside = yield* workspaceEntries.list({
+          cwd,
+          directoryPath: "outside-link",
+        });
+        expect(listedOutside.entries.toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
+          { path: "outside-link/deeper", kind: "directory" },
+          { path: "outside-link/outside.txt", kind: "file" },
+        ]);
+        expect(
+          (yield* workspaceEntries.list({ cwd, directoryPath: "outside-link/deeper" })).entries,
+        ).toEqual([{ path: "outside-link/deeper/inner.txt", kind: "file" }]);
       }),
     );
 
-    it.effect("hides folder links that lead back to a folder on the listed path", () =>
-      // "Expand all folders" loads every folder it expands, so a link that loops would
-      // keep nesting the same entries without end.
+    it.effect("leaves the link text off links that git ignores", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir({ git: true });
+        const outside = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, ".gitignore", "ignored-link\nignored-outside\nignored-dir/\n");
+        yield* writeTextFile(cwd, "real.txt");
+        yield* writeTextFile(cwd, "ignored-dir/.keep");
+        yield* fileSystem.symlink("real.txt", path.join(cwd, "tracked-link"));
+        yield* fileSystem.symlink("real.txt", path.join(cwd, "ignored-link"));
+        yield* fileSystem.symlink(outside, path.join(cwd, "ignored-outside"));
+        yield* git(cwd, ["add", "-f", "tracked-link"]);
+        // Past 1,000 children, an ignored folder is labelled as a whole instead of child by child.
+        yield* Effect.forEach(
+          Array.from({ length: 1001 }, (_, index) => `ignored-dir/pkg-${index}.js`),
+          (relativePath) => writeTextFile(cwd, relativePath),
+          { concurrency: 32, discard: true },
+        );
+        yield* fileSystem.symlink("../real.txt", path.join(cwd, "ignored-dir/link"));
+        yield* fileSystem.symlink("missing", path.join(cwd, "ignored-dir/dangling"));
+
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const links = (directoryPath: string) =>
+          workspaceEntries
+            .list({ cwd, directoryPath })
+            .pipe(
+              Effect.map(({ entries }) =>
+                Object.fromEntries(
+                  entries
+                    .filter((entry) => entry.symlink)
+                    .map((entry) => [entry.path, [entry.symlink, entry.ignored === true]]),
+                ),
+              ),
+            );
+        expect(yield* links("")).toEqual({
+          "tracked-link": [{ target: "real.txt" }, false],
+          "ignored-link": [{}, true],
+          "ignored-outside": [{}, true],
+        });
+        expect(yield* links("ignored-dir")).toEqual({
+          "ignored-dir/link": [{}, true],
+          // A broken link keeps its text: the state is described together with it.
+          "ignored-dir/dangling": [{ target: "missing", broken: true }, true],
+        });
+      }),
+    );
+
+    it.effect("leaves the link text off a folder's links inside the workspace past 200", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir();
+        const outside = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, "real.txt");
+        yield* Effect.forEach(
+          Array.from({ length: 201 }, (_, index) => `link-${index}`),
+          (name) => fileSystem.symlink("real.txt", path.join(cwd, name)),
+          { concurrency: 32, discard: true },
+        );
+        yield* fileSystem.symlink(outside, path.join(cwd, "to-outside"));
+        yield* fileSystem.symlink("missing", path.join(cwd, "dangling"));
+
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const { entries } = yield* workspaceEntries.list({ cwd, directoryPath: "" });
+        const bySymlink = (entry: (typeof entries)[number]) => entry.symlink;
+        expect(entries.filter((entry) => entry.path.startsWith("link-")).map(bySymlink)).toEqual(
+          Array.from({ length: 201 }, () => ({})),
+        );
+        // Links that leave the workspace or have a state of their own are few and keep their text.
+        expect(entries.find((entry) => entry.path === "to-outside")?.symlink).toEqual({
+          target: outside,
+        });
+        expect(entries.find((entry) => entry.path === "dangling")?.symlink).toEqual({
+          target: "missing",
+          broken: true,
+        });
+      }),
+    );
+
+    it.effect("keeps links into the workspace's own .git out of the list", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir({ git: true });
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* fileSystem.symlink(".git", path.join(cwd, "git-link"));
+        yield* fileSystem.symlink(".git/HEAD", path.join(cwd, "head-link"));
+        yield* writeTextFile(cwd, "kept.txt");
+
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        expect(
+          (yield* workspaceEntries.list({ cwd, directoryPath: "" })).entries.map(
+            (entry) => entry.path,
+          ),
+        ).toEqual(["kept.txt"]);
+        const error = yield* workspaceEntries
+          .list({ cwd, directoryPath: "git-link" })
+          .pipe(Effect.flip);
+        expect(error._tag).toBe("WorkspaceEntriesReadDirectoryError");
+      }),
+    );
+
+    it.effect(
+      "lists folder links that lead back to a folder on the listed path, not expandable",
+      () =>
+        // "Expand all folders" loads every folder it expands, so a link that loops would
+        // keep nesting the same entries without end. Clients leave a `cycle` link closed.
+        Effect.gen(function* () {
+          const platform = yield* HostProcess.Platform;
+          if (platform === "win32") return;
+          const cwd = yield* makeTempDir();
+          const outside = yield* makeTempDir();
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          yield* writeTextFile(cwd, "a/file.txt");
+          yield* writeTextFile(cwd, "b/file.txt");
+          yield* writeTextFile(outside, "x.txt");
+          yield* fileSystem.symlink(".", path.join(cwd, "self"));
+          yield* fileSystem.symlink("..", path.join(cwd, "a/up"));
+          yield* fileSystem.symlink("../b", path.join(cwd, "a/to-b"));
+          yield* fileSystem.symlink("../a", path.join(cwd, "b/to-a"));
+          yield* fileSystem.symlink(outside, path.join(cwd, "away"));
+          yield* fileSystem.symlink(path.join(cwd, "away"), path.join(outside, "back-to-away"));
+          yield* fileSystem.symlink(cwd, path.join(outside, "back-to-workspace"));
+
+          const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+          const list = (directoryPath: string) =>
+            workspaceEntries
+              .list({ cwd, directoryPath })
+              .pipe(
+                Effect.map(({ entries }) =>
+                  entries.toSorted((a, b) => a.path.localeCompare(b.path)),
+                ),
+              );
+          const root = yield* list("");
+          expect(root.map((entry) => [entry.path, entry.symlink?.cycle === true])).toEqual([
+            ["a", false],
+            ["away", false],
+            ["b", false],
+            ["self", true],
+          ]);
+          // Clients that predate `cycle` expand every directory, so a loop is never sent as one.
+          expect(root.find((entry) => entry.path === "self")).toEqual({
+            path: "self",
+            kind: "file",
+            symlink: { target: ".", cycle: true },
+          });
+          for (const directoryPath of ["", "a", "a/to-b", "away"]) {
+            for (const entry of yield* list(directoryPath)) {
+              if (entry.symlink?.cycle) expect(entry.kind).toBe("file");
+            }
+          }
+          // A link into a sibling folder is fine on its own...
+          expect(
+            (yield* list("a")).map((entry) => [entry.path, entry.symlink?.cycle === true]),
+          ).toEqual([
+            ["a/file.txt", false],
+            ["a/to-b", false],
+            ["a/up", true],
+          ]);
+          // ...but once followed, the sibling's link back is marked.
+          expect(
+            (yield* list("a/to-b")).map((entry) => [entry.path, entry.symlink?.cycle === true]),
+          ).toEqual([
+            ["a/to-b/file.txt", false],
+            ["a/to-b/to-a", true],
+          ]);
+          // Inside a folder outside the workspace, a link back to it or to the workspace loops too.
+          expect(
+            (yield* list("away")).map((entry) => [entry.path, entry.symlink?.cycle === true]),
+          ).toEqual([
+            ["away/back-to-away", true],
+            ["away/back-to-workspace", true],
+            ["away/x.txt", false],
+          ]);
+        }),
+    );
+
+    // Stands in for a link into an unresponsive mount: `realpath` on a `hung-` link never settles
+    // until the test releases it, as a stuck call only returns when the OS gives up.
+    const withHungLinks = () => {
+      const realpath = NodeFSP.realpath;
+      const releases: Array<() => void> = [];
+      const spy = vi.spyOn(NodeFSP, "realpath").mockImplementation((async (target: string) => {
+        if (!/[\\/]hung-[^\\/]*$/.test(target)) return await realpath(target);
+        return await new Promise<string>((_, reject) => {
+          releases.push(() => reject(new Error("released")));
+        });
+      }) as typeof NodeFSP.realpath);
+      return {
+        count: () => releases.length,
+        release: () => {
+          spy.mockRestore();
+          for (const release of releases.splice(0)) release();
+        },
+      };
+    };
+
+    it.effect("lists links it cannot follow in time as unresolved, holding only two lookups", () =>
       Effect.gen(function* () {
         const platform = yield* HostProcess.Platform;
         if (platform === "win32") return;
         const cwd = yield* makeTempDir();
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        yield* writeTextFile(cwd, "a/file.txt");
-        yield* writeTextFile(cwd, "b/file.txt");
-        yield* fileSystem.symlink(".", path.join(cwd, "self"));
-        yield* fileSystem.symlink("..", path.join(cwd, "a/up"));
-        yield* fileSystem.symlink("../b", path.join(cwd, "a/to-b"));
-        yield* fileSystem.symlink("../a", path.join(cwd, "b/to-a"));
-
+        yield* writeTextFile(cwd, "real.txt");
+        const names = Array.from({ length: 6 }, (_, index) => `hung-${index}`);
+        for (const name of names) {
+          yield* fileSystem.symlink("real.txt", path.join(cwd, name));
+        }
         const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
-        const paths = (directoryPath: string) =>
-          workspaceEntries
-            .list({ cwd, directoryPath })
-            .pipe(Effect.map(({ entries }) => entries.map((entry) => entry.path).toSorted()));
-        expect(yield* paths("")).toEqual(["a", "b"]);
-        // A link into a sibling folder is fine on its own...
-        expect(yield* paths("a")).toEqual(["a/file.txt", "a/to-b"]);
-        // ...but once followed, the sibling's link back is hidden.
-        expect(yield* paths("a/to-b")).toEqual(["a/to-b/file.txt"]);
+        const list = workspaceEntries
+          .list({ cwd, directoryPath: "" })
+          .pipe(
+            Effect.map(({ entries }) => entries.toSorted((a, b) => a.path.localeCompare(b.path))),
+          );
+        const unresolved = [
+          ...names.map((name) => ({
+            path: name,
+            kind: "file",
+            symlink: { target: "real.txt", unresolved: true },
+          })),
+          { path: "real.txt", kind: "file" },
+        ];
+        const hung = withHungLinks();
+        yield* Effect.gen(function* () {
+          expect(yield* list).toEqual(unresolved);
+          // The links past the cap never started a call that could take another worker.
+          expect(hung.count()).toBe(2);
+          // While both slots are stuck, another listing gives up without starting anything.
+          expect(yield* list).toEqual(unresolved);
+          expect(hung.count()).toBe(2);
+        }).pipe(Effect.ensuring(Effect.sync(hung.release)));
+        // The stuck calls returned, so listing again resolves the links.
+        expect((yield* list).filter((entry) => entry.symlink)).toEqual(
+          names.map((name) => ({ path: name, kind: "file", symlink: { target: "real.txt" } })),
+        );
       }),
     );
 
-    it.effect("resolves a folder of many symlinks in bounded batches", () =>
+    it.effect("keeps resolving the other links while one lookup is stuck", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, "real.txt");
+        yield* writeTextFile(cwd, "mixed/.keep");
+        yield* writeTextFile(cwd, "healthy/.keep");
+        const links = Array.from({ length: 150 }, (_, index) => `link-${index}`);
+        for (const name of [
+          "mixed/hung-only",
+          ...links.flatMap((link) => [`mixed/${link}`, `healthy/${link}`]),
+        ]) {
+          yield* fileSystem.symlink("../real.txt", path.join(cwd, name));
+        }
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const hung = withHungLinks();
+        yield* Effect.gen(function* () {
+          // Two listings at once queue for the same slots; waiting for a busy slot is not failure.
+          const results = yield* Effect.forEach(
+            ["mixed", "healthy"],
+            (directoryPath) => workspaceEntries.list({ cwd, directoryPath }),
+            { concurrency: 2 },
+          );
+          expect(
+            results.map(({ entries }) =>
+              entries.filter((entry) => entry.symlink?.unresolved).map((entry) => entry.path),
+            ),
+          ).toEqual([["mixed/hung-only"], []]);
+        }).pipe(Effect.ensuring(Effect.sync(hung.release)));
+      }),
+    );
+
+    it.effect(
+      "still lists a folder link for browse while a listing queues for the lookup slots",
+      () =>
+        Effect.gen(function* () {
+          const platform = yield* HostProcess.Platform;
+          if (platform === "win32") return;
+          const cwd = yield* makeTempDir();
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          yield* writeTextFile(cwd, "real.txt");
+          yield* writeTextFile(cwd, "listed/.keep");
+          yield* writeTextFile(cwd, "browsed/target-dir/.keep");
+          const healthy = Array.from({ length: 60 }, (_, index) => `link-${index}`);
+          for (const name of ["hung-only", ...healthy]) {
+            yield* fileSystem.symlink("../real.txt", path.join(cwd, "listed", name));
+          }
+          yield* fileSystem.symlink("target-dir", path.join(cwd, "browsed/folder-link"));
+
+          const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+          const hung = withHungLinks();
+          yield* Effect.gen(function* () {
+            // One slot is stuck and the listing's links queue for the other; `browse` waits its turn
+            // in that queue, within its own budget, instead of dropping its link.
+            const [listed, browsed] = yield* Effect.all(
+              [
+                workspaceEntries.list({ cwd, directoryPath: "listed" }),
+                workspaceEntries.browse({
+                  partialPath: yield* appendSeparator(path.join(cwd, "browsed")),
+                }),
+              ],
+              { concurrency: 2 },
+            );
+            expect(hung.count()).toBe(1);
+            expect(listed.entries.filter((entry) => entry.symlink?.unresolved)).toHaveLength(1);
+            expect(browsed.entries.map((entry) => entry.name)).toEqual([
+              "folder-link",
+              "target-dir",
+            ]);
+          }).pipe(Effect.ensuring(Effect.sync(hung.release)));
+        }),
+    );
+
+    it.effect("resolves a folder of many symlinks a few at a time", () =>
       Effect.gen(function* () {
         const platform = yield* HostProcess.Platform;
         if (platform === "win32") return;
@@ -260,7 +577,10 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
           ].toSorted(),
         );
         expect(entries.every((entry) => entry.kind === "directory")).toBe(true);
-        expect(maxInFlight).toBeLessThanOrEqual(64);
+        // 200 links is the most that still carry their text.
+        expect(entries.filter((entry) => entry.symlink?.target !== undefined)).toHaveLength(200);
+        // Each in-flight call can hold a libuv worker, of which there are four.
+        expect(maxInFlight).toBeLessThanOrEqual(2);
       }),
     );
 
@@ -350,29 +670,28 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
       }),
     );
 
-    it.effect(
-      "rejects directory traversal, git internals, and symlinks outside the workspace",
-      () =>
-        Effect.gen(function* () {
-          const cwd = yield* makeTempDir();
-          const outside = yield* makeTempDir();
-          const fileSystem = yield* FileSystem.FileSystem;
-          const path = yield* Path.Path;
-          yield* writeTextFile(cwd, ".git/HEAD");
-          const platform = yield* HostProcess.Platform;
-          if (platform !== "win32") yield* fileSystem.symlink(outside, path.join(cwd, "external"));
-          const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
-          for (const directoryPath of [
-            "../",
-            outside,
-            ".git",
-            "missing",
-            ...(platform !== "win32" ? ["external"] : []),
-          ]) {
-            const error = yield* workspaceEntries.list({ cwd, directoryPath }).pipe(Effect.flip);
-            expect(error._tag).toBe("WorkspaceEntriesReadDirectoryError");
-          }
-        }),
+    it.effect("rejects directory traversal, git internals, and absolute paths", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir();
+        const outside = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, ".git/HEAD");
+        const platform = yield* HostProcess.Platform;
+        if (platform !== "win32") yield* fileSystem.symlink(outside, path.join(cwd, "external"));
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        // A link that leaves the workspace is listable, but never by walking out with `..`.
+        for (const directoryPath of [
+          "../",
+          outside,
+          ".git",
+          "missing",
+          ...(platform !== "win32" ? ["external/.."] : []),
+        ]) {
+          const error = yield* workspaceEntries.list({ cwd, directoryPath }).pipe(Effect.flip);
+          expect(error._tag).toBe("WorkspaceEntriesReadDirectoryError");
+        }
+      }),
     );
 
     it.effect("includes images and other binary files in non-git workspace indexes", () =>

@@ -507,7 +507,7 @@ describe("AssetAccess", () => {
   );
 
   it.effect.skipIf(!symlinksSupported)(
-    "rejects draft media symlinks escaping the workspace or targeting disallowed types",
+    "rejects draft media symlinks targeting disallowed types",
     () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
@@ -515,12 +515,12 @@ describe("AssetAccess", () => {
         const directory = yield* fs.makeTempDirectoryScoped({ prefix: "t3-draft-symlink-" });
         const root = path.join(directory, "workspace");
         yield* fs.makeDirectory(root);
-        const outside = path.join(directory, "outside.mp4");
+        const outside = path.join(directory, "outside.txt");
         const secret = path.join(root, "secret.txt");
         yield* fs.writeFileString(outside, "outside bytes");
         yield* fs.writeFileString(secret, "private bytes");
         for (const [name, target] of [
-          ["escape.mp4", outside],
+          ["escape.wav", outside],
           ["disguised.wav", secret],
         ] as const) {
           yield* fs.symlink(target, path.join(root, name));
@@ -1462,6 +1462,101 @@ describe("AssetAccess", () => {
       });
       expect(error.cause).toBeInstanceOf(WorkspacePaths.WorkspacePathOutsideRootError);
     }).pipe(Effect.provide(layerTest)),
+  );
+
+  it.effect.skipIf(!symlinksSupported)(
+    "serves a file a workspace link leads out to as that exact host file",
+    () =>
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const root = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-asset-link-root-" });
+        const outside = yield* fileSystem.makeTempDirectoryScoped({
+          prefix: "t3-asset-link-outside-",
+        });
+        yield* fileSystem.writeFileString(path.join(outside, "pic.png"), "outside picture");
+        yield* fileSystem.writeFileString(path.join(outside, "page.html"), "<p>outside</p>");
+        yield* fileSystem.writeFileString(path.join(outside, "notes.xyz"), "no preview type");
+        yield* fileSystem.symlink(path.join(outside, "pic.png"), path.join(root, "linked.png"));
+        yield* fileSystem.symlink(path.join(outside, "page.html"), path.join(root, "linked.html"));
+        yield* fileSystem.symlink(path.join(outside, "notes.xyz"), path.join(root, "linked.xyz"));
+        yield* fileSystem.symlink(outside, path.join(root, "linked-dir"));
+
+        const resolveLinked = (relativePath: string) =>
+          Effect.gen(function* () {
+            const result = yield* issueAssetUrl({
+              resource: {
+                _tag: "workspace-file",
+                threadId: ThreadId.make("thread-1"),
+                path: relativePath,
+              },
+              workspaceRoot: root,
+            });
+            const suffix = result.relativeUrl.slice(`${ASSET_ROUTE_PREFIX}/`.length);
+            const separator = suffix.indexOf("/");
+            return yield* resolveAsset(suffix.slice(0, separator), suffix.slice(separator + 1));
+          });
+        expect(yield* resolveLinked("linked.png")).toMatchObject({
+          kind: "file",
+          path: yield* fileSystem.realPath(path.join(outside, "pic.png")),
+        });
+        expect(yield* resolveLinked("linked-dir/pic.png")).toMatchObject({
+          kind: "file",
+          path: yield* fileSystem.realPath(path.join(outside, "pic.png")),
+        });
+        // Served as the exact file, not as a workspace page that could pull in its neighbors.
+        expect(yield* resolveLinked("linked.html")).toMatchObject({
+          kind: "file",
+          path: yield* fileSystem.realPath(path.join(outside, "page.html")),
+        });
+        // The target's own type must be previewable, as for any host file.
+        const unsupported = yield* issueAssetUrl({
+          resource: {
+            _tag: "workspace-file",
+            threadId: ThreadId.make("thread-1"),
+            path: "linked.xyz",
+          },
+          workspaceRoot: root,
+        }).pipe(Effect.flip);
+        expect(unsupported._tag).toBe("AssetPreviewTypeValidationError");
+        // An unsent thread has no id, so its Files panel asks with a draft resource: by relative
+        // path from mobile, by absolute path from web. Both need what the thread's own do.
+        yield* fileSystem.writeFileString(path.join(outside, "doc.pdf"), "outside pdf");
+        yield* fileSystem.writeFileString(path.join(outside, "movie.mp4"), "outside movie");
+        for (const [relativePath, target, disposition] of [
+          ["linked-dir/pic.png", "pic.png", undefined],
+          ["linked-dir/doc.pdf", "doc.pdf", undefined],
+          ["linked-dir/movie.mp4", "movie.mp4", undefined],
+          ["linked.png", "pic.png", undefined],
+          ["linked.xyz", "notes.xyz", "attachment"],
+        ] as const) {
+          for (const requestedPath of [relativePath, path.join(root, relativePath)]) {
+            const result = yield* issueAssetUrl({
+              resource: {
+                _tag: "draft-workspace-file",
+                cwd: root,
+                path: requestedPath,
+                ...(disposition ? { disposition } : {}),
+              },
+              workspaceRoot: root,
+            });
+            const suffix = result.relativeUrl.slice(`${ASSET_ROUTE_PREFIX}/`.length);
+            const separator = suffix.indexOf("/");
+            expect(
+              yield* resolveAsset(suffix.slice(0, separator), suffix.slice(separator + 1)),
+            ).toMatchObject({
+              kind: "file",
+              path: yield* fileSystem.realPath(path.join(outside, target)),
+            });
+          }
+        }
+        // Only a link leads out; `..` in a relative draft path is still refused.
+        const traversal = yield* issueAssetUrl({
+          resource: { _tag: "draft-workspace-file", cwd: root, path: "../outside.png" },
+          workspaceRoot: root,
+        }).pipe(Effect.flip);
+        expect(traversal._tag).toBe("AssetWorkspacePathValidationError");
+      }).pipe(Effect.provide(layerTest)),
   );
 
   it.effect("issues exact workspace URLs for every non-HTML preview", () =>

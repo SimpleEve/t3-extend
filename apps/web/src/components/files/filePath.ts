@@ -1,3 +1,4 @@
+import { isFolderEntry } from "@t3tools/client-runtime/project-symlink";
 import type { ProjectEntry } from "@t3tools/contracts";
 import { isWindowsAbsolutePath, isHostPath } from "@t3tools/shared/path";
 
@@ -80,7 +81,8 @@ export function fileBreadcrumbChildren(
       return [{ ...entry, label }];
     })
     .toSorted((left, right) => {
-      if (left.kind !== right.kind) return left.kind === "directory" ? -1 : 1;
+      const leftIsFolder = isFolderEntry(left);
+      if (leftIsFolder !== isFolderEntry(right)) return leftIsFolder ? -1 : 1;
       collator ??= new Intl.Collator(undefined, {
         numeric: true,
         sensitivity: "base",

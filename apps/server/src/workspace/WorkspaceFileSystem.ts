@@ -95,6 +95,8 @@ export class WorkspaceBinaryFileError extends Schema.TaggedError<WorkspaceBinary
     workspaceRoot: Schema.String,
     relativePath: Schema.String,
     resolvedPath: Schema.String,
+    // Clients preview a binary file as media, and say so when a link led it out of the workspace.
+    outsideWorkspace: Schema.optional(Schema.Boolean),
   },
 ) {
   override get message(): string {
@@ -251,10 +253,10 @@ export const make = Effect.gen(function* () {
   };
 
   /**
-   * Workspace-relative paths must stay inside the root, symlinks included. An
-   * absolute or `~/` path reads a host file in place, such as a report an agent
-   * wrote to a temp directory; it gets no root check. A network path does, since
-   * Windows signs in to its host with the user's NTLM credentials.
+   * A workspace-relative path names a place inside the root, but a symlink along it may lead
+   * elsewhere and the read follows it. An absolute or `~/` path reads a host file in place, such
+   * as a report an agent wrote to a temp directory; it gets no root check. A network path does,
+   * since Windows signs in to its host with the user's NTLM credentials.
    */
   const resolveReadTarget = Effect.fn("WorkspaceFileSystem.resolveReadTarget")(function* (
     input: ProjectReadFileInput,
@@ -296,7 +298,7 @@ export const make = Effect.gen(function* () {
           () => Effect.succeed(null),
         ),
       );
-      return { relativePath: requestedPath, realTargetPath };
+      return { relativePath: requestedPath, realTargetPath, outsideWorkspace: false };
     }
 
     const target = yield* workspacePaths.resolveRelativePathWithinRoot({
@@ -324,7 +326,7 @@ export const make = Effect.gen(function* () {
       ),
     );
     if (realWorkspaceRoot === null) {
-      return { relativePath: target.relativePath, realTargetPath: null };
+      return { relativePath: target.relativePath, realTargetPath: null, outsideWorkspace: false };
     }
     const resolved = yield* Effect.tryPromise({
       try: async () => {
@@ -366,7 +368,13 @@ export const make = Effect.gen(function* () {
           cause,
         }),
     });
-    if (!isInsideRealRoot(realWorkspaceRoot, resolved.realTargetPath)) {
+    // A link inside the workspace may lead out of it, as the Files tree shows. Reads follow it,
+    // like an absolute path they already allow; writes stay inside, see resolveWriteTarget.
+    // A network share is the exception, as for an absolute path.
+    if (
+      isNetworkPath(resolved.realTargetPath) &&
+      !isInsideRealRoot(realWorkspaceRoot, resolved.realTargetPath)
+    ) {
       return yield* new WorkspaceFilePathEscapeError({
         workspaceRoot: input.cwd,
         relativePath: input.relativePath,
@@ -377,6 +385,7 @@ export const make = Effect.gen(function* () {
     return {
       relativePath: target.relativePath,
       realTargetPath: resolved.exists ? resolved.realTargetPath : null,
+      outsideWorkspace: !isInsideRealRoot(realWorkspaceRoot, resolved.realTargetPath),
     };
   });
 
@@ -473,6 +482,7 @@ export const make = Effect.gen(function* () {
               workspaceRoot: input.cwd,
               relativePath: input.relativePath,
               resolvedPath: realTargetPath,
+              ...(target.outsideWorkspace ? { outsideWorkspace: true } : {}),
             });
           if (fileBytes.includes(0)) return yield* binaryFileError();
           // Fatal decoding rejects invalid UTF-8, since U+FFFD contents would corrupt the file on save.
@@ -482,7 +492,13 @@ export const make = Effect.gen(function* () {
               new TextDecoder("utf-8", { fatal: true }).decode(fileBytes, { stream: truncated }),
             catch: binaryFileError,
           });
-          return { relativePath: target.relativePath, contents, byteLength: stat.size, truncated };
+          return {
+            relativePath: target.relativePath,
+            contents,
+            byteLength: stat.size,
+            truncated,
+            ...(target.outsideWorkspace ? { outsideWorkspace: true } : {}),
+          };
         }),
       (handle) =>
         handle === null

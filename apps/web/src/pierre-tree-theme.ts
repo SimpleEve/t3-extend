@@ -1,5 +1,9 @@
 import type { CSSProperties, PointerEvent } from "react";
 
+// Lucide Folder icon, ISC license.
+const FOLDER_ICON_MASK =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'/%3E%3C/svg%3E";
+
 export const PIERRE_TREE_UNSAFE_CSS = `
   :host {
     --trees-bg-override: transparent;
@@ -13,6 +17,15 @@ export const PIERRE_TREE_UNSAFE_CSS = `
   [data-truncate-marker] { display: none; }
   button[data-type='item'], button[data-type='item']::before { border-radius: var(--radius-md); }
   svg[data-icon-name='t3-tree-icon-loading'] { opacity: 0.6; }
+  svg[data-icon-name^='t3-tree-icon-symlink'] { opacity: 0.6; }
+  button[data-type='item']:has(svg[data-icon-name='t3-tree-icon-symlink-broken'], svg[data-icon-name='t3-tree-icon-symlink-unresolved']) > [data-item-section='content'] { opacity: 0.6; }
+  /* A looping link is a leaf, so Pierre gives it a file icon, and has no per-path override. */
+  button[data-type='item']:has(svg[data-icon-name='t3-tree-icon-symlink-cycle']) > [data-item-section='icon'] > * { visibility: hidden; }
+  button[data-type='item']:has(svg[data-icon-name='t3-tree-icon-symlink-cycle']) > [data-item-section='icon'] { position: relative; }
+  button[data-type='item']:has(svg[data-icon-name='t3-tree-icon-symlink-cycle']) > [data-item-section='icon']::after {
+    content: ''; position: absolute; inset: 0; background-color: var(--trees-fg-muted-override, currentColor);
+    mask: url("${FOLDER_ICON_MASK}") center / 14px 14px no-repeat;
+  }
   @media (prefers-reduced-motion: no-preference) {
     svg[data-icon-name='t3-tree-icon-loading'] { animation: t3-tree-spin 1s linear infinite; }
   }

@@ -6,10 +6,22 @@ import type {
   ContextMenuItem as TreeContextMenuItem,
   ContextMenuOpenContext as TreeContextMenuOpenContext,
 } from "@pierre/trees";
-import type { ContextMenuSource, EnvironmentId, ProjectEntry } from "@t3tools/contracts";
+import type {
+  ContextMenuSource,
+  EnvironmentId,
+  ProjectEntry,
+  ProjectEntrySymlink,
+} from "@t3tools/contracts";
 import { FileTree, useFileTree, useFileTreeSearch, useFileTreeSelector } from "@pierre/trees/react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
+import {
+  isExpandableEntry,
+  isOpenableEntry,
+  projectSymlinkState,
+  projectSymlinkTitle,
+  type ProjectSymlinkState,
+} from "@t3tools/client-runtime/project-symlink";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Cause from "effect/Cause";
 import { T, useGT, useMessages } from "gt-react";
@@ -66,8 +78,33 @@ interface FileBrowserPanelProps {
 }
 
 function treePath(entry: ProjectEntry): string {
-  return entry.kind === "directory" ? `${entry.path}/` : entry.path;
+  return isExpandableEntry(entry) ? `${entry.path}/` : entry.path;
 }
+
+function haveSameSymlinks(
+  left: ReadonlyMap<string, ProjectEntrySymlink>,
+  right: ReadonlyMap<string, ProjectEntrySymlink>,
+): boolean {
+  if (left.size !== right.size) return false;
+  for (const [path, link] of right) {
+    const previous = left.get(path);
+    if (
+      !previous ||
+      previous.target !== link.target ||
+      projectSymlinkState(previous) !== projectSymlinkState(link)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+const SYMLINK_TREE_ICONS: Readonly<Record<ProjectSymlinkState, string>> = {
+  link: "t3-tree-icon-symlink",
+  broken: "t3-tree-icon-symlink-broken",
+  cycle: "t3-tree-icon-symlink-cycle",
+  unresolved: "t3-tree-icon-symlink-unresolved",
+};
 
 function RefreshFilesButton(props: { isPending: boolean; onRefresh: () => void }) {
   const gt = useGT();
@@ -153,16 +190,41 @@ function buildTreeEntries(
     }
   }
   const entries = [...result.values()];
+  // A link back to a parent folder is a leaf in the tree, so its kind here is the tree's.
   const entryKinds: ReadonlyMap<string, ProjectEntry["kind"]> = new Map(
-    entries.map((entry) => [entry.path, entry.kind] as const),
+    entries.map((entry) => [entry.path, isExpandableEntry(entry) ? "directory" : "file"] as const),
+  );
+  const openableFiles: ReadonlySet<string> = new Set(
+    entries.filter(isOpenableEntry).map((entry) => entry.path),
+  );
+  const symlinks: ReadonlyMap<string, ProjectEntrySymlink> = new Map(
+    entries.flatMap((entry) => (entry.symlink ? [[entry.path, entry.symlink] as const] : [])),
   );
   const treePaths = entries.map(treePath);
-  const directories = entries.filter((entry) => entry.kind === "directory");
+  const directories = entries.filter(isExpandableEntry);
   const directoryPaths = directories.map(treePath);
   // Expanding a folder lists it, and an ignored one such as `node_modules` can hold tens of
-  // thousands, so expand all skips ignored folders. They still open by hand.
-  const expandableDirectoryPaths = directories.filter((entry) => !entry.ignored).map(treePath);
-  return { entries, entryKinds, treePaths, directoryPaths, expandableDirectoryPaths };
+  // thousands, so expand all skips ignored folders. It also stays out of links and everything
+  // behind them: git cannot say what is ignored there, and a link can lead to a huge tree.
+  // All of these still open by hand.
+  const behindSymlink = (path: string) => {
+    for (let end = path.length; end > 0; end = path.lastIndexOf("/", end - 1)) {
+      if (symlinks.has(path.slice(0, end))) return true;
+    }
+    return false;
+  };
+  const expandableDirectoryPaths = directories
+    .filter((entry) => !entry.ignored && !behindSymlink(entry.path))
+    .map(treePath);
+  return {
+    entries,
+    entryKinds,
+    openableFiles,
+    symlinks,
+    treePaths,
+    directoryPaths,
+    expandableDirectoryPaths,
+  };
 }
 
 export default function FileBrowserPanel({
@@ -201,9 +263,17 @@ export default function FileBrowserPanel({
     undefined,
     messages,
   );
-  const { entries, entryKinds, treePaths, directoryPaths, expandableDirectoryPaths } =
-    buildTreeEntries(directoryEntries, pathSearch.entries, pathSearch.isPending, query);
-  const entryKindsRef = useRef(entryKinds);
+  const {
+    entries,
+    entryKinds,
+    openableFiles,
+    symlinks,
+    treePaths,
+    directoryPaths,
+    expandableDirectoryPaths,
+  } = buildTreeEntries(directoryEntries, pathSearch.entries, pathSearch.isPending, query);
+  const openableFilesRef = useRef(openableFiles);
+  const symlinksRef = useRef(symlinks);
   const previousTreePathsRef = useRef<readonly string[] | null>(null);
   const syncingSelectionRef = useRef(false);
   const treeSelectionPathRef = useRef<string | null>(null);
@@ -235,13 +305,20 @@ export default function FileBrowserPanel({
       const position = pointerIsFresh
         ? { x: pointer.x, y: pointer.y }
         : { x: anchorRect.left, y: anchorRect.bottom };
+      const symlink = symlinksRef.current.get(relativePath);
+      const symlinkState = symlink && projectSymlinkState(symlink);
       const fileTarget = {
         environmentId,
         filePath: relativePath,
         workspaceRoot: cwd,
-        isDirectory: item.kind === "directory",
+        // A loop is a leaf in the tree, but what it names is a folder.
+        isDirectory: item.kind === "directory" || symlinkState === "cycle",
       };
-      const fileMenuItems = fileContextMenu.buildItems(fileTarget);
+      // The host cannot open or reveal what is not there, or what it could not reach.
+      const fileMenuItems =
+        symlinkState === "broken" || symlinkState === "unresolved"
+          ? []
+          : fileContextMenu.buildItems(fileTarget);
       // The app menu owns focus; the tree's outside-click handler would dismiss it before click.
       context.close({ restoreFocus: !pointerIsFresh });
       void settlePromise(async () => {
@@ -326,18 +403,28 @@ export default function FileBrowserPanel({
         return;
       }
       const selectedPath = selectedPaths.at(-1)?.replace(/\/$/, "");
-      if (selectedPath && entryKindsRef.current.get(selectedPath) === "file") {
+      if (selectedPath && openableFilesRef.current.has(selectedPath)) {
         treeSelectionPathRef.current = selectedPath;
         onOpenFile(panelPath(selectedPath));
       }
     },
     paths: [],
-    renderRowDecoration: ({ item, row }) =>
-      row.kind === "directory" &&
-      row.isExpanded &&
-      loadingDirectoriesRef.current.has(item.path.replace(/\/$/, ""))
-        ? { icon: "t3-tree-icon-loading", title: gt("Loading…") }
-        : null,
+    renderRowDecoration: ({ item, row }) => {
+      const path = item.path.replace(/\/$/, "");
+      if (row.kind === "directory" && row.isExpanded && loadingDirectoriesRef.current.has(path)) {
+        return { icon: "t3-tree-icon-loading", title: gt("Loading…") };
+      }
+      // Folders with one child share a row, so a link can be any part of it.
+      const symlink = (row.flattenedSegments?.map((segment) => segment.path) ?? [item.path])
+        .map((segmentPath) => symlinksRef.current.get(segmentPath.replace(/\/$/, "")))
+        .find((link) => link !== undefined);
+      if (!symlink) return null;
+      return {
+        icon: SYMLINK_TREE_ICONS[projectSymlinkState(symlink)],
+        // Pierre calls this outside React's render, so the resolver reads the active language.
+        title: projectSymlinkTitle(symlink, m),
+      };
+    },
     search: false,
     onSearchChange: (value) => setQuery(value ?? ""),
     unsafeCSS: PIERRE_TREE_UNSAFE_CSS,
@@ -348,6 +435,14 @@ export default function FileBrowserPanel({
     loadingDirectoriesRef.current = loadingDirectories;
     model.setComposition(model.getComposition());
   }, [loadingDirectories, model]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- makes the Pierre tree model re-render row decorations and keeps the click handlers' link state current when listings change
+  useEffect(() => {
+    openableFilesRef.current = openableFiles;
+    // Every listing builds a new map; the tree only needs redrawing when a link in it changed.
+    if (haveSameSymlinks(symlinksRef.current, symlinks)) return;
+    symlinksRef.current = symlinks;
+    model.setComposition(model.getComposition());
+  }, [model, openableFiles, symlinks]);
   const search = useFileTreeSearch(model);
   // Pierre restores the unfiltered tree when a search has no matches.
   const hasNoSearchMatches = search.value.trim().length > 0 && search.matchingPaths.length === 0;
@@ -470,7 +565,6 @@ export default function FileBrowserPanel({
   useEffect(() => {
     if (!ready) return;
     if (previousTreePathsRef.current === treePaths) return;
-    entryKindsRef.current = entryKinds;
     const previousTreePaths = previousTreePathsRef.current;
     previousTreePathsRef.current = treePaths;
     if (previousTreePaths === null) {
@@ -492,7 +586,7 @@ export default function FileBrowserPanel({
     if (followedRevealRef.current !== null) {
       model.scrollToPath(followedRevealRef.current, { focus: false, offset: "center" });
     }
-  }, [ready, entryKinds, model, treePaths]);
+  }, [ready, model, treePaths]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- expands every directory in the Pierre tree model while expand-all is on and no search is active
   useEffect(() => {
@@ -690,7 +784,7 @@ export default function FileBrowserPanel({
             // Pierre emits no change for its sole selected row; read before the click to avoid double opens.
             const selected = model.getSelectedPaths();
             const path = selected.length === 1 ? selected[0] : undefined;
-            if (!path || entryKindsRef.current.get(path) !== "file") return;
+            if (!path || !openableFilesRef.current.has(path)) return;
             const clickedSelectedRow = event.nativeEvent
               .composedPath()
               .some(

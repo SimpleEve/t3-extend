@@ -527,7 +527,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceFileSystemLive", (i
     );
 
     it.effect.skipIf(!symlinksSupported)(
-      "rejects symlinks that resolve outside the workspace root",
+      "says a binary file reached through a link out of the workspace is outside it",
       () =>
         Effect.gen(function* () {
           const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
@@ -535,39 +535,91 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceFileSystemLive", (i
           const path = yield* Path.Path;
           const cwd = yield* makeTempDir;
           const outsideDir = yield* makeTempDir;
+          yield* writeTextFile(cwd, "inside.bin", "a\0b");
+          yield* writeTextFile(outsideDir, "image.bin", "a\0b");
+          yield* fileSystem.symlink(path.join(outsideDir, "image.bin"), path.join(cwd, "away.bin"));
+          yield* fileSystem.symlink("inside.bin", path.join(cwd, "near.bin"));
+
+          const read = (relativePath: string) =>
+            workspaceFileSystem.readFile({ cwd, relativePath }).pipe(Effect.flip);
+          const away = yield* read("away.bin");
+          expect(away).toBeInstanceOf(WorkspaceFileSystem.WorkspaceBinaryFileError);
+          expect(away).toMatchObject({ outsideWorkspace: true });
+          for (const relativePath of ["inside.bin", "near.bin"]) {
+            const error = yield* read(relativePath);
+            expect(error).toBeInstanceOf(WorkspaceFileSystem.WorkspaceBinaryFileError);
+            expect(error).not.toHaveProperty("outsideWorkspace");
+          }
+        }),
+    );
+
+    it.effect.skipIf(!symlinksSupported)(
+      "reads through symlinks that resolve outside the workspace root, and still refuses to write",
+      () =>
+        Effect.gen(function* () {
+          const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          const cwd = yield* makeTempDir;
+          const outsideDir = yield* makeTempDir;
+          yield* writeTextFile(cwd, "inside.txt", "inside\n");
           yield* writeTextFile(outsideDir, "secret.txt", "outside\n");
+          yield* writeTextFile(outsideDir, "nested/deep.txt", "deep\n");
           yield* fileSystem.symlink(
             path.join(outsideDir, "secret.txt"),
             path.join(cwd, "linked-secret.txt"),
           );
-
-          const error = yield* workspaceFileSystem
-            .readFile({ cwd, relativePath: "linked-secret.txt" })
-            .pipe(Effect.flip);
-          const resolvedWorkspaceRoot = yield* fileSystem.realPath(cwd);
-          const resolvedPath = yield* fileSystem.realPath(path.join(outsideDir, "secret.txt"));
-
-          expect(error).toBeInstanceOf(WorkspaceFileSystem.WorkspaceFilePathEscapeError);
-          expect(error).toMatchObject({
-            workspaceRoot: cwd,
-            relativePath: "linked-secret.txt",
-            resolvedWorkspaceRoot,
-            resolvedPath,
-          });
-          expect("cause" in error).toBe(false);
-
           yield* fileSystem.symlink(outsideDir, path.join(cwd, "linked-dir"));
-          const missingChildError = yield* workspaceFileSystem
-            .readFile(
-              Object.assign(
-                { cwd, relativePath: "linked-dir/missing/t3.json" },
-                { allowMissing: true },
-              ),
-            )
-            .pipe(Effect.flip);
-          expect(missingChildError).toBeInstanceOf(
-            WorkspaceFileSystem.WorkspaceFilePathEscapeError,
+          yield* fileSystem.symlink("inside.txt", path.join(cwd, "linked-inside.txt"));
+
+          const viaFile = yield* workspaceFileSystem.readFile({
+            cwd,
+            relativePath: "linked-secret.txt",
+          });
+          expect(viaFile).toMatchObject({
+            relativePath: "linked-secret.txt",
+            contents: "outside\n",
+            outsideWorkspace: true,
+          });
+          const viaDirectory = yield* workspaceFileSystem.readFile({
+            cwd,
+            relativePath: "linked-dir/nested/deep.txt",
+          });
+          expect(viaDirectory).toMatchObject({ contents: "deep\n", outsideWorkspace: true });
+          // A link that stays inside the workspace is not flagged.
+          expect(
+            yield* workspaceFileSystem.readFile({ cwd, relativePath: "linked-inside.txt" }),
+          ).not.toHaveProperty("outsideWorkspace");
+          // An absent file beyond the link reads as absent, not as an error.
+          const missing = yield* workspaceFileSystem.readFile(
+            Object.assign({ cwd, relativePath: "linked-dir/missing.txt" }, { allowMissing: true }),
           );
+          expect(missing.exists).toBe(false);
+          // `..` cannot walk a path out of the workspace, only a link can.
+          const traversal = yield* workspaceFileSystem
+            .readFile({ cwd, relativePath: "../secret.txt" })
+            .pipe(Effect.flip);
+          expect(traversal._tag).toBe("WorkspacePathOutsideRootError");
+
+          // Reading through the link grants nothing to writes: every way in is still refused.
+          for (const relativePath of [
+            "linked-secret.txt",
+            "linked-dir/secret.txt",
+            "linked-dir/new.txt",
+            "linked-dir/nested/deep.txt",
+          ]) {
+            const error = yield* workspaceFileSystem
+              .writeFile({ cwd, relativePath, contents: "# nope\n" })
+              .pipe(Effect.flip);
+            expect(error).toBeInstanceOf(WorkspaceFileSystem.WorkspaceFilePathEscapeError);
+          }
+          expect(yield* fileSystem.readFileString(path.join(outsideDir, "secret.txt"))).toBe(
+            "outside\n",
+          );
+          expect((yield* fileSystem.readDirectory(outsideDir)).toSorted()).toEqual([
+            "nested",
+            "secret.txt",
+          ]);
         }),
     );
 

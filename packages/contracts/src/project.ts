@@ -285,10 +285,28 @@ export const ProjectSearchEntriesInput = Schema.Struct({
 });
 export type ProjectSearchEntriesInput = typeof ProjectSearchEntriesInput.Type;
 
+/**
+ * Present only on a symbolic link; at most one flag is set, and a flagged entry has `kind` "file".
+ * `target` is the link's own text. It is left off a link git ignores, and off a folder's links
+ * inside the workspace when there are over 200; clients show a plain "link" then.
+ */
+export const ProjectEntrySymlink = Schema.Struct({
+  target: Schema.optional(Schema.String),
+  // Nothing readable sits behind it, so it cannot be opened.
+  broken: Schema.optional(Schema.Boolean),
+  // Points at a folder that contains the one listed, so it must not be expanded. Its `kind` is
+  // "file" so that clients which ignore this field do not expand it without end.
+  cycle: Schema.optional(Schema.Boolean),
+  // Following it took too long, so nothing is known about the target. Listing again retries.
+  unresolved: Schema.optional(Schema.Boolean),
+});
+export type ProjectEntrySymlink = typeof ProjectEntrySymlink.Type;
+
 export const ProjectEntry = Schema.Struct({
   path: TrimmedNonEmptyString,
   kind: ProjectEntryKind,
   ignored: Schema.optional(Schema.Boolean),
+  symlink: Schema.optional(ProjectEntrySymlink),
 });
 export type ProjectEntry = typeof ProjectEntry.Type;
 
@@ -491,6 +509,8 @@ export const ProjectReadFileResult = Schema.Struct({
   truncated: Schema.Boolean,
   // Omitted by older servers; false only for an absent optional file.
   exists: Schema.optional(Schema.Boolean),
+  // A link in the workspace led out of it, so the file can be read but saving is refused.
+  outsideWorkspace: Schema.optional(Schema.Boolean),
 });
 export type ProjectReadFileResult = typeof ProjectReadFileResult.Type;
 
@@ -523,6 +543,7 @@ type ProjectFileFailureContext = {
   readonly resolvedWorkspaceRoot?: string;
   readonly operation?: ProjectFileOperation;
   readonly operationPath?: string;
+  readonly outsideWorkspace?: boolean;
   readonly cause?: unknown;
 };
 
@@ -536,6 +557,8 @@ export class ProjectReadFileError extends Schema.TaggedError<ProjectReadFileErro
     resolvedWorkspaceRoot: Schema.optional(TrimmedNonEmptyString),
     operation: Schema.optional(ProjectFileOperation),
     operationPath: Schema.optional(Schema.NonEmptyString),
+    // Set on `binary_file`: a link in the workspace led out of it, as it does for a text read.
+    outsideWorkspace: Schema.optional(Schema.Boolean),
     message: TrimmedNonEmptyString,
     cause: Schema.optional(Schema.Defect()),
   },

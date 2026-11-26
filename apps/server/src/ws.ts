@@ -707,6 +707,7 @@ function projectFileFailureContext(
   readonly resolvedWorkspaceRoot?: string;
   readonly operation?: ProjectFileOperation;
   readonly operationPath?: string;
+  readonly outsideWorkspace?: boolean;
 } {
   switch (error._tag) {
     case "WorkspacePathOutsideRootError":
@@ -728,7 +729,11 @@ function projectFileFailureContext(
     case "WorkspacePathNotFileError":
       return { failure: "path_not_file", resolvedPath: error.resolvedPath };
     case "WorkspaceBinaryFileError":
-      return { failure: "binary_file", resolvedPath: error.resolvedPath };
+      return {
+        failure: "binary_file",
+        resolvedPath: error.resolvedPath,
+        ...(error.outsideWorkspace ? { outsideWorkspace: true } : {}),
+      };
     default:
       return unexpectedCompatibilityError(error);
   }
