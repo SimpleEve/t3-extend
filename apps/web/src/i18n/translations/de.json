@@ -143,7 +143,7 @@
   "862e21313667b577": "Symbolischer Link",
   "fcac84b9b2aaa56e": "Defekter symbolischer Link auf {target}",
   "a037854e5c79c137": "Symbolischer Link auf {target} (Schleife zurück zu einem übergeordneten Ordner)",
-  "38ef2354920a0cb8": "Symbolischer Link auf {target} (noch nicht aufgelöst, zum Wiederholen aktualisieren)",
+  "7f4e1d88203cd710": "Symbolischer Link auf {target} (nicht rechtzeitig aufgelöst)",
   "f371db48fe6fca9d": "Symbolischer Link auf {target}",
   "aba3bb73ce212f0c": "{names} erfordert {providerName} {version} oder neuer, aber der Homebrew-Cask claude-code hat nur {latestVersion}. Wechsle zum Cask claude-code@latest: {command}",
   "a0854b0f9604fc7b": "{runtime, select, codex {{names} erfordert die Codex CLI {version} oder neuer, aber diese Installation kann höchstens auf {latestVersion} aktualisieren. Installiere die Codex CLI auf anderem Weg oder warte auf ein neueres Release.} other {{names} erfordert {providerName} {version} oder neuer, aber diese Installation kann höchstens auf {latestVersion} aktualisieren. Installiere {providerName} auf anderem Weg oder warte auf ein neueres Release.}}",

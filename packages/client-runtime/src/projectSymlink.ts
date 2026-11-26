@@ -33,7 +33,7 @@ export function projectSymlinkTitle(
   resolve: MFunctionType = mFallback,
 ): string {
   const { target } = symlink;
-  // The server leaves the text out of ordinary links that stay inside the workspace.
+  // The server leaves the text off ignored links, and off the links of a folder that has too many.
   if (target === undefined) return resolve(msg("Symbolic link"));
   switch (projectSymlinkState(symlink)) {
     case "broken":
@@ -41,9 +41,7 @@ export function projectSymlinkTitle(
     case "cycle":
       return resolve(msg("Symbolic link to {target} (loops back to a parent folder)", { target }));
     case "unresolved":
-      return resolve(
-        msg("Symbolic link to {target} (not resolved yet, refresh to retry)", { target }),
-      );
+      return resolve(msg("Symbolic link to {target} (could not be resolved in time)", { target }));
     case "link":
       return resolve(msg("Symbolic link to {target}", { target }));
   }

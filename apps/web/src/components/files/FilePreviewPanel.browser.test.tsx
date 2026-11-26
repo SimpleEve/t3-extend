@@ -1,5 +1,10 @@
 import { DEFAULT_THEMES, preloadHighlighter } from "@pierre/diffs";
-import { EnvironmentId, ThreadId, type ProjectReadFileResult } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  ProjectReadFileError,
+  ThreadId,
+  type ProjectReadFileResult,
+} from "@t3tools/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { StrictMode, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -15,6 +20,7 @@ import {
 
 const state = vi.hoisted(() => ({
   file: null as ProjectReadFileResult | null,
+  readError: null as ProjectReadFileError | null,
   optimistic: null as ProjectReadFileResult | null,
   writeFile: vi.fn(),
   assetUrl: { _tag: "Loading" } as import("~/assets/assetUrls").AssetUrlState,
@@ -150,7 +156,7 @@ vi.mock(import("./projectFilesQueryState"), async (original) => ({
     data: state.file,
     error: null,
     isPending: false,
-    readError: null,
+    readError: state.readError,
     isNotFile: false,
     isFile: true,
     refresh: vi.fn(),
@@ -178,6 +184,7 @@ function setup() {
   localStorage.setItem(keys[0]!, "false");
   localStorage.setItem(keys[1]!, "true");
   state.file = null;
+  state.readError = null;
   state.optimistic = null;
   state.assetUrl = { _tag: "Loading" };
   state.assetResources = [];
@@ -678,6 +685,46 @@ describe("workspace document previews", () => {
     await screen.rerender(documentPreview("mutation-2", "revision-2"));
 
     await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=2");
+  });
+});
+
+describe("files a link leads out of the workspace", () => {
+  const readOnlyNotice = "Read-only (outside the workspace)";
+
+  it("says a text file is read-only, and says nothing of one inside", async () => {
+    using _settings = setup();
+    state.file = {
+      relativePath: "away.txt",
+      contents: "hello\n",
+      byteLength: 6,
+      truncated: false,
+      outsideWorkspace: true,
+    };
+    await using screen = await render(filePreview("away.txt"));
+    await expect.element(screen.getByText(readOnlyNotice)).toBeInTheDocument();
+
+    state.file = { relativePath: "near.txt", contents: "hello\n", byteLength: 6, truncated: false };
+    await screen.rerender(filePreview("near.txt"));
+    await expect.element(screen.getByText("hello")).toBeInTheDocument();
+    expect(screen.container.textContent).not.toContain(readOnlyNotice);
+  });
+
+  it("says an image is read-only too, though it is read as media", async () => {
+    using _settings = setup();
+    const binaryRead = (outsideWorkspace: boolean) =>
+      new ProjectReadFileError({
+        cwd: "/workspace",
+        relativePath: "photo.png",
+        failure: "binary_file",
+        ...(outsideWorkspace ? { outsideWorkspace } : {}),
+      });
+    state.readError = binaryRead(true);
+    await using screen = await render(filePreview("photo.png"));
+    await expect.element(screen.getByText(readOnlyNotice)).toBeInTheDocument();
+
+    state.readError = binaryRead(false);
+    await screen.rerender(filePreview("photo.png", "mutation-1"));
+    expect(screen.container.textContent).not.toContain(readOnlyNotice);
   });
 });
 

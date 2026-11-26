@@ -143,7 +143,7 @@
   "862e21313667b577": "Link simbólico",
   "fcac84b9b2aaa56e": "Link simbólico quebrado para {target}",
   "a037854e5c79c137": "Link simbólico para {target} (volta em loop a uma pasta superior)",
-  "38ef2354920a0cb8": "Link simbólico para {target} (ainda não resolvido, atualize para tentar de novo)",
+  "7f4e1d88203cd710": "Link simbólico para {target} (não foi resolvido a tempo)",
   "f371db48fe6fca9d": "Link simbólico para {target}",
   "aba3bb73ce212f0c": "Usar {names} requer {providerName} {version} ou mais recente, mas o cask claude-code do Homebrew só tem {latestVersion}. Mude para o cask claude-code@latest: {command}",
   "a0854b0f9604fc7b": "{runtime, select, codex {Usar {names} requer a CLI do Codex {version} ou mais recente, mas esta instalação só pode ser atualizada até {latestVersion}. Instale a CLI do Codex de outra forma ou aguarde uma versão mais recente.} other {Usar {names} requer {providerName} {version} ou mais recente, mas esta instalação só pode ser atualizada até {latestVersion}. Instale {providerName} de outra forma ou aguarde uma versão mais recente.}}",

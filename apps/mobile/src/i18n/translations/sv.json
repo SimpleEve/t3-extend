@@ -143,7 +143,7 @@
   "862e21313667b577": "Symbolisk länk",
   "fcac84b9b2aaa56e": "Trasig symbolisk länk till {target}",
   "a037854e5c79c137": "Symbolisk länk till {target} (går i slinga till en överordnad mapp)",
-  "38ef2354920a0cb8": "Symbolisk länk till {target} (inte löst än, uppdatera för att försöka igen)",
+  "7f4e1d88203cd710": "Symbolisk länk till {target} (kunde inte lösas i tid)",
   "f371db48fe6fca9d": "Symbolisk länk till {target}",
   "aba3bb73ce212f0c": "{names} kräver {providerName} {version} eller senare, men Homebrew-casken claude-code har bara {latestVersion}. Byt till casken claude-code@latest: {command}",
   "a0854b0f9604fc7b": "{runtime, select, codex {{names} kräver Codex CLI {version} eller senare, men den här installationen kan bara uppdateras till {latestVersion}. Installera Codex CLI på ett annat sätt eller vänta på en nyare version.} other {{names} kräver {providerName} {version} eller senare, men den här installationen kan bara uppdateras till {latestVersion}. Installera {providerName} på ett annat sätt eller vänta på en nyare version.}}",

@@ -46,7 +46,7 @@ describe("project symlinks", () => {
       "Symbolic link to /data",
       "Broken symbolic link to missing",
       "Symbolic link to .. (loops back to a parent folder)",
-      "Symbolic link to /mnt/slow (not resolved yet, refresh to retry)",
+      "Symbolic link to /mnt/slow (could not be resolved in time)",
     ]);
   });
 });

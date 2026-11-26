@@ -1687,7 +1687,7 @@ export default function FilePreviewPanel({
           ) : null}
         </div>
       ) : null}
-      {relativePath && file.data?.outsideWorkspace ? (
+      {relativePath && (file.data?.outsideWorkspace || file.readError?.outsideWorkspace) ? (
         <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
           <T>Read-only (outside the workspace)</T>
         </div>

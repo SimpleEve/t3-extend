@@ -143,7 +143,7 @@
   "862e21313667b577": "Lien symbolique",
   "fcac84b9b2aaa56e": "Lien symbolique cassé vers {target}",
   "a037854e5c79c137": "Lien symbolique vers {target} (boucle vers un dossier parent)",
-  "38ef2354920a0cb8": "Lien symbolique vers {target} (pas encore résolu, actualisez pour réessayer)",
+  "7f4e1d88203cd710": "Lien symbolique vers {target} (non résolu à temps)",
   "f371db48fe6fca9d": "Lien symbolique vers {target}",
   "aba3bb73ce212f0c": "{names} nécessite {providerName} {version} ou une version plus récente, mais le cask Homebrew claude-code ne propose que {latestVersion}. Passe au cask claude-code@latest : {command}",
   "a0854b0f9604fc7b": "{runtime, select, codex {{names} nécessite la CLI Codex {version} ou une version ultérieure, mais cette installation ne peut pas dépasser {latestVersion}. Installez la CLI Codex autrement ou attendez une nouvelle version.} other {{names} nécessite {providerName} {version} ou une version ultérieure, mais cette installation ne peut pas dépasser {latestVersion}. Installez {providerName} autrement ou attendez une nouvelle version.}}",

@@ -216,7 +216,7 @@ describe("FileBrowserPanel", () => {
     ]);
     expect(decorations("slow.txt")).toEqual([
       [
-        "Symbolic link to /mnt/slow.txt (not resolved yet, refresh to retry)",
+        "Symbolic link to /mnt/slow.txt (could not be resolved in time)",
         "t3-tree-icon-symlink-unresolved",
       ],
     ]);

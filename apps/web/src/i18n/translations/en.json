@@ -143,7 +143,7 @@
   "862e21313667b577": "Symbolic link",
   "fcac84b9b2aaa56e": "Broken symbolic link to {target}",
   "a037854e5c79c137": "Symbolic link to {target} (loops back to a parent folder)",
-  "38ef2354920a0cb8": "Symbolic link to {target} (not resolved yet, refresh to retry)",
+  "7f4e1d88203cd710": "Symbolic link to {target} (could not be resolved in time)",
   "f371db48fe6fca9d": "Symbolic link to {target}",
   "aba3bb73ce212f0c": "Using {names} requires {providerName} {version} or newer, but the claude-code Homebrew cask only has {latestVersion}. Switch to the claude-code@latest cask: {command}",
   "a0854b0f9604fc7b": "{runtime, select, codex {Using {names} requires the Codex CLI {version} or newer, but the newest this install can update to is {latestVersion}. Install the Codex CLI another way or wait for a newer release.} other {Using {names} requires {providerName} {version} or newer, but the newest this install can update to is {latestVersion}. Install {providerName} another way or wait for a newer release.}}",
