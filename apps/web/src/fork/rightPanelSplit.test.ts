@@ -17,6 +17,7 @@ import {
   type PanelLayout,
   resolveSplitLayout,
   sanitizeLayout,
+  surfacesAfter,
   type SplitDirection,
 } from "./rightPanelSplit";
 
@@ -652,5 +653,18 @@ describe("a terminal id that is used again", () => {
       cell.tabIds.includes("terminal:term-1"),
     )!;
     expect(terminalCell.id).toBe(cellIdOf("a"));
+  });
+});
+
+describe("the tabs to the right of one", () => {
+  const tabs = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("lists what follows it, and nothing for the last tab", () => {
+    expect(surfacesAfter(tabs, "a")).toEqual([{ id: "b" }, { id: "c" }]);
+    expect(surfacesAfter(tabs, "c")).toEqual([]);
+  });
+
+  it("lists nothing, rather than every tab, for one that is not there", () => {
+    expect(surfacesAfter(tabs, "gone")).toEqual([]);
   });
 });

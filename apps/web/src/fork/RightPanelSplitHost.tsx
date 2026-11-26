@@ -44,6 +44,7 @@ import { RightPanelCellProvider, type RightPanelCellValue } from "./rightPanelCe
 import {
   allowedSplitDirections,
   cellsOf,
+  surfacesAfter,
   type PanelLayout,
   type SplitDirection,
   type SplitOperation,
@@ -628,9 +629,7 @@ function HostedCell(props: {
           props.closeSurfaces(surfaces.filter((entry) => entry.id !== surface.id))
         }
         onCloseSurfacesToRight={(surface) =>
-          props.closeSurfaces(
-            surfaces.slice(surfaces.findIndex((entry) => entry.id === surface.id) + 1),
-          )
+          props.closeSurfaces(surfacesAfter(surfaces, surface.id))
         }
         onCloseAllSurfaces={() => props.closeSurfaces(surfaces)}
       >

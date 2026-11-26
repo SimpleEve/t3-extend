@@ -686,3 +686,12 @@ export function resolveSplitLayout(state: SplitState): PanelLayout | null {
 export function focusedCellOf(layout: PanelLayout | null): PanelCell | null {
   return layout === null ? null : findCell(layout, layout.focusedCellId);
 }
+
+/** The surfaces after `id`; none when `id` is not among them, so a stale id closes nothing. */
+export function surfacesAfter<S extends { id: string }>(
+  surfaces: readonly S[],
+  id: string,
+): readonly S[] {
+  const index = surfaces.findIndex((surface) => surface.id === id);
+  return index < 0 ? [] : surfaces.slice(index + 1);
+}
