@@ -219,12 +219,15 @@ export interface AntigravityAccountPool {
   readonly clear: Effect.Effect<void, AntigravityAccountPoolError>;
   /**
    * Run before agy starts. Always restores the current account if a sign-in was cut short; with
-   * `rotate`, also moves to the first usable account when the current one is spent. True when the
-   * file agy reads now holds a different account than before.
+   * `rotate`, also moves to the first usable account when the current one is spent. `swapped` when
+   * the file agy reads now holds a different account than before; `spent` names the one rotated away from.
    */
   readonly ensureAvailable: (options: {
     readonly rotate: boolean;
-  }) => Effect.Effect<boolean, AntigravityAccountPoolError>;
+  }) => Effect.Effect<
+    { readonly swapped: boolean; readonly spent?: string },
+    AntigravityAccountPoolError
+  >;
 }
 
 interface Identity {
@@ -676,19 +679,19 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
           // A sign-in that never finished left no current file: bring the last account back.
           if (state.currentId !== null && state.order.includes(state.currentId)) {
             return yield* install(state.currentId).pipe(
-              Effect.as(true),
-              Effect.orElseSucceed(() => false),
+              Effect.as({ swapped: true }),
+              Effect.orElseSucceed(() => ({ swapped: false })),
             );
           }
-          return false;
+          return { swapped: false };
         }
-        if (!rotate || exhaustedAt(state, current.id, now) === null) return false;
+        if (!rotate || exhaustedAt(state, current.id, now) === null) return { swapped: false };
         const captured = yield* captureCurrent(state);
         const next = nextUsable(captured.state, current.id, now);
-        if (next === undefined) return false;
+        if (next === undefined) return { swapped: false };
         yield* install(next);
         yield* writeState(pruned(yield* withCurrent(captured.state, next), now));
-        return true;
+        return { swapped: true, spent: current.id };
       }),
     );
 

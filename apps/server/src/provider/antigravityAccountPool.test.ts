@@ -253,9 +253,14 @@ describe("Antigravity account pool rotation", () => {
       expect(yield* readCurrent()).toBe(token("a@example.com"));
       const accounts = yield* pool.list;
       expect(accounts[0]).toMatchObject({ current: true, exhaustedUntil: resetAt });
-      yield* pool.ensureAvailable({ rotate: true });
+      const spent = accounts[0]!.id;
+      expect(yield* pool.ensureAvailable({ rotate: true })).toEqual({ swapped: true, spent });
       expect(yield* readCurrent()).toBe(token("b@example.com"));
       expect((yield* pool.list).find((account) => account.current)?.email).toBe("b@example.com");
+      // The account left behind can now be read, which tells which of its windows ran out.
+      const lease = yield* pool.beginProbe(spent);
+      expect(lease?.id).toBe(spent);
+      if (lease) yield* pool.cancelProbe(lease);
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 
@@ -338,7 +343,7 @@ describe("Antigravity account pool rotation", () => {
       yield* agyWrites(token("a@example.com"));
       yield* addAccount("b@example.com");
       yield* pool.markExhausted();
-      yield* pool.ensureAvailable({ rotate: false });
+      expect(yield* pool.ensureAvailable({ rotate: false })).toEqual({ swapped: false });
       expect(yield* readCurrent()).toBe(token("b@example.com"));
       // A sign-in cut short by a crash left no current file; the last account comes back.
       yield* pool.beginAdd;
