@@ -1,6 +1,6 @@
 import "~/index.css";
 
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -477,6 +477,28 @@ describe("RightPanelSplitHost", () => {
         screen.container.querySelector<HTMLElement>("[data-test-button='file:b.ts']")!.focus(),
       );
       await vi.waitFor(() => expect(focusedCell(screen.container)).toBe("file:b.ts"));
+    });
+
+    it("does not count a press in the cell that already holds the focus as the user acting", async () => {
+      const { panel, screen } = await splitPanel();
+      using _panel = panel;
+      await using _screen = screen;
+      const key = scopedThreadKey(threadRef);
+      const revision = () => useRightPanelStore.getState().userActionRevisionByThreadKey[key] ?? 0;
+      const guest = document.createElement("div");
+      guest.dataset.previewViewport = "guest:file:c.ts";
+      document.body.append(guest);
+      try {
+        const before = revision();
+        await send("pointerdown", guest, 10, 10, 1);
+        await send("pointerdown", guest, 10, 10, 1);
+        expect(revision()).toBe(before);
+        guest.dataset.previewViewport = "guest:file:b.ts";
+        await send("pointerdown", guest, 10, 10, 1);
+        expect(revision()).toBeGreaterThan(before);
+      } finally {
+        guest.remove();
+      }
     });
 
     it("moves to the cell of a browser guest that reports a press", async () => {

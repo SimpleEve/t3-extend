@@ -238,6 +238,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
   const apply = (operation: SplitOperation) =>
     useRightPanelStore.getState().applySplit(threadRef, operation);
 
+  const focusedCellId = layout?.focusedCellId ?? "c1";
   const focusable = layout !== null && fits;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- a browser guest's press reaches the page only as an event replayed on its wrapper, which sits outside the cells
   useEffect(() => {
@@ -253,11 +254,14 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
       const cellId = slot
         ?.closest("[data-right-panel-cell]")
         ?.getAttribute("data-right-panel-cell");
-      if (cellId) useRightPanelStore.getState().applySplit(threadRef, { kind: "focus", cellId });
+      // A press in the focused cell changes nothing, and a focus op would count as the user acting.
+      if (cellId && cellId !== focusedCellId) {
+        useRightPanelStore.getState().applySplit(threadRef, { kind: "focus", cellId });
+      }
     };
     document.addEventListener("pointerdown", onPress, true);
     return () => document.removeEventListener("pointerdown", onPress, true);
-  }, [focusable, threadRef]);
+  }, [focusable, focusedCellId, threadRef]);
 
   const folded = layout !== null && !fits;
   const surfacesById = new Map<string, RightPanelSurface>(
@@ -277,7 +281,6 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
         ]
       : layoutCells(layout);
   const cellOfTab = (surfaceId: string) => cells.find((cell) => cell.tabIds.includes(surfaceId));
-  const focusedCellId = layout?.focusedCellId ?? "c1";
 
   const zonesFor = (cellId: string, rect: Rect, surfaceId: string): SplitDirection[] => {
     if (folded) return [];
