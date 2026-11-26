@@ -105,7 +105,37 @@ function cellBox(layout: PanelLayout, g: 0 | 1, c: number): CSSProperties {
         : c === 0
           ? { left: 0, width: `var(--ps-i${g})` }
           : { left: `var(--ps-i${g})`, right: 0 };
-  return { ...outer, ...inner };
+  return { ...outer, ...inner, ...gutter(layout, g, c) };
+}
+
+/**
+ * Half a divider's width, kept free on each cell's side that touches one. A browser guest draws
+ * above the page, so without it the guests would cover the divider and it could not be grabbed.
+ */
+const GUTTER = 4;
+
+function gutter(layout: PanelLayout, g: 0 | 1, c: number): CSSProperties {
+  const row = layout.axis === "row";
+  const split = layout.groups[g].cells.length === 2;
+  const outer = row
+    ? g === 0
+      ? "paddingRight"
+      : "paddingLeft"
+    : g === 0
+      ? "paddingBottom"
+      : "paddingTop";
+  const inner = row
+    ? c === 0
+      ? "paddingBottom"
+      : "paddingTop"
+    : c === 0
+      ? "paddingRight"
+      : "paddingLeft";
+  return {
+    boxSizing: "border-box",
+    [outer]: GUTTER,
+    ...(split ? { [inner]: GUTTER } : {}),
+  };
 }
 
 function containerVariables(layout: PanelLayout): CSSProperties {
