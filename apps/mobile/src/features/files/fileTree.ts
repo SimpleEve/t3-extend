@@ -1,11 +1,22 @@
-import type { ProjectEntry } from "@t3tools/contracts";
+import type { ProjectEntry, ProjectEntrySymlink } from "@t3tools/contracts";
 
 export interface FileTreeNode {
   readonly path: string;
   readonly name: string;
   readonly kind: ProjectEntry["kind"];
   readonly ignored?: boolean;
+  readonly symlink?: ProjectEntrySymlink;
   readonly children: ReadonlyArray<FileTreeNode>;
+}
+
+/** A link back to a parent folder stays a leaf: expanding it would only list the same folders again. */
+export function canExpandNode(node: Pick<FileTreeNode, "kind" | "symlink">): boolean {
+  return node.kind === "directory" && node.symlink?.cycle !== true;
+}
+
+/** A broken link is listed so it can be seen, but nothing is there to open. */
+export function canOpenNode(node: Pick<FileTreeNode, "kind" | "symlink">): boolean {
+  return node.kind === "file" && node.symlink?.broken !== true;
 }
 
 export interface VisibleFileTreeNode {
@@ -18,6 +29,7 @@ interface MutableFileTreeNode {
   name: string;
   kind: ProjectEntry["kind"];
   ignored?: boolean;
+  symlink?: ProjectEntrySymlink;
   children: Map<string, MutableFileTreeNode>;
 }
 
@@ -40,6 +52,7 @@ function freezeNode(node: MutableFileTreeNode): FileTreeNode {
     name: node.name,
     kind: node.kind,
     ...(node.ignored ? { ignored: true } : {}),
+    ...(node.symlink ? { symlink: node.symlink } : {}),
     children: [...node.children.values()].sort(compareNodes).map(freezeNode),
   };
 }
@@ -83,6 +96,7 @@ export function buildFileTree(entries: ReadonlyArray<ProjectEntry>): ReadonlyArr
         child.kind = entry.kind;
       }
       if (isLeaf && entry.ignored) child.ignored = true;
+      if (isLeaf && entry.symlink) child.symlink = entry.symlink;
       current = child;
     }
   }
@@ -103,7 +117,7 @@ function flattenNode(
   const start = output.length;
   output.push({ node, depth });
 
-  if (node.kind === "directory" && (expanded.has(node.path) || isSearching)) {
+  if (canExpandNode(node) && (expanded.has(node.path) || isSearching)) {
     for (const child of node.children) {
       if (flattenNode(output, child, depth + 1, expanded, searchResultPaths)) {
         descendantMatches = true;

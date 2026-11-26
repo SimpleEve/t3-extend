@@ -15,6 +15,8 @@ import { cn } from "../../lib/cn";
 import { useContentBottomInset, useContentTopInset } from "../../components/ui/useBarInset";
 import {
   buildFileTree,
+  canExpandNode,
+  canOpenNode,
   flattenFileTree,
   type FileTreeNode,
   type VisibleFileTreeNode,
@@ -44,23 +46,36 @@ const FileTreeRow = function FileTreeRow(props: {
 }) {
   const { node, depth } = props.item;
   const gt = useGT();
+  const symlink = node.symlink;
+  const expandable = canExpandNode(node);
+  const openable = canOpenNode(node);
+  const symlinkLabel = !symlink
+    ? null
+    : symlink.broken
+      ? gt("Broken symbolic link to {target}", { target: symlink.target })
+      : symlink.cycle
+        ? gt(
+            "Symbolic link to {target}, which leads back to a parent folder, so it is not expanded.",
+            { target: symlink.target },
+          )
+        : gt("Symbolic link to {target}", { target: symlink.target });
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={node.path}
-      accessibilityState={{ selected: props.selected }}
+      accessibilityLabel={symlinkLabel ? `${node.path}, ${symlinkLabel}` : node.path}
+      accessibilityState={{ selected: props.selected, disabled: !expandable && !openable }}
       onPressIn={() => {
-        if (node.kind === "file") {
+        if (openable) {
           props.onPreviewFile?.(node.path);
         }
       }}
       onPress={() => {
-        if (node.kind === "directory") {
+        if (expandable) {
           props.onPressDirectory(node.path, !props.expanded);
           return;
         }
-        props.onPressFile(node.path);
+        if (openable) props.onPressFile(node.path);
       }}
       className={cn(
         "mx-2 min-h-[46px] flex-row items-center gap-2 rounded-[12px] px-2 active:bg-subtle android:min-h-[48px]",
@@ -68,7 +83,7 @@ const FileTreeRow = function FileTreeRow(props: {
       )}
       style={{ paddingLeft: 8 + depth * 18 }}
     >
-      {node.kind === "directory" ? (
+      {expandable ? (
         <SymbolView
           name={props.expanded ? "chevron.down" : "chevron.right"}
           size={12}
@@ -79,19 +94,37 @@ const FileTreeRow = function FileTreeRow(props: {
         <View className="w-3" />
       )}
       <PierreEntryIcon path={node.path} kind={node.kind} size={17} />
-      <Text
-        className={cn(
-          "min-w-0 flex-1 text-sm leading-normal",
-          props.selected
-            ? "font-t3-bold text-thread-selected-foreground"
-            : node.ignored
-              ? "font-t3-medium text-foreground-tertiary"
-              : "font-t3-medium text-foreground-secondary",
-        )}
-        numberOfLines={1}
-      >
-        {node.name}
-      </Text>
+      <View className="min-w-0 flex-1">
+        <Text
+          className={cn(
+            "text-sm leading-normal",
+            props.selected
+              ? "font-t3-bold text-thread-selected-foreground"
+              : node.ignored || symlink?.broken
+                ? "font-t3-medium text-foreground-tertiary"
+                : "font-t3-medium text-foreground-secondary",
+          )}
+          numberOfLines={1}
+        >
+          {node.name}
+        </Text>
+        {symlinkLabel ? (
+          <View className="flex-row items-center gap-1">
+            <SymbolView
+              name="link"
+              size={10}
+              tintColorClassName="accent-icon-muted"
+              type="monochrome"
+            />
+            <Text
+              className="min-w-0 flex-1 text-xs leading-tight text-foreground-muted"
+              numberOfLines={1}
+            >
+              {symlinkLabel}
+            </Text>
+          </View>
+        ) : null}
+      </View>
       {node.kind === "directory" && props.expanded && props.loading ? (
         <AppActivityIndicator
           size="small"
@@ -160,7 +193,7 @@ export function FileTreeBrowser(props: {
   useEffect(() => {
     const visit = (nodes: ReadonlyArray<FileTreeNode>) => {
       for (const node of nodes) {
-        if (node.kind !== "directory" || !expandedPaths.has(node.path)) continue;
+        if (!canExpandNode(node) || !expandedPaths.has(node.path)) continue;
         onLoadDirectory(node.path);
         visit(node.children);
       }
