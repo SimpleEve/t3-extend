@@ -376,7 +376,6 @@ import {
   deriveCommittedServerUserMessageIds,
   deriveTimelineWorking,
   dismissBranchMismatchForSession,
-  shouldRenderPreviewMiniPlayer,
   deriveLockedProvider,
   resolveFileAttachmentUrl,
   resolveComposerProviderSelection,
@@ -400,6 +399,7 @@ import { observeResize } from "~/lib/observeResize";
 import { ThreadVisitWatermark } from "./chat/ThreadVisitWatermark";
 import { ChatTerminalDrawers } from "./chat/ChatTerminalDrawers";
 import { ChatRightPanel } from "./chat/ChatRightPanel";
+import { shouldRenderPreviewMiniPlayerInSplit } from "../fork/previewMiniPlayerSplit"; // fork: split panel cells
 import { resolveSplitLayout } from "../fork/rightPanelSplit"; // fork: split panel cells
 import { splitContents } from "../fork/rightPanelSplitContents"; // fork: split panel cells
 import { useDraftEnvironmentRouting } from "./chat/useDraftEnvironmentRouting";
@@ -1204,9 +1204,14 @@ export default function ChatView(props: ChatViewProps) {
   const renderedRightPanelSurface = rightPanelPresence.value?.activeSurface ?? null;
   const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
   const renderedRightPanelLayout = rightPanelPresence.value?.layout ?? null; // fork: split panel cells
-  const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
+  const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayerInSplit(
+    // fork: every visible cell's selected tab counts
     activePreviewMiniPlayer?.source ?? null,
-    renderedRightPanelSurface,
+    {
+      activeSurface: renderedRightPanelSurface,
+      surfaces: renderedRightPanelSurfaces,
+      layout: renderedRightPanelLayout,
+    },
   );
   const canMaximizeRightPanel = rightPanelOpen;
   // An embedded side chat has no panel; a stale maximized flag would hide its own column.
