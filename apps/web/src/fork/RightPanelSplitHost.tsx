@@ -1,4 +1,5 @@
 import {
+  type Active,
   closestCenter,
   DragOverlay,
   type CollisionDetection,
@@ -14,6 +15,7 @@ import {
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useGT, useMessages } from "gt-react";
 import {
+  type ComponentProps,
   type CSSProperties,
   type ReactNode,
   useLayoutEffect,
@@ -309,6 +311,17 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
     apply({ kind: "move", surfaceId, cellId: target.id, index: target.tabIds.indexOf(overId) });
   };
 
+  // The defaults would read out droppable ids such as "body:c2".
+  const titleOf = (active: Active) => String(active.data.current?.surfaceTitle ?? "");
+  const accessibility = {
+    announcements: {
+      onDragStart: ({ active }) => t("Picked up tab {title}.", { title: titleOf(active) }),
+      onDragOver: () => "",
+      onDragEnd: ({ active }) => t("Dropped tab {title}.", { title: titleOf(active) }),
+      onDragCancel: ({ active }) => t("Cancelled moving tab {title}.", { title: titleOf(active) }),
+    },
+  } satisfies NonNullable<ComponentProps<typeof DndContext>["accessibility"]>;
+
   const focusedSurface = tabs.surfaces.find((surface) => surface.id === tabs.activeSurfaceId);
   const workspaceLabel = focusedSurface
     ? gt("Workspace panel: {title}", {
@@ -393,6 +406,7 @@ export function RightPanelSplitHost(props: RightPanelSplitHostProps) {
       inlineSize={props.inlineSize}
     >
       <DndContext
+        accessibility={accessibility}
         sensors={sensors}
         collisionDetection={collisionDetection}
         onDragStart={onDragStart}

@@ -11,4 +11,7 @@ export default {
   "Move to the bottom-left pane": "移到左下格",
   "Move to the bottom-right pane": "移到右下格",
   "Resize panes": "调整分屏大小",
+  "Picked up tab {title}.": "已拿起标签 {title}。",
+  "Dropped tab {title}.": "已放下标签 {title}。",
+  "Cancelled moving tab {title}.": "已取消移动标签 {title}。",
 };
