@@ -507,7 +507,7 @@ describe("AssetAccess", () => {
   );
 
   it.effect.skipIf(!symlinksSupported)(
-    "rejects draft media symlinks escaping the workspace or targeting disallowed types",
+    "rejects draft media symlinks targeting disallowed types",
     () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
@@ -515,12 +515,12 @@ describe("AssetAccess", () => {
         const directory = yield* fs.makeTempDirectoryScoped({ prefix: "t3-draft-symlink-" });
         const root = path.join(directory, "workspace");
         yield* fs.makeDirectory(root);
-        const outside = path.join(directory, "outside.mp4");
+        const outside = path.join(directory, "outside.txt");
         const secret = path.join(root, "secret.txt");
         yield* fs.writeFileString(outside, "outside bytes");
         yield* fs.writeFileString(secret, "private bytes");
         for (const [name, target] of [
-          ["escape.mp4", outside],
+          ["escape.wav", outside],
           ["disguised.wav", secret],
         ] as const) {
           yield* fs.symlink(target, path.join(root, name));
@@ -1519,12 +1519,43 @@ describe("AssetAccess", () => {
           workspaceRoot: root,
         }).pipe(Effect.flip);
         expect(unsupported._tag).toBe("AssetPreviewTypeValidationError");
-        // A composer draft does not follow the link out.
-        const draft = yield* issueAssetUrl({
-          resource: { _tag: "draft-workspace-file", cwd: root, path: "linked.png" },
+        // An unsent thread has no id, so its Files panel asks with a draft resource: by relative
+        // path from mobile, by absolute path from web. Both need what the thread's own do.
+        yield* fileSystem.writeFileString(path.join(outside, "doc.pdf"), "outside pdf");
+        yield* fileSystem.writeFileString(path.join(outside, "movie.mp4"), "outside movie");
+        for (const [relativePath, target, disposition] of [
+          ["linked-dir/pic.png", "pic.png", undefined],
+          ["linked-dir/doc.pdf", "doc.pdf", undefined],
+          ["linked-dir/movie.mp4", "movie.mp4", undefined],
+          ["linked.png", "pic.png", undefined],
+          ["linked.xyz", "notes.xyz", "attachment"],
+        ] as const) {
+          for (const requestedPath of [relativePath, path.join(root, relativePath)]) {
+            const result = yield* issueAssetUrl({
+              resource: {
+                _tag: "draft-workspace-file",
+                cwd: root,
+                path: requestedPath,
+                ...(disposition ? { disposition } : {}),
+              },
+              workspaceRoot: root,
+            });
+            const suffix = result.relativeUrl.slice(`${ASSET_ROUTE_PREFIX}/`.length);
+            const separator = suffix.indexOf("/");
+            expect(
+              yield* resolveAsset(suffix.slice(0, separator), suffix.slice(separator + 1)),
+            ).toMatchObject({
+              kind: "file",
+              path: yield* fileSystem.realPath(path.join(outside, target)),
+            });
+          }
+        }
+        // Only a link leads out; `..` in a relative draft path is still refused.
+        const traversal = yield* issueAssetUrl({
+          resource: { _tag: "draft-workspace-file", cwd: root, path: "../outside.png" },
           workspaceRoot: root,
         }).pipe(Effect.flip);
-        expect(draft._tag).toBe("AssetWorkspaceAssetNotFoundError");
+        expect(traversal._tag).toBe("AssetWorkspacePathValidationError");
       }).pipe(Effect.provide(layerTest)),
   );
 

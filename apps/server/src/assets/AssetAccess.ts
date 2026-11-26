@@ -541,8 +541,7 @@ const finalizeWorkspaceFileAsset = Effect.fn("AssetAccess.finalizeWorkspaceFileA
     const canonicalFile = yield* resolveCanonicalWorkspaceFile({
       workspaceRoot: input.workspaceRoot,
       relativePath: resolved.relativePath,
-      // Only the Files panel's own resource follows a link out; a composer draft stays inside.
-      allowOutsideRoot: input.resource._tag === "workspace-file",
+      allowOutsideRoot: true,
     }).pipe(
       Effect.mapError(
         (cause) =>
