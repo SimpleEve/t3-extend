@@ -256,6 +256,8 @@ export const AntigravityDriver: ProviderDriver<
     ) {
       yield* rememberProfileLogin;
     }
+    // fork: reads started by a session outlive it, but not the instance.
+    const instanceScope = yield* Effect.scope;
     // fork: several saved Google accounts, only for an instance that signs in on its own.
     const accountPool =
       !sharedLogin && auth.authMethod === "oauth-personal"
@@ -334,17 +336,21 @@ export const AntigravityDriver: ProviderDriver<
       );
       // fork: with the old agy gone, the account that takes over is put in place before the new one starts.
       if (accountPool) {
-        const swapped = yield* accountPool
+        const { swapped, spent } = yield* accountPool
           .ensureAvailable({ rotate: settings.accountRotation })
           .pipe(
             Effect.catch((cause) =>
               Effect.logWarning("Could not prepare the Antigravity account.", { cause }).pipe(
-                Effect.as(false),
+                Effect.as({ swapped: false, spent: undefined }),
               ),
             ),
           );
         // The quota on screen belonged to the account that was just replaced.
         if (swapped) yield* Effect.suspend(() => provider.onSignedIn);
+        // Its last reading predates running out, so it cannot say which window did; read it now.
+        if (spent !== undefined && accountProber) {
+          yield* Effect.forkIn(accountProber.probe(spent), instanceScope);
+        }
       }
       const profile = yield* prepareAntigravityProfile({
         profileDirectory,
