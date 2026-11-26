@@ -2286,6 +2286,65 @@ describe("Antigravity instances with several accounts", () => {
     ).toBe(0);
   });
 
+  it("keeps each window's own reset when the remembered reading shows which quota ran out", () => {
+    const window = (
+      id: string,
+      kind: "session" | "weekly",
+      usedPercent: number,
+      resetsAt?: string,
+    ) => ({ id, kind, label: id, usedPercent, ...(resetsAt ? { resetsAt } : {}) });
+    const spentAccount = (
+      id: string,
+      email: string,
+      exhaustedUntil: string,
+      windows: ReturnType<typeof window>[],
+    ) => ({
+      id,
+      email,
+      current: false,
+      exhaustedUntil,
+      usageLimits: { checkedAt: "2026-09-03T11:00:00.000Z", windows },
+    });
+    const accounts = accountsOf([
+      instance([
+        { id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true },
+        spentAccount("bbbbbbbbbbbbbbbb", "weekly@example.com", "2026-09-08T04:29:01.000Z", [
+          window("gemini-5h", "session", 0),
+          window("gemini-weekly", "weekly", 100, "2026-09-08T04:29:01.000Z"),
+          window("3p-5h", "session", 0),
+        ]),
+        spentAccount("cccccccccccccccc", "session@example.com", "2026-09-03T15:06:51.000Z", [
+          window("gemini-5h", "session", 100, "2026-09-03T15:06:51.000Z"),
+          window("gemini-weekly", "weekly", 52, "2026-09-09T15:23:38.000Z"),
+          window("3p-5h", "session", 0),
+        ]),
+      ]),
+    ]);
+    const [pool] = collectLimitPools(accounts, now);
+    const shown = (id: string, email: string) =>
+      pool!.windows
+        .find((candidate) => candidate.id === id)!
+        .members.find((member) => member.account.email === email)!.window;
+
+    expect(shown("gemini-5h", "weekly@example.com")).toMatchObject({ usedPercent: 0 });
+    expect(shown("gemini-5h", "weekly@example.com").resetsAt).toBeUndefined();
+    expect(shown("gemini-weekly", "weekly@example.com")).toMatchObject({
+      usedPercent: 100,
+      resetsAt: "2026-09-08T04:29:01.000Z",
+    });
+    expect(shown("gemini-5h", "session@example.com")).toMatchObject({
+      usedPercent: 100,
+      resetsAt: "2026-09-03T15:06:51.000Z",
+    });
+    expect(shown("gemini-weekly", "session@example.com")).toMatchObject({
+      usedPercent: 52,
+      resetsAt: "2026-09-09T15:23:38.000Z",
+    });
+    for (const email of ["weekly@example.com", "session@example.com"]) {
+      expect(shown("3p-5h", email).usedPercent).toBe(0);
+    }
+  });
+
   // An instance as the server reports it: any id, optional saved accounts, optional live reading.
   const agy = (
     instanceId: string,
