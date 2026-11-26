@@ -1250,11 +1250,14 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           }),
         ),
       applySplit: (ref, operation) =>
-        set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) =>
-            applySplitOperation(current, operation),
-          ),
-        ),
+        set((state) => {
+          const update = (current: ThreadRightPanelState) =>
+            applySplitOperation(current, operation);
+          // fork: arranging cells is not the user acting on the panel, like moveSurface
+          return operation.kind === "move" || operation.kind === "ratio"
+            ? updateThread(state, scopedThreadKey(rightPanelHostRef(ref)), update)
+            : userAction(state, scopedThreadKey(ref), update);
+        }),
       reconcileBrowserSurfaces: (ref, tabIds, hiddenTabIds) =>
         set((state) =>
           automaticUpdate(state, scopedThreadKey(ref), (current) => {

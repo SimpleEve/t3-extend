@@ -1,4 +1,4 @@
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
@@ -498,5 +498,28 @@ describe("where a tab that appears while another disappears lands", () => {
     store.activateSurface(ref, "device");
     store.openDevice(ref, target);
     expect(cellTabs()).toEqual([["file:a", "device:h:d"], ["file:c"]]);
+  });
+});
+
+describe("arranging cells and the proactive panel", () => {
+  const revision = () =>
+    useRightPanelStore.getState().userActionRevisionByThreadKey[scopedThreadKey(ref)] ?? 0;
+
+  it("does not count a reorder or a ratio change as the user acting on the panel", () => {
+    open("a", "b", "c", "d");
+    split("d", "right"); // [a b c | d]
+    const before = revision();
+    apply({ kind: "move", surfaceId: file("c"), cellId: cellIdOf("a"), index: 0 });
+    apply({ kind: "ratio", target: "outer", ratio: 0.3 });
+    expect(cellTabs()).toEqual([["file:c", "file:a", "file:b"], ["file:d"]]);
+    expect(revision()).toBe(before);
+  });
+
+  it("still counts cutting a cell or moving the focus", () => {
+    open("a", "b", "c", "d");
+    split("d", "right");
+    const before = revision();
+    apply({ kind: "focus", cellId: cellIdOf("a") });
+    expect(revision()).toBeGreaterThan(before);
   });
 });
