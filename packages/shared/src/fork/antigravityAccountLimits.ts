@@ -179,6 +179,13 @@ const resetMillis = (window: ServerProviderUsageWindow): number | null => {
   return Number.isFinite(at) ? at : null;
 };
 
+/** A spent window that lasts at least until the exhaustion mark accounts for that mark. */
+const explainsMark = (account: LimitAccount, exhaustedUntil: number) =>
+  account.limits.windows.some((window) => {
+    const reset = resetMillis(window);
+    return window.usedPercent >= 100 && reset !== null && reset >= exhaustedUntil - 60_000;
+  });
+
 /**
  * What a window of an account stands for at `now`. Only a remembered reading is reinterpreted: a
  * spent account is empty until it is back, and a window whose reset has passed has refilled, with
@@ -192,8 +199,13 @@ export function antigravityWindowAt(
   if (!account.snapshot) return window;
   const reset = resetMillis(window);
   const exhaustedUntil = account.exhaustedUntil;
-  if (exhaustedUntil !== undefined && exhaustedUntil > now) {
-    if (window.usedPercent >= 100 && reset !== null && reset > exhaustedUntil) return window;
+  // The mark does not say which quota ran out. A reading that shows it keeps its other windows;
+  // only one taken before the account ran out is read as spent across the board.
+  if (
+    exhaustedUntil !== undefined &&
+    exhaustedUntil > now &&
+    !explainsMark(account, exhaustedUntil)
+  ) {
     return {
       ...window,
       usedPercent: 100,
