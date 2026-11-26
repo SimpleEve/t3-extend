@@ -12,6 +12,8 @@ export const SYMLINK_UNRESOLVED = Symbol("SYMLINK_UNRESOLVED");
 export function makeSymlinkLookups(options: {
   readonly maxPending: number;
   readonly timeoutMs: number;
+  /** Called each time every slot becomes held by a lookup past its timeout. */
+  readonly onStalled?: () => void;
 }) {
   let running = 0;
   // Running lookups past their timeout. When every slot holds one, waiting is pointless.
@@ -28,9 +30,14 @@ export function makeSymlinkLookups(options: {
           isStalled = true;
           stalled++;
           resolve(SYMLINK_UNRESOLVED);
-          if (stalled === options.maxPending) for (const waiter of waiting) waiter.giveUp();
+          if (stalled === options.maxPending) {
+            options.onStalled?.();
+            for (const waiter of waiting) waiter.giveUp();
+          }
         }, options.timeoutMs);
-        run()
+        // `run` may throw before it returns a promise, which must not leave the slot taken.
+        Promise.resolve()
+          .then(run)
           .then(resolve, reject)
           .finally(() => {
             clearTimeout(timer);

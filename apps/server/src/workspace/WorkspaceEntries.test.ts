@@ -180,9 +180,9 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         const root = yield* workspaceEntries.list({ cwd, directoryPath: "" });
         expect(root.entries.toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
           { path: "dangling", kind: "file", symlink: { target: "missing", broken: true } },
-          // An ordinary link that stays inside only needs the mark.
-          { path: "link.txt", kind: "file", symlink: {} },
-          { path: "linkdir", kind: "directory", symlink: {} },
+          // Every link carries its text, so hovering it shows where it goes.
+          { path: "link.txt", kind: "file", symlink: { target: "real.txt" } },
+          { path: "linkdir", kind: "directory", symlink: { target: "realdir" } },
           { path: "outside-link", kind: "directory", symlink: { target: outside } },
           {
             path: "outside.txt",
@@ -209,6 +209,90 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         expect(
           (yield* workspaceEntries.list({ cwd, directoryPath: "outside-link/deeper" })).entries,
         ).toEqual([{ path: "outside-link/deeper/inner.txt", kind: "file" }]);
+      }),
+    );
+
+    it.effect("leaves the link text off links that git ignores", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir({ git: true });
+        const outside = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, ".gitignore", "ignored-link\nignored-outside\nignored-dir/\n");
+        yield* writeTextFile(cwd, "real.txt");
+        yield* writeTextFile(cwd, "ignored-dir/.keep");
+        yield* fileSystem.symlink("real.txt", path.join(cwd, "tracked-link"));
+        yield* fileSystem.symlink("real.txt", path.join(cwd, "ignored-link"));
+        yield* fileSystem.symlink(outside, path.join(cwd, "ignored-outside"));
+        yield* git(cwd, ["add", "-f", "tracked-link"]);
+        // Past 1,000 children, an ignored folder is labelled as a whole instead of child by child.
+        yield* Effect.forEach(
+          Array.from({ length: 1001 }, (_, index) => `ignored-dir/pkg-${index}.js`),
+          (relativePath) => writeTextFile(cwd, relativePath),
+          { concurrency: 32, discard: true },
+        );
+        yield* fileSystem.symlink("../real.txt", path.join(cwd, "ignored-dir/link"));
+        yield* fileSystem.symlink("missing", path.join(cwd, "ignored-dir/dangling"));
+
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const links = (directoryPath: string) =>
+          workspaceEntries
+            .list({ cwd, directoryPath })
+            .pipe(
+              Effect.map(({ entries }) =>
+                Object.fromEntries(
+                  entries
+                    .filter((entry) => entry.symlink)
+                    .map((entry) => [entry.path, [entry.symlink, entry.ignored === true]]),
+                ),
+              ),
+            );
+        expect(yield* links("")).toEqual({
+          "tracked-link": [{ target: "real.txt" }, false],
+          "ignored-link": [{}, true],
+          "ignored-outside": [{}, true],
+        });
+        expect(yield* links("ignored-dir")).toEqual({
+          "ignored-dir/link": [{}, true],
+          // A broken link keeps its text: the state is described together with it.
+          "ignored-dir/dangling": [{ target: "missing", broken: true }, true],
+        });
+      }),
+    );
+
+    it.effect("leaves the link text off a folder's links inside the workspace past 200", () =>
+      Effect.gen(function* () {
+        const platform = yield* HostProcess.Platform;
+        if (platform === "win32") return;
+        const cwd = yield* makeTempDir();
+        const outside = yield* makeTempDir();
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* writeTextFile(cwd, "real.txt");
+        yield* Effect.forEach(
+          Array.from({ length: 201 }, (_, index) => `link-${index}`),
+          (name) => fileSystem.symlink("real.txt", path.join(cwd, name)),
+          { concurrency: 32, discard: true },
+        );
+        yield* fileSystem.symlink(outside, path.join(cwd, "to-outside"));
+        yield* fileSystem.symlink("missing", path.join(cwd, "dangling"));
+
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const { entries } = yield* workspaceEntries.list({ cwd, directoryPath: "" });
+        const bySymlink = (entry: (typeof entries)[number]) => entry.symlink;
+        expect(entries.filter((entry) => entry.path.startsWith("link-")).map(bySymlink)).toEqual(
+          Array.from({ length: 201 }, () => ({})),
+        );
+        // Links that leave the workspace or have a state of their own are few and keep their text.
+        expect(entries.find((entry) => entry.path === "to-outside")?.symlink).toEqual({
+          target: outside,
+        });
+        expect(entries.find((entry) => entry.path === "dangling")?.symlink).toEqual({
+          target: "missing",
+          broken: true,
+        });
       }),
     );
 
@@ -369,7 +453,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         }).pipe(Effect.ensuring(Effect.sync(hung.release)));
         // The stuck calls returned, so listing again resolves the links.
         expect((yield* list).filter((entry) => entry.symlink)).toEqual(
-          names.map((name) => ({ path: name, kind: "file", symlink: {} })),
+          names.map((name) => ({ path: name, kind: "file", symlink: { target: "real.txt" } })),
         );
       }),
     );
@@ -407,6 +491,48 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
           ).toEqual([["mixed/hung-only"], []]);
         }).pipe(Effect.ensuring(Effect.sync(hung.release)));
       }),
+    );
+
+    it.effect(
+      "still lists a folder link for browse while a listing queues for the lookup slots",
+      () =>
+        Effect.gen(function* () {
+          const platform = yield* HostProcess.Platform;
+          if (platform === "win32") return;
+          const cwd = yield* makeTempDir();
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          yield* writeTextFile(cwd, "real.txt");
+          yield* writeTextFile(cwd, "listed/.keep");
+          yield* writeTextFile(cwd, "browsed/target-dir/.keep");
+          const healthy = Array.from({ length: 60 }, (_, index) => `link-${index}`);
+          for (const name of ["hung-only", ...healthy]) {
+            yield* fileSystem.symlink("../real.txt", path.join(cwd, "listed", name));
+          }
+          yield* fileSystem.symlink("target-dir", path.join(cwd, "browsed/folder-link"));
+
+          const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+          const hung = withHungLinks();
+          yield* Effect.gen(function* () {
+            // One slot is stuck and the listing's links queue for the other; `browse` waits its turn
+            // in that queue, within its own budget, instead of dropping its link.
+            const [listed, browsed] = yield* Effect.all(
+              [
+                workspaceEntries.list({ cwd, directoryPath: "listed" }),
+                workspaceEntries.browse({
+                  partialPath: yield* appendSeparator(path.join(cwd, "browsed")),
+                }),
+              ],
+              { concurrency: 2 },
+            );
+            expect(hung.count()).toBe(1);
+            expect(listed.entries.filter((entry) => entry.symlink?.unresolved)).toHaveLength(1);
+            expect(browsed.entries.map((entry) => entry.name)).toEqual([
+              "folder-link",
+              "target-dir",
+            ]);
+          }).pipe(Effect.ensuring(Effect.sync(hung.release)));
+        }),
     );
 
     it.effect("resolves a folder of many symlinks a few at a time", () =>
@@ -451,6 +577,8 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
           ].toSorted(),
         );
         expect(entries.every((entry) => entry.kind === "directory")).toBe(true);
+        // 200 links is the most that still carry their text.
+        expect(entries.filter((entry) => entry.symlink?.target !== undefined)).toHaveLength(200);
         // Each in-flight call can hold a libuv worker, of which there are four.
         expect(maxInFlight).toBeLessThanOrEqual(2);
       }),

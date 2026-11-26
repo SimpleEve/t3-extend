@@ -130,6 +130,18 @@ const SYMLINK_RESOLVE_BATCH_SIZE = 64;
 /** Longest one listing queues links for a lookup slot; the ones left over are listed unresolved. */
 const SYMLINK_LISTING_WAIT_MS = 5_000;
 
+/**
+ * Ordinary links that stay inside the workspace carry their link text, up to this many in one
+ * listing. A folder with more is a package store, and thousands of texts nobody hovers are weight.
+ */
+const INSIDE_LINK_TARGET_LIMIT = 200;
+
+/**
+ * Longest one `browse` queues for a lookup slot, shared by all its links. Giving up the moment no
+ * slot is free would drop folder links whenever a listing happens to be running.
+ */
+const SYMLINK_BROWSE_WAIT_MS = 3_000;
+
 const resolveBrowseTarget = Effect.fn("WorkspaceEntries.resolveBrowseTarget")(function* (
   input: FilesystemBrowseInput,
   path: Path.Path,
@@ -169,22 +181,29 @@ export const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   const workspacePaths = yield* WorkspacePaths.WorkspacePaths;
   const workspaceSearchIndexes = yield* WorkspaceSearchIndex.WorkspaceSearchIndexMap;
+  const runFork = Effect.runForkWith(yield* Effect.context<never>());
   // One pool for `browse` and `list`: separate caps would add up to the whole libuv pool.
   const lookUpSymlinkTarget = makeSymlinkLookups({
     maxPending: MAX_PENDING_SYMLINK_TARGET_LOOKUPS,
     timeoutMs: SYMLINK_TARGET_TIMEOUT_MS,
+    onStalled: () =>
+      runFork(
+        Effect.logWarning(
+          "Every symbolic link lookup slot is held by a call that has not returned; links are listed unresolved until one does",
+        ),
+      ),
   });
-  const statSymlinkTarget = async (candidate: {
-    readonly name: string;
-    readonly fullPath: string;
-  }) => {
+  const statSymlinkTarget = async (
+    candidate: { readonly name: string; readonly fullPath: string },
+    deadline: number,
+  ) => {
     const isDirectory = await lookUpSymlinkTarget(
       () =>
         NodeFSP.stat(candidate.fullPath).then(
           (stats) => stats.isDirectory(),
           () => false,
         ),
-      SYMLINK_TARGET_TIMEOUT_MS,
+      deadline - performance.now(),
     );
     return isDirectory === true ? candidate : null;
   };
@@ -297,9 +316,10 @@ export const make = Effect.gen(function* () {
         }
       }
       if (symlinkCandidates.length > 0) {
+        const deadline = performance.now() + SYMLINK_BROWSE_WAIT_MS;
         const resolvedSymlinks = yield* Effect.forEach(
           symlinkCandidates,
-          (candidate) => Effect.promise(() => statSymlinkTarget(candidate)),
+          (candidate) => Effect.promise(() => statSymlinkTarget(candidate, deadline)),
           { concurrency: MAX_PENDING_SYMLINK_TARGET_LOOKUPS },
         );
         for (const candidate of resolvedSymlinks) {
@@ -443,134 +463,138 @@ export const make = Effect.gen(function* () {
                   relativePath: directoryPath,
                 })
                 .pipe(Effect.mapError(toError));
-        const { entries, throughSymlink, nestedGitRoots } = yield* Effect.tryPromise({
-          try: async () => {
-            const root = await NodeFSP.realpath(normalizedCwd);
-            const directory = await NodeFSP.realpath(target.absolutePath);
-            const relative = path.relative(root, directory);
-            const isSameOrInside = (parent: string, child: string) => {
-              const relativeChild = path.relative(parent, child);
-              return (
-                relativeChild !== ".." &&
-                !relativeChild.startsWith(`..${path.sep}`) &&
-                !path.isAbsolute(relativeChild)
-              );
-            };
-            // The requested path never leaves the workspace lexically, so a folder that resolves
-            // outside it is reached through a link in the workspace, which is listed like any other.
-            if (
-              target.relativePath.split("/").includes(".git") ||
-              (isSameOrInside(root, directory) && relative.split(path.sep).includes(".git"))
-            ) {
-              throw new Error("Directory must be outside .git.");
-            }
-            const children = await NodeFSP.readdir(directory, { withFileTypes: true });
-            // Reject canonical ancestors so "Expand all folders" cannot follow a cycle.
-            let visitedFolders: Promise<ReadonlyArray<string>> | undefined;
-            const loadVisitedFolders = () =>
-              (visitedFolders ??= (async () => {
-                const folders = [root];
-                let current = normalizedCwd;
-                for (const segment of target.relativePath.split("/").filter(Boolean)) {
-                  current = path.join(current, segment);
-                  folders.push(await NodeFSP.realpath(current));
-                }
-                return folders;
-              })());
-            type ListedChild = Pick<ProjectEntry, "kind" | "symlink">;
-            // A link is listed wherever it points, except into the workspace's own `.git`; a broken
-            // one is kept and marked. The link text is only sent where it says something, as a
-            // package manager can fill a folder with thousands of ordinary links.
-            const resolveSymlink = async (
-              linkPath: string,
-              linkText: string,
-            ): Promise<ListedChild | undefined> => {
-              const broken: ListedChild = {
-                kind: "file",
-                symlink: { target: linkText, broken: true },
+        const { entries, throughSymlink, nestedGitRoots, insideLinkPaths } =
+          yield* Effect.tryPromise({
+            try: async () => {
+              const root = await NodeFSP.realpath(normalizedCwd);
+              const directory = await NodeFSP.realpath(target.absolutePath);
+              const relative = path.relative(root, directory);
+              const isSameOrInside = (parent: string, child: string) => {
+                const relativeChild = path.relative(parent, child);
+                return (
+                  relativeChild !== ".." &&
+                  !relativeChild.startsWith(`..${path.sep}`) &&
+                  !path.isAbsolute(relativeChild)
+                );
               };
-              const resolved = await NodeFSP.realpath(linkPath).catch(() => undefined);
-              if (resolved === undefined) return broken;
-              // Windows signs in to a network share's host with the user's credentials, so a
-              // workspace may not send it there.
-              const insideRoot = isSameOrInside(root, resolved);
+              // The requested path never leaves the workspace lexically, so a folder that resolves
+              // outside it is reached through a link in the workspace, which is listed like any other.
               if (
-                insideRoot
-                  ? path.relative(root, resolved).split(path.sep).includes(".git")
-                  : isNetworkPath(resolved)
+                target.relativePath.split("/").includes(".git") ||
+                (isSameOrInside(root, directory) && relative.split(path.sep).includes(".git"))
               ) {
-                return undefined;
+                throw new Error("Directory must be outside .git.");
               }
-              const stat = await NodeFSP.stat(resolved).catch(() => undefined);
-              if (stat === undefined) return broken;
-              if (!stat.isFile() && !stat.isDirectory()) return undefined;
-              const kind = stat.isFile() ? "file" : "directory";
-              if (kind === "directory") {
-                const folders = await loadVisitedFolders();
-                // Sent as a file: clients that predate `cycle` expand every directory.
-                if (folders.some((folder) => isSameOrInside(resolved, folder))) {
-                  return { kind: "file", symlink: { target: linkText, cycle: true } };
+              const children = await NodeFSP.readdir(directory, { withFileTypes: true });
+              // Reject canonical ancestors so "Expand all folders" cannot follow a cycle.
+              let visitedFolders: Promise<ReadonlyArray<string>> | undefined;
+              const loadVisitedFolders = () =>
+                (visitedFolders ??= (async () => {
+                  const folders = [root];
+                  let current = normalizedCwd;
+                  for (const segment of target.relativePath.split("/").filter(Boolean)) {
+                    current = path.join(current, segment);
+                    folders.push(await NodeFSP.realpath(current));
+                  }
+                  return folders;
+                })());
+              type ListedChild = Pick<ProjectEntry, "kind" | "symlink">;
+              // A link is listed wherever it points, except into the workspace's own `.git`; a broken
+              // one is kept and marked.
+              const insideLinkNames = new Set<string>();
+              const resolveSymlink = async (
+                name: string,
+                linkPath: string,
+                linkText: string,
+              ): Promise<ListedChild | undefined> => {
+                const broken: ListedChild = {
+                  kind: "file",
+                  symlink: { target: linkText, broken: true },
+                };
+                const resolved = await NodeFSP.realpath(linkPath).catch(() => undefined);
+                if (resolved === undefined) return broken;
+                // Windows signs in to a network share's host with the user's credentials, so a
+                // workspace may not send it there.
+                const insideRoot = isSameOrInside(root, resolved);
+                if (
+                  insideRoot
+                    ? path.relative(root, resolved).split(path.sep).includes(".git")
+                    : isNetworkPath(resolved)
+                ) {
+                  return undefined;
                 }
+                const stat = await NodeFSP.stat(resolved).catch(() => undefined);
+                if (stat === undefined) return broken;
+                if (!stat.isFile() && !stat.isDirectory()) return undefined;
+                const kind = stat.isFile() ? "file" : "directory";
+                if (kind === "directory") {
+                  const folders = await loadVisitedFolders();
+                  // Sent as a file: clients that predate `cycle` expand every directory.
+                  if (folders.some((folder) => isSameOrInside(resolved, folder))) {
+                    return { kind: "file", symlink: { target: linkText, cycle: true } };
+                  }
+                }
+                if (insideRoot) insideLinkNames.add(name);
+                return { kind, symlink: { target: linkText } };
+              };
+              const lookupDeadline = performance.now() + SYMLINK_LISTING_WAIT_MS;
+              const listSymlink = async (name: string): Promise<ListedChild | undefined> => {
+                const linkPath = path.join(directory, name);
+                // Reads the link itself, in the folder just listed; only following it can hang.
+                const linkText = await NodeFSP.readlink(linkPath).catch(() => undefined);
+                if (linkText === undefined) return undefined;
+                const child = await lookUpSymlinkTarget(
+                  () => resolveSymlink(name, linkPath, linkText),
+                  lookupDeadline - performance.now(),
+                );
+                return child === SYMLINK_UNRESOLVED
+                  ? { kind: "file", symlink: { target: linkText, unresolved: true } }
+                  : child;
+              };
+              // Bound filesystem work for directories such as pnpm node_modules.
+              const listed: Array<ListedChild | undefined> = [];
+              for (let offset = 0; offset < children.length; offset += SYMLINK_RESOLVE_BATCH_SIZE) {
+                listed.push(
+                  ...(await Promise.all(
+                    children
+                      .slice(offset, offset + SYMLINK_RESOLVE_BATCH_SIZE)
+                      .map(async (child): Promise<ListedChild | undefined> => {
+                        if (child.name === ".git") return undefined;
+                        if (child.isDirectory()) return { kind: "directory" };
+                        if (child.isFile()) return { kind: "file" };
+                        return child.isSymbolicLink() ? listSymlink(child.name) : undefined;
+                      }),
+                  )),
+                );
               }
-              return { kind, symlink: insideRoot ? {} : { target: linkText } };
-            };
-            const lookupDeadline = performance.now() + SYMLINK_LISTING_WAIT_MS;
-            const listSymlink = async (name: string): Promise<ListedChild | undefined> => {
-              const linkPath = path.join(directory, name);
-              // Reads the link itself, in the folder just listed; only following it can hang.
-              const linkText = await NodeFSP.readlink(linkPath).catch(() => undefined);
-              if (linkText === undefined) return undefined;
-              const child = await lookUpSymlinkTarget(
-                () => resolveSymlink(linkPath, linkText),
-                lookupDeadline - performance.now(),
-              );
-              return child === SYMLINK_UNRESOLVED
-                ? { kind: "file", symlink: { target: linkText, unresolved: true } }
-                : child;
-            };
-            // Bound filesystem work for directories such as pnpm node_modules.
-            const listed: Array<ListedChild | undefined> = [];
-            for (let offset = 0; offset < children.length; offset += SYMLINK_RESOLVE_BATCH_SIZE) {
-              listed.push(
-                ...(await Promise.all(
-                  children
-                    .slice(offset, offset + SYMLINK_RESOLVE_BATCH_SIZE)
-                    .map(async (child): Promise<ListedChild | undefined> => {
-                      if (child.name === ".git") return undefined;
-                      if (child.isDirectory()) return { kind: "directory" };
-                      if (child.isFile()) return { kind: "file" };
-                      return child.isSymbolicLink() ? listSymlink(child.name) : undefined;
-                    }),
-                )),
-              );
-            }
-            const nestedGitRoots: Array<string> = [];
-            const segments = target.relativePath.split("/").filter(Boolean);
-            for (let index = 1; index <= segments.length; index += 1) {
-              const candidate = segments.slice(0, index).join("/");
-              const dotGit = await NodeFSP.lstat(path.join(normalizedCwd, candidate, ".git")).catch(
-                () => null,
-              );
-              if (dotGit) nestedGitRoots.push(candidate);
-            }
-            return {
-              nestedGitRoots,
-              entries: children.flatMap((child, index): ProjectEntry[] => {
-                const item = listed[index];
-                if (item === undefined) return [];
-                return [
-                  {
-                    path: target.relativePath ? `${target.relativePath}/${child.name}` : child.name,
-                    ...item,
-                  },
-                ];
-              }),
-              // Git refuses to classify paths beyond a symbolic link.
-              throughSymlink: relative !== target.relativePath.split("/").join(path.sep),
-            };
-          },
-          catch: toError,
-        });
+              const nestedGitRoots: Array<string> = [];
+              const segments = target.relativePath.split("/").filter(Boolean);
+              for (let index = 1; index <= segments.length; index += 1) {
+                const candidate = segments.slice(0, index).join("/");
+                const dotGit = await NodeFSP.lstat(
+                  path.join(normalizedCwd, candidate, ".git"),
+                ).catch(() => null);
+                if (dotGit) nestedGitRoots.push(candidate);
+              }
+              const insideLinkPaths = new Set<string>();
+              return {
+                nestedGitRoots,
+                insideLinkPaths,
+                entries: children.flatMap((child, index): ProjectEntry[] => {
+                  const item = listed[index];
+                  if (item === undefined) return [];
+                  const entryPath = target.relativePath
+                    ? `${target.relativePath}/${child.name}`
+                    : child.name;
+                  if (insideLinkNames.has(child.name)) insideLinkPaths.add(entryPath);
+                  return [{ path: entryPath, ...item }];
+                }),
+                // Git refuses to classify paths beyond a symbolic link.
+                throughSymlink: relative !== target.relativePath.split("/").join(path.sep),
+              };
+            },
+            catch: toError,
+          });
         let gitRoot = "";
         let gitPrefix = "";
         // stdin avoids argument limits; ignore classification is optional without git/repositories.
@@ -594,6 +618,27 @@ export const make = Effect.gen(function* () {
           gitRoot = nestedGitRoot;
           gitPrefix = `${gitRoot}/`;
         }
+        // An ignored link, or one of too many in a folder git cannot speak for, is sent without its
+        // text; links with a state of their own keep it, as that state is described with it.
+        const labelEntries = (isIgnored: (entryPath: string) => boolean) => {
+          const dropInsideTargets = insideLinkPaths.size > INSIDE_LINK_TARGET_LIMIT;
+          return entries.map((entry): ProjectEntry => {
+            const ignored = isIgnored(entry.path);
+            const symlink = entry.symlink;
+            const isPlainLink =
+              symlink?.target !== undefined &&
+              !symlink.broken &&
+              !symlink.cycle &&
+              !symlink.unresolved;
+            const dropTarget =
+              isPlainLink && (ignored || (dropInsideTargets && insideLinkPaths.has(entry.path)));
+            return {
+              ...entry,
+              ...(ignored ? { ignored: true } : {}),
+              ...(dropTarget ? { symlink: {} } : {}),
+            };
+          });
+        };
         const directoryGitPath = target.relativePath.slice(gitPrefix.length);
         // Check ignored folders once to avoid child index lookups; exit 0 guarantees no tracked descendants.
         // Symlinks and glob characters still need per-child checks.
@@ -604,10 +649,7 @@ export const make = Effect.gen(function* () {
           !/[*?[\\]/.test(directoryGitPath) &&
           (yield* checkIgnore([target.relativePath]))?.exitCode === 0
         ) {
-          return {
-            entries: entries.map((entry) => ({ ...entry, ignored: true })),
-            truncated: false,
-          };
+          return { entries: labelEntries(() => true), truncated: false };
         }
         const ignored = new Set<string>();
         for (let offset = 0; offset < entries.length; offset += IGNORE_CHECK_CHUNK_SIZE) {
@@ -619,12 +661,7 @@ export const make = Effect.gen(function* () {
             ignored.add(gitPrefix + ignoredPath.replace(/^\.\//, ""));
           }
         }
-        return {
-          entries: entries.map((entry) =>
-            ignored.has(entry.path) ? { ...entry, ignored: true } : entry,
-          ),
-          truncated: false,
-        };
+        return { entries: labelEntries((entryPath) => ignored.has(entryPath)), truncated: false };
       }
       const indexKey = WorkspaceSearchIndex.workspaceSearchIndexKey(normalizedCwd, "paths");
       markSearched(indexKey, yield* Clock.currentTimeMillis);
