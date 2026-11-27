@@ -179,6 +179,11 @@ export const DevicesStatus = Schema.Struct({
       mode: DeviceVisibilityMode,
       deviceIds: Schema.Array(Schema.String),
       registry: DeviceVisibilityRegistryState,
+      /**
+       * The saved setting could not be read. The mode and ids are the last ones that were read, so
+       * a client must not present them as the current choice; sign-in is refused meanwhile.
+       */
+      unreadable: Schema.optionalKey(Schema.Boolean),
     }),
   ),
 });

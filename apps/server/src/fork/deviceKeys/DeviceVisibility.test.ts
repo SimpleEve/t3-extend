@@ -6,12 +6,14 @@ import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
 import * as SessionStore from "../../auth/SessionStore.ts";
 import * as DeviceDirectory from "./DeviceDirectory.ts";
+import * as DeviceIdentity from "./DeviceIdentity.ts";
 import * as DeviceKeysService from "./DeviceKeysService.ts";
 import * as RegistryClient from "./RegistryClient.ts";
 import {
@@ -359,6 +361,35 @@ describe("a pass from a device this computer hides from", () => {
     }).pipe(Effect.provide(layerHarness)),
   );
 
+  it.effect(
+    "refuses the pass on an unreadable file but never reports or delivers that guess as the user's setting",
+    () =>
+      Effect.gen(function* () {
+        const { set, secrets, fake, directory, phone, laptop, exchange, reason } = yield* arrange;
+        yield* set({ mode: "hidden_from_selected", deviceIds: [phone.id] });
+        const delivered = fake.callsTo("setVisibility");
+        const saved = Option.getOrThrow(yield* secrets.get(DeviceDirectory.VISIBILITY_SECRET));
+        yield* secrets.set(
+          DeviceDirectory.VISIBILITY_SECRET,
+          new TextEncoder().encode("{not json"),
+        );
+        const status = yield* directory.sync;
+        assert.isTrue(status.visibility?.unreadable);
+        // What it still shows is the last setting that was read, not the closed-door guess.
+        assert.equal(status.visibility?.mode, "hidden_from_selected");
+        assert.deepEqual(status.visibility?.deviceIds, [phone.id]);
+        assert.equal(fake.callsTo("setVisibility"), delivered);
+        assert.equal(fake.state.visibility.mode, "hidden_from_selected");
+        // A device the saved setting would have let in is still refused.
+        assert.equal(reason(yield* exchange(laptop)), "device_hidden");
+        yield* secrets.set(DeviceDirectory.VISIBILITY_SECRET, saved);
+        const repaired = yield* directory.sync;
+        assert.isUndefined(repaired.visibility?.unreadable);
+        assert.equal(repaired.visibility?.mode, "hidden_from_selected");
+        assert.equal((yield* exchange(laptop)).status, 200);
+      }).pipe(Effect.provide(layerHarness)),
+  );
+
   it.effect("still lets a pass from a device hidden from by the registry's list go through", () =>
     Effect.gen(function* () {
       // A computer that hides from this one is missing from its list but listed in `hiddenPeers`;
@@ -440,6 +471,70 @@ describe("telling the registry", () => {
       assert.equal(status.visibility?.mode, "hidden_from_all");
       assert.equal(status.visibility?.registry, "synced");
       assert.equal(fake.state.visibility.mode, "hidden_from_all");
+    }).pipe(Effect.provide(layerHarness)),
+  );
+
+  it.effect(
+    "does not say synced when the setting changed while an older one was being delivered",
+    () =>
+      Effect.gen(function* () {
+        const { fake, directory, secrets, set, phone, laptop } = yield* arrange;
+        const reached = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<void>();
+        fake.state.onSetVisibility = Effect.suspend(() => {
+          fake.state.onSetVisibility = Effect.void;
+          return Deferred.succeed(reached, undefined).pipe(Effect.andThen(Deferred.await(release)));
+        });
+        yield* secrets.set(
+          DeviceDirectory.VISIBILITY_SECRET,
+          new TextEncoder().encode(
+            JSON.stringify({ v: 1, visibility: { mode: "hidden_from_all", deviceIds: [] } }),
+          ),
+        );
+        const first = yield* directory.sync.pipe(Effect.forkChild);
+        yield* Deferred.await(reached);
+        yield* set({ mode: "hidden_from_selected", deviceIds: [laptop.id, phone.id] });
+        yield* Effect.yieldNow;
+        yield* Deferred.succeed(release, undefined);
+        const status = yield* Fiber.join(first);
+        assert.deepEqual(fake.state.visibility, {
+          mode: "hidden_from_selected",
+          deviceIds: [laptop.id, phone.id].sort(),
+        });
+        assert.equal(status.visibility?.registry, "synced");
+      }).pipe(Effect.provide(layerHarness)),
+  );
+
+  it.effect("remembers what the registry said across a restart, for the CLI's next process", () =>
+    Effect.gen(function* () {
+      const { set, fake, directory, phone } = yield* arrange;
+      const context = yield* Effect.context<
+        | ServerSecretStore.ServerSecretStore
+        | DeviceIdentity.DeviceIdentity
+        | RegistryClient.RegistryClient
+        | SessionStore.SessionStore
+      >();
+      const restarted = Effect.gen(function* () {
+        const next = yield* DeviceDirectory.DeviceDirectory;
+        return (yield* next.status).visibility?.registry;
+      }).pipe(
+        // `fresh`: the same layer value would otherwise hand back the directory that is already running.
+        Effect.provide(
+          Layer.fresh(DeviceDirectory.layer).pipe(Layer.provide(Layer.succeedContext(context))),
+        ),
+        Effect.scoped,
+      );
+      const hidden = { mode: "hidden_from_selected", deviceIds: [phone.id] } as const;
+      yield* set(hidden);
+      assert.equal(yield* restarted, "synced");
+      // Changed again and not delivered yet: the old confirmation does not carry over.
+      fake.state.reachable = false;
+      yield* set({ mode: "hidden_from_all", deviceIds: [] });
+      assert.equal(yield* restarted, "pending");
+      fake.state.reachable = true;
+      fake.state.visibilitySupported = false;
+      yield* directory.sync;
+      assert.equal(yield* restarted, "unsupported");
     }).pipe(Effect.provide(layerHarness)),
   );
 

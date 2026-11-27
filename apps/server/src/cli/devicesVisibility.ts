@@ -42,7 +42,9 @@ export const resolveDevices = (
     );
     const [only] = matches;
     if (matches.length === 0 || only === undefined) {
-      return `No device named ${ref}. Run \`t3x devices list\`.`;
+      // Not a sync from here: a second process syncing beside the running server has its own gate and could
+      // delete this computer's key (docs/internals/self-hosted-devices.md), so a newcomer waits for that server's sync.
+      return `No device named ${ref} in the list from the last sync (\`t3x devices list\`). A device that joined after it is not here yet: use the start of its id (at least 8 characters, \`./t3x devices\` on your server shows it), or try again about a minute after the running T3 has synced.`;
     }
     if (matches.length > 1) {
       return `More than one device matches ${ref}; use the start of its id.`;
@@ -54,6 +56,9 @@ export const resolveDevices = (
 };
 
 const toJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+const describeUnreadable =
+  "The saved setting could not be read, so this computer refuses every device until you save a new one (`t3x devices visibility all|none|hide|only`).";
 
 const describeMode = (visibility: NonNullable<DevicesStatus["visibility"]>, names: string) => {
   switch (visibility.mode) {
@@ -130,6 +135,10 @@ export const visibilityCommand = (runWithDevices: RunWithDevices) => {
     }
     if (json) {
       yield* Console.log(toJson(visibility));
+      return;
+    }
+    if (visibility.unreadable === true) {
+      yield* Console.log(describeUnreadable);
       return;
     }
     yield* Console.log(describeMode(visibility, names(state, visibility.deviceIds)));

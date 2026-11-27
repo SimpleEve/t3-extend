@@ -38,4 +38,11 @@ describe("resolveDevices", () => {
     );
     assert.match(String(resolveDevices(["Studio"], input)), /cannot be in its own list/);
   });
+
+  it("says a device that joined after the last sync needs its id, and does not sync from here", () => {
+    const message = String(resolveDevices(["Newcomer"], input));
+    assert.match(message, /No device named Newcomer in the list from the last sync/);
+    assert.match(message, /start of its id/);
+    assert.match(message, /running T3/);
+  });
 });

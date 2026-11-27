@@ -40,6 +40,8 @@ export interface FakeRegistryState {
   visibilitySupported: boolean;
   /** What the registry holds for the asking computer. */
   visibility: DeviceVisibility;
+  /** Runs inside every `setVisibility` call, before the registry applies it. */
+  onSetVisibility: Effect.Effect<void>;
 }
 
 export class FakeRegistry extends Context.Service<
@@ -75,6 +77,7 @@ export const layerFakeRegistry = Layer.unwrap(
       hiddenPeers: [],
       visibilitySupported: true,
       visibility: { mode: "visible_to_all", deviceIds: [] },
+      onSetVisibility: Effect.void,
     };
     let counter = 0;
     const record = (op: string, detail?: unknown) => state.calls.push({ op, detail });
@@ -218,11 +221,17 @@ export const layerFakeRegistry = Layer.unwrap(
           Effect.andThen(
             Effect.suspend(() => {
               record("setVisibility", visibility);
-              if (!state.visibilitySupported) return rejected("not_found", 404);
-              state.visibility = visibility;
-              state.rev += 1;
-              return Effect.succeed({ rev: state.rev, visibility });
-            }),
+              return state.onSetVisibility;
+            }).pipe(
+              Effect.andThen(
+                Effect.suspend(() => {
+                  if (!state.visibilitySupported) return rejected("not_found", 404);
+                  state.visibility = visibility;
+                  state.rev += 1;
+                  return Effect.succeed({ rev: state.rev, visibility });
+                }),
+              ),
+            ),
           ),
         ),
     });
