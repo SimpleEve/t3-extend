@@ -55,8 +55,19 @@ describe("ProviderSettingsForm helpers", () => {
   it("shows Antigravity credential fields only for the sign-in methods that read them, or while set", () => {
     const antigravity = providerClients.get(ProviderDriverKind.make("antigravity"));
     expect(antigravity).toBeDefined();
+    // fork: T3 Extend's own Antigravity settings are always listed; this test is about the credentials.
+    const forkFields = new Set([
+      "loginSource",
+      "readUsageLimits",
+      "accountRotation",
+      "backgroundAccountCheck",
+      "networkProxy",
+      "useGlobalMcp",
+    ]);
     const keysFor = (value?: unknown) =>
-      deriveProviderSettingsFields(antigravity!, value).map((field) => field.key);
+      deriveProviderSettingsFields(antigravity!, value)
+        .map((field) => field.key)
+        .filter((key) => !forkFields.has(key));
 
     expect(keysFor({})).toEqual(["authMethod", "binaryPath"]);
     expect(

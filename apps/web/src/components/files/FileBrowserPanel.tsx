@@ -509,8 +509,10 @@ export default function FileBrowserPanel({
       const child = childrenByParent.get(path.replace(/\/$/, ""));
       if (child === undefined) return;
       // Like expand all, leave an ignored folder such as `node_modules` to open by hand.
+      // fork: a link is never opened for the user; what is behind it loads when they open it.
       const opensChild =
         child?.kind === "directory" &&
+        child.symlink === undefined &&
         (!child.ignored ||
           directoryEntries.some((entry) => entry.ignored && treePath(entry) === path));
       if (!opensChild || remaining === 0) {

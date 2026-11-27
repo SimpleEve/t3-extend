@@ -81,7 +81,8 @@ function Harness(props: {
     onAddPullRequests: noop,
     onAddDevice: noop,
     browserAvailable: false,
-    terminalAvailable: false,
+    // fork: the panel draws its add button only while some surface can be added.
+    terminalAvailable: true,
     diffAvailable: false,
     filesAvailable: false,
     pullRequestAvailable: false,

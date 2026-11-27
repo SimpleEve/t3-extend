@@ -138,8 +138,10 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
       }),
     );
   }
-  const quotaHost = HttpClient.make((request) =>
-    Effect.succeed(
+  const quotaRequests = { count: 0 }; // fork:
+  const quotaHost = HttpClient.make((request) => {
+    quotaRequests.count += 1; // fork:
+    return Effect.succeed(
       HttpClientResponse.fromWeb(
         request,
         account !== "signed-in"
@@ -164,8 +166,8 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
                   ],
                 }),
       ),
-    ),
-  );
+    );
+  });
   const instancePath = `${path.join(root, "instance-bin")}:${baseEnv.PATH ?? ""}`;
 
   const agentExecutables = new Set<string>();
@@ -368,6 +370,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   });
   return {
     keychainReads, // fork:
+    quotaRequests, // fork:
     instance,
     refresh,
     makeExecutable,
@@ -831,7 +834,10 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
     "ignores a token left in the profile when the sign-in is the agy CLI's",
     () =>
       Effect.gen(function* () {
-        const h = yield* makeHarness({ account: "signed-in", config: { loginSource: "cli" } });
+        const h = yield* makeHarness({
+          account: "signed-in",
+          config: { loginSource: "cli", readUsageLimits: true },
+        });
         const unavailable = yield* Stream.toPull(
           h.instance.snapshot.streamChanges.pipe(
             Stream.filter((snapshot) => snapshot.usageLimits?.unavailable !== undefined),
@@ -854,7 +860,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         } as const;
         const options = {
           account: "signed-in",
-          config: { loginSource: "cli" },
+          config: { loginSource: "cli", readUsageLimits: true },
           cliLoginSource,
         } as const;
         const first = yield* makeHarness(options);
@@ -956,7 +962,10 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
     "reports a stored sign-in whose quota read succeeds as signed in without starting the agent",
     () =>
       Effect.gen(function* () {
-        const h = yield* makeHarness({ account: "signed-in" });
+        const h = yield* makeHarness({
+          account: "signed-in",
+          config: { readUsageLimits: true },
+        });
         const signedIn = yield* Stream.toPull(
           h.instance.snapshot.streamChanges.pipe(
             Stream.filter((snapshot) => snapshot.auth.status === "authenticated"),
@@ -968,11 +977,33 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
       }),
   );
 
+  // fork: Google says reading quota can get an account flagged, so it is off unless the instance asks.
+  it.effect.skipIf(windowsHost)(
+    "sends no quota request and publishes no limits unless the instance turns quota reading on",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-in" });
+        yield* h.instance.snapshot.refresh;
+        // Nothing verified the stored token with Google, so the account stays unchecked, as upstream's does.
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          installed: true,
+          status: "warning",
+          auth: { status: "unknown" },
+        });
+        expect((yield* h.instance.snapshot.getSnapshot).usageLimits).toBeUndefined();
+        expect(h.quotaRequests.count).toBe(0);
+        expect(h.launches).toEqual([]);
+      }),
+  );
+
   it.effect.skipIf(windowsHost)(
     "keeps a stored sign-in whose quota read fails unchecked rather than signed out",
     () =>
       Effect.gen(function* () {
-        const h = yield* makeHarness({ account: "quota-failed" });
+        const h = yield* makeHarness({
+          account: "quota-failed",
+          config: { readUsageLimits: true },
+        });
         const failed = yield* Stream.toPull(
           h.instance.snapshot.streamChanges.pipe(
             Stream.filter(

@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import type { ManagedPolicyDocument } from "@t3tools/contracts";
@@ -481,7 +482,7 @@ it.layer(NodeServices.layer)("pruning runtimes on start", (it) => {
       if (input.servicePlistThroughLink) yield* fs.symlink(realHome, programHome);
       const program = path.join(programHome, "runtime", "versions", input.servicePlistStarts, "t3");
       yield* fs.writeFileString(
-        path.join(agentsDir, "com.t3tools.t3code.service.plist"),
+        path.join(agentsDir, `${FORK.bootServiceLabel}.plist`),
         `<plist><dict>\n<key>ProgramArguments</key>\n<array>\n<string>${program}</string>\n<string>__service-launcher</string>\n</array>\n</dict></plist>\n`,
       );
     }
