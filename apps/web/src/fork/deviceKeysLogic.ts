@@ -217,6 +217,87 @@ export function describeVisibility(
   }
 }
 
+/** The sentence for a tooltip: `describeVisibility`, or the refusal when the saved setting is unreadable. */
+export function describeVisibilityDetail(
+  t: Translator,
+  visibility: Pick<VisibilityState, "mode" | "deviceIds" | "unreadable">,
+  devices: ReadonlyArray<Pick<DeviceListEntry, "id" | "name">>,
+): string {
+  return visibility.unreadable === true
+    ? t("The saved setting could not be read. Other devices are refused until you save a new one.")
+    : describeVisibility(t, visibility, devices);
+}
+
+/** Whether the setting keeps this computer from anyone; the default shows no mark anywhere. */
+export function visibilityLimited(visibility: Pick<VisibilityState, "mode" | "unreadable">) {
+  return visibility.unreadable === true || visibility.mode !== "visible_to_all";
+}
+
+/**
+ * Whether the device with `deviceId` can see this computer right now. An unreadable setting refuses
+ * every other device; a device that joins later is not in the list yet, so it is not asked here.
+ */
+export function deviceSeesThisComputer(
+  visibility: Pick<VisibilityState, "mode" | "deviceIds" | "unreadable">,
+  deviceId: string,
+): boolean {
+  if (visibility.unreadable === true) return false;
+  switch (visibility.mode) {
+    case "visible_to_all":
+      return true;
+    case "hidden_from_all":
+      return false;
+    case "hidden_from_selected":
+      return !visibility.deviceIds.includes(deviceId);
+    case "visible_to_selected":
+      return visibility.deviceIds.includes(deviceId);
+  }
+}
+
+/** Names go in the label when they are few and short; otherwise a count keeps it to one line. */
+const SHORT_LABEL_MAX_DEVICES = 2;
+const SHORT_LABEL_MAX_NAME_CHARS = 18;
+
+/** The active mode in a few words, for beside the Visibility title and in the device list. */
+export function describeVisibilityShort(
+  t: Translator,
+  visibility: Pick<VisibilityState, "mode" | "deviceIds" | "unreadable">,
+  devices: ReadonlyArray<Pick<DeviceListEntry, "id" | "name">>,
+): string {
+  if (visibility.unreadable === true) return t("Setting unreadable");
+  const count = visibility.deviceIds.length;
+  const known = visibility.deviceIds.flatMap((id) => {
+    const name = devices.find((device) => device.id === id)?.name;
+    return name === undefined ? [] : [name];
+  });
+  // An id that is not on the list has no name worth showing, so its mode falls back to the count.
+  const names =
+    count > 0 &&
+    known.length === count &&
+    count <= SHORT_LABEL_MAX_DEVICES &&
+    known.join(", ").length <= SHORT_LABEL_MAX_NAME_CHARS
+      ? known.join(", ")
+      : null;
+  switch (visibility.mode) {
+    case "visible_to_all":
+      return t("Visible to all devices");
+    case "hidden_from_all":
+      return t("Hidden from all devices");
+    case "hidden_from_selected":
+      return names !== null
+        ? t("Hidden from {names}", { names })
+        : count === 1
+          ? t("Hidden from {count} device", { count })
+          : t("Hidden from {count} devices", { count });
+    case "visible_to_selected":
+      return names !== null
+        ? t("Visible only to {names}", { names })
+        : count === 1
+          ? t("Visible only to {count} device", { count })
+          : t("Visible only to {count} devices", { count });
+  }
+}
+
 /** What to tell about the server's copy of the setting; null when there is nothing to say. */
 export function describeVisibilityRegistry(
   t: Translator,

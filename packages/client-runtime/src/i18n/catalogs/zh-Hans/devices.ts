@@ -98,6 +98,16 @@ export default {
   "Hidden from {names}.": "对 {names} 隐藏。",
   "Visible only to the devices you chose.": "仅对你选的设备可见。",
   "Visible only to {names}.": "仅对 {names} 可见。",
+  "Hidden from {names}": "对 {names} 隐藏",
+  "Hidden from {count} device": "对 {count} 台设备隐藏",
+  "Hidden from {count} devices": "对 {count} 台设备隐藏",
+  "Visible only to {names}": "仅对 {names} 可见",
+  "Visible only to {count} device": "仅 {count} 台设备可见",
+  "Visible only to {count} devices": "仅 {count} 台设备可见",
+  "Setting unreadable": "设置无法读取",
+  "Can't see this computer": "看不到本机",
+  "Your Visibility setting hides this computer from {name}.":
+    "按你的可见性设置，这台电脑对 {name} 隐藏。",
   "Your server needs an update before it can hide this computer from other devices' lists. This computer already refuses the sign-ins this setting rules out.":
     "你的服务器需要更新，才能让其他设备的列表里不再出现这台电脑。这台电脑已经按这个设置拒绝相应设备登录。",
   "Your server has not received this setting yet. This computer already applies it and keeps trying.":

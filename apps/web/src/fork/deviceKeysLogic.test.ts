@@ -4,13 +4,17 @@ import type { DevicesSnapshot } from "@t3tools/contracts";
 
 import {
   describeVisibility,
+  describeVisibilityDetail,
   describeVisibilityRegistry,
+  describeVisibilityShort,
+  deviceSeesThisComputer,
   inviteDeadlineLabel,
   networkAccessNeedsRefresh,
   serverNotice,
   serverNoticeWindow,
   snapshotToView,
   visibilityDraftReady,
+  visibilityLimited,
   visibilityToSend,
   visibilityUnchanged,
 } from "./deviceKeysLogic";
@@ -235,6 +239,79 @@ describe("the Visibility setting", () => {
     ).toBe("Hidden from Laptop, unseen-0….");
     expect(describeVisibility(t, { mode: "hidden_from_selected", deviceIds: [] }, devices)).toBe(
       "Hidden from the devices you chose.",
+    );
+  });
+
+  it("says the active mode in a few words, naming one or two short device names and counting the rest", () => {
+    const short = (mode: Parameters<typeof describeVisibilityShort>[1]["mode"], ids: string[]) =>
+      describeVisibilityShort(t, { mode, deviceIds: ids }, devices);
+    expect(short("visible_to_all", [])).toBe("Visible to all devices");
+    expect(short("hidden_from_all", [])).toBe("Hidden from all devices");
+    expect(short("hidden_from_selected", ["a"])).toBe("Hidden from Laptop");
+    expect(short("hidden_from_selected", ["a", "b"])).toBe("Hidden from Laptop, Pixel");
+    expect(short("visible_to_selected", ["b"])).toBe("Visible only to Pixel");
+    // An id that is not on the list has no name to show, so it is counted.
+    expect(short("hidden_from_selected", ["a", "unseen-0123456789"])).toBe("Hidden from 2 devices");
+    expect(short("visible_to_selected", ["unseen-0123456789"])).toBe("Visible only to 1 device");
+    // Three or more, or names too long for one line, are counted too.
+    const many = [
+      { id: "a", name: "Laptop" },
+      { id: "b", name: "Pixel" },
+      { id: "c", name: "iPad" },
+      { id: "d", name: "A very long device name" },
+    ];
+    expect(
+      describeVisibilityShort(
+        t,
+        { mode: "hidden_from_selected", deviceIds: ["a", "b", "c"] },
+        many,
+      ),
+    ).toBe("Hidden from 3 devices");
+    expect(
+      describeVisibilityShort(t, { mode: "visible_to_selected", deviceIds: ["d"] }, many),
+    ).toBe("Visible only to 1 device");
+    expect(
+      describeVisibilityShort(
+        t,
+        { mode: "hidden_from_all", deviceIds: [], unreadable: true },
+        devices,
+      ),
+    ).toBe("Setting unreadable");
+  });
+
+  it("marks only the settings that keep this computer from someone", () => {
+    expect(visibilityLimited({ mode: "visible_to_all" })).toBe(false);
+    expect(visibilityLimited({ mode: "hidden_from_all" })).toBe(true);
+    expect(visibilityLimited({ mode: "hidden_from_selected" })).toBe(true);
+    expect(visibilityLimited({ mode: "visible_to_selected" })).toBe(true);
+    // The saved mode of an unreadable file is a guess, but the refusal is real.
+    expect(visibilityLimited({ mode: "visible_to_all", unreadable: true })).toBe(true);
+  });
+
+  it("knows which listed devices cannot see this computer", () => {
+    const sees = (mode: Parameters<typeof deviceSeesThisComputer>[0]["mode"], id: string) =>
+      deviceSeesThisComputer({ mode, deviceIds: ["a"] }, id);
+    expect(sees("visible_to_all", "a")).toBe(true);
+    expect(sees("hidden_from_all", "b")).toBe(false);
+    expect(sees("hidden_from_selected", "a")).toBe(false);
+    expect(sees("hidden_from_selected", "b")).toBe(true);
+    expect(sees("visible_to_selected", "a")).toBe(true);
+    expect(sees("visible_to_selected", "b")).toBe(false);
+    expect(
+      deviceSeesThisComputer({ mode: "visible_to_all", deviceIds: [], unreadable: true }, "a"),
+    ).toBe(false);
+  });
+
+  it("uses the refusal as the tooltip sentence when the setting is unreadable", () => {
+    expect(
+      describeVisibilityDetail(
+        t,
+        { mode: "visible_to_all", deviceIds: [], unreadable: true },
+        devices,
+      ),
+    ).toMatch(/could not be read/);
+    expect(describeVisibilityDetail(t, { mode: "hidden_from_all", deviceIds: [] }, devices)).toBe(
+      "Hidden from all devices, including ones that join later.",
     );
   });
 

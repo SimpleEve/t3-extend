@@ -16,15 +16,19 @@ import { useState } from "react";
 import {
   describeDevicesError,
   describeVisibility,
+  describeVisibilityDetail,
   describeVisibilityRegistry,
+  describeVisibilityShort,
   shortDeviceId,
   visibilityDraftReady,
+  visibilityLimited,
   visibilityToSend,
   visibilityUnchanged,
 } from "~/fork/deviceKeysLogic";
 import { devicesCommands } from "~/fork/deviceKeysStore";
 import { useT } from "~/hooks/useT";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import {
@@ -67,32 +71,41 @@ export function VisibilityRow({
   const [open, setOpen] = useState(false);
   const visibility = status.visibility ?? DEFAULT_VISIBILITY;
   const unreadable = visibility.unreadable === true;
+  const limited = visibilityLimited(visibility);
   const registryNote = unreadable ? null : describeVisibilityRegistry(t, visibility.registry);
   return (
     <>
       <SettingsRow
         id="devices-visibility"
-        title={t("Visibility")}
+        title={
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            {t("Visibility")}
+            <Badge variant={unreadable ? "warning" : "outline"} size="sm" data-t3x-han-text>
+              {limited ? <EyeOffIcon aria-hidden /> : null}
+              {describeVisibilityShort(t, visibility, devices)}
+            </Badge>
+          </span>
+        }
         description={t(
           "Choose which devices on your server can see this computer and sign in to it.",
         )}
         status={
-          <span className="flex flex-col gap-1">
-            {unreadable ? (
-              <span className="block text-warning-foreground" role="status">
-                {t(
-                  "The saved setting could not be read. Other devices are refused until you save a new one.",
-                )}
-              </span>
-            ) : (
-              <span className="block">{describeVisibility(t, visibility, devices)}</span>
-            )}
-            {registryNote === null || visibility.mode === "visible_to_all" ? null : (
-              <span className="block text-warning-foreground" role="status">
-                {registryNote}
-              </span>
-            )}
-          </span>
+          unreadable || limited || registryNote !== null ? (
+            <span className="flex flex-col gap-1">
+              {unreadable ? (
+                <span className="block text-warning-foreground" role="status">
+                  {describeVisibilityDetail(t, visibility, devices)}
+                </span>
+              ) : limited ? (
+                <span className="block">{describeVisibility(t, visibility, devices)}</span>
+              ) : null}
+              {registryNote === null || visibility.mode === "visible_to_all" ? null : (
+                <span className="block text-warning-foreground" role="status">
+                  {registryNote}
+                </span>
+              )}
+            </span>
+          ) : null
         }
         control={
           <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
