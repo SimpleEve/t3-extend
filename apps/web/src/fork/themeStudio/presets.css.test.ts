@@ -49,7 +49,7 @@ function selectors(list: string): string[] {
 // What the guide registers: `data-slot` values, other data attributes (with a value when the guide
 // gives one) and class names.
 const HOOKS = THEME_CSS_HOOKS.map((hook) => {
-  const attribute = /^\[(data-[a-z-]+)(?:="([^"]*)")?\]$/.exec(hook.selector);
+  const attribute = /^\[(data-[a-z0-9-]+)(?:="([^"]*)")?\]$/.exec(hook.selector);
   return {
     attribute: attribute?.[1],
     value: attribute?.[2],
@@ -64,7 +64,7 @@ const ALLOWED_CLASSES = new Set([
 
 function unregistered(selector: string): string[] {
   const found: string[] = [];
-  for (const [, name, value] of selector.matchAll(/\[(data-[a-z-]+)(?:="([^"]*)")?\]/g)) {
+  for (const [, name, value] of selector.matchAll(/\[(data-[a-z0-9-]+)(?:="([^"]*)")?\]/g)) {
     const known = HOOKS.some(
       (hook) =>
         hook.attribute === name &&

@@ -30,6 +30,7 @@ import {
 } from "@t3tools/shared/toolOutput";
 import {
   contextCompactionLabel,
+  workEntryDisplayIndicatesToolFailure, // fork: theme CSS hooks
   workEntryIndicatesToolFailure,
 } from "@t3tools/client-runtime/work-log/presentation";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
@@ -197,6 +198,35 @@ export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolea
     !workEntryIndicatesToolFailure(entry) &&
     !workEntryIndicatesToolSuccess(entry)
   );
+}
+
+// fork: theme CSS hooks. The state and the tool a theme sees on a tool row as `data-tool-status` and `data-tool-name`.
+/** Thinking, notices and warnings have no state. */
+export function workEntryToolStatus(
+  entry: WorkLogEntry,
+): "running" | "success" | "error" | "stopped" | undefined {
+  if (entry.tone !== "tool" || entry.sourceActivityKind === "runtime.warning") return undefined;
+  if (workEntryDisplayIndicatesToolFailure(entry)) return "error";
+  switch (entry.toolLifecycleStatus) {
+    case "inProgress":
+      return "running";
+    case "stopped":
+    case "idle":
+      return "stopped";
+    case "failed":
+    case "declined":
+      return "error";
+    case "completed":
+    case undefined:
+      return "success";
+  }
+}
+
+/** A dynamic tool's own name, else the item type. */
+export function workEntryToolName(entry: WorkLogEntry): string | undefined {
+  if (entry.tone !== "tool") return undefined;
+  const payload = entry.structuredPayload;
+  return payload?.type === "dynamic_tool" ? (payload.toolName ?? entry.itemType) : entry.itemType;
 }
 
 export function isLatestRunSettled(

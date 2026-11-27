@@ -78,7 +78,10 @@ windows, Ink wash and Neon each carry their own fonts, borders and message shape
 same in green on black. Docs and Quiet page are plain reading layouts and have a dark
 version. Editor, One Dark, Solarized, GitHub and Nord are plain editor-style palettes with no
 decoration, each with a light and a dark half. Mochi is a soft cream-and-pink look with round
-corners, with a plum dark half. Presets only use fonts already installed on your device, so on a machine without them
+corners, with a plum dark half. omp copies the look of the omp terminal agent: a monospace font,
+your message as a full-width block, thinking in dim italics, and each tool call as a small bordered
+card whose color shows whether it is running, done or failed. Its dark half is omp's titanium theme
+and its light half is omp's light theme. Presets only use fonts already installed on your device, so on a machine without them
 (Windows or Linux, for example) a close fallback shows instead. Some presets add small text to the
 chat, such as the label above your message. It is in Chinese when the interface is in Chinese, and in
 English in every other language. That text is decoration: copying a message does not include it and

@@ -32,6 +32,7 @@ export default {
   GitHub: "GitHub",
   Nord: "Nord",
   Mochi: "麻薯",
+  omp: "omp",
   "Needs a background image": "需要背景图",
   "Hover to preview, click to use. Change a preset, then save your version as a scheme; the preset stays as it is.":
     "悬停预览，点击使用。改过预设之后，把你的版本存成方案，预设本身不变。",

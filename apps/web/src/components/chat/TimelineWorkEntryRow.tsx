@@ -31,6 +31,8 @@ import { memo, use, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import {
   workEntryDisplayIndicatesToolFailure,
   workEntrySignalsSevereFailure,
+  workEntryToolName, // fork: theme CSS hooks
+  workEntryToolStatus, // fork: theme CSS hooks
   workLogEntryIsToolLike,
 } from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
@@ -571,6 +573,8 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
   return (
     <WorkLogRow
       data-work-entry-id={workEntry.id}
+      data-tool-status={workEntryToolStatus(workEntry)} // fork: theme CSS hooks
+      data-tool-name={workEntryToolName(workEntry)} // fork: theme CSS hooks
       data-v2-item-type={workEntry.projectedItem?.item.type}
       data-v2-item-visibility={workEntry.projectedItem?.visibility}
       onClick={canExpandProjectedItem ? toggleExpanded : undefined}
