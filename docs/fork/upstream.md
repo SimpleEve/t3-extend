@@ -32,6 +32,7 @@ This table lists only syncs you can verify in git history. The merge commit is o
 | 2026-11-21 | `9cc4018c75`    | 2026-11-20           | `b39cb114ac` | 459     |
 | 2026-11-24 | `a7a6126a7d`    | 2026-11-24           | `01fb5bc1de` | 834     |
 | 2026-11-25 | `ca81b7b97a`    | 2026-11-24           | `d35fbebd8c` | 209     |
+| 2026-11-27 | `bc0f04da94`    | 2026-11-26           | `4e14f0f93f` | 401     |
 
 Upstream was also merged in before 2026-11-04, but those merges did not leave an upstream commit ID we can verify, so they are not listed. The conflicts and trade-offs of each sync are recorded in the [Syncing upstream](../../FORK.md#同步上游) section of FORK.md.
 
