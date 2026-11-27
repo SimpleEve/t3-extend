@@ -83,8 +83,8 @@ reading, with how old it is. Google can reset quota early, and a saved account's
 about an hour after it stops being used, so by default T3 reads one saved account that is not in use
 about every 45 minutes. While its saved sign-in is still good the quota is read with it directly.
 Once it has expired T3 starts agy briefly on a private copy of it to renew it, sends no prompt, so no
-quota is used, and never touches the account in use. Turn off **Check other accounts in the
-background** to stop this. The refresh button next to an account, or next to **All accounts**, reads
+quota is used, and never touches the account in use. Turn off **Update other accounts' quota
+automatically** to stop this. The refresh button next to an account, or next to **All accounts**, reads
 on demand whatever that setting says; leaving the page while it runs stops it without counting as a
 failure. If a read fails the old reading stays, and the row says why; a sign-in Google no longer
 accepts needs the account to sign in again, and is not tried again for hours. T3 lifts an
@@ -187,7 +187,7 @@ own risk.
 - **On.** The instance shows the Gemini and shared Claude/GPT allowances, with separate five-hour and
   weekly limits and their reset times, in **Usage > Limits**, as described under
   [Keep several Google accounts in one instance](#keep-several-google-accounts-in-one-instance).
-  The setting **Check other accounts in the background** only applies while this is on.
+  The setting **Update other accounts' quota automatically** only applies while this is on.
 
 A CLIProxyAPI hub does not read Antigravity accounts' quota, whatever this setting says.
 

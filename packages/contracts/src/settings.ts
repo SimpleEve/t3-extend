@@ -1070,7 +1070,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       Schema.annotateKey({
         title: "Read quota from Google",
         description:
-          "Shows this instance's quota and other accounts' quota in Usage. Reading it calls Google's internal cloudcode-pa API, which Google says can get an account flagged. Use at your own risk. When off, T3 sends no quota requests; account switching still works from the errors a turn reports.",
+          "Shows this instance's quota, and other saved accounts' quota, in Usage. Reading it calls Google's internal cloudcode-pa API, which Google says can get an account flagged. Use at your own risk. When off, T3 sends no quota requests; switching accounts still works from the errors a turn reports.",
         providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
       }),
     ),
