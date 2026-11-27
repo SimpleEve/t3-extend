@@ -161,6 +161,7 @@ import {
 import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
 import { YourServerSettings } from "../../fork/YourServerSettings"; // fork: self-hosted connection and devices
 import { isSelfHostEndpoint } from "~/fork/selfHostStore";
+import { LocalVisibilityMark } from "~/fork/VisibilityMark"; // fork: hidden from some devices
 import {
   type ConnectDeviceRevokeRequest,
   RevokeConnectDeviceDialog,
@@ -1316,6 +1317,10 @@ function ConnectionsSettingsContent({
                 }
                 className="size-4"
               />
+            }
+            titleAction={
+              /* fork: hidden from some devices on your server */
+              <LocalVisibilityMark environmentId={accessEnvironmentId} className="ml-1" />
             }
             headerAction={
               accessEnvironmentId !== null ? (

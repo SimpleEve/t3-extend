@@ -61,6 +61,7 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
 
 import { peerWait } from "~/fork/deviceKeysRuntime";
 import { YourServerSettings } from "./YourServerSettings";
+import { LocalVisibilityMark } from "./VisibilityMark";
 
 const success = <A,>(value: A) => AsyncResult.success(value) as AtomCommandResult<A, never>;
 
@@ -390,7 +391,99 @@ describe("Your server settings, visibility", () => {
   it("says everyone can see this computer until told otherwise", async () => {
     using _bridge = setup({ status: visible("visible_to_all") });
     await using _screen = await render(ui(), { router: false });
-    await expect.element(page.getByText("Visible to all devices.")).toBeVisible();
+    // The current choice sits right beside the title, with no marks anywhere else.
+    await expect
+      .element(page.getByRole("heading", { name: "Visibility Visible to all devices" }))
+      .toBeVisible();
+    expect(page.getByText("Can't see this computer").elements()).toHaveLength(0);
+    expect(page.getByText("Visible to all devices.").elements()).toHaveLength(0);
+  });
+
+  it("reads the active mode beside the title in each of the four modes", async () => {
+    const heading = (name: string) => page.getByRole("heading", { name: `Visibility ${name}` });
+    {
+      using _bridge = setup({ status: visible("hidden_from_all") });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(heading("Hidden from all devices")).toBeVisible();
+    }
+    {
+      using _bridge = setup({ status: visible("hidden_from_selected", ["mac-mini", "phone"]) });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(heading("Hidden from Mac mini, Pixel")).toBeVisible();
+      // The label already names them, so the sentence under it is not repeated.
+      expect(page.getByText("Hidden from Mac mini, Pixel.").elements()).toHaveLength(0);
+    }
+    {
+      using _bridge = setup({ status: visible("visible_to_selected", ["phone"]) });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(heading("Visible only to Pixel")).toBeVisible();
+    }
+    {
+      using _bridge = setup({
+        status: visible("hidden_from_selected", ["mac-mini", "phone", "x"]),
+      });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(heading("Hidden from 3 devices")).toBeVisible();
+      await expect.element(page.getByText(/^Hidden from Mac mini, Pixel, .+\.$/)).toBeVisible();
+    }
+  });
+
+  it("marks this computer and the devices that cannot see it in the list, and no one else", async () => {
+    using _bridge = setup({ status: visible("hidden_from_selected", ["mac-mini"]) });
+    await using _screen = await render(ui(), { router: false });
+    // This computer's own row says the mode; only the device it hides from gets the second mark.
+    await expect.element(page.getByText("Can't see this computer")).toBeVisible();
+    expect(page.getByText("Can't see this computer").elements()).toHaveLength(1);
+    expect(page.getByText("Hidden from Mac mini", { exact: true }).elements()).toHaveLength(2);
+  });
+
+  it("marks every other device when hidden from all, and the ones left out when visible to selected", async () => {
+    {
+      using _bridge = setup({ status: visible("hidden_from_all") });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(page.getByText("Can't see this computer").first()).toBeVisible();
+      expect(page.getByText("Can't see this computer").elements()).toHaveLength(2);
+    }
+    {
+      using _bridge = setup({ status: visible("visible_to_selected", ["phone"]) });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(page.getByText("Can't see this computer")).toBeVisible();
+      expect(page.getByText("Can't see this computer").elements()).toHaveLength(1);
+    }
+  });
+
+  it("shows the environment lists' mark only for this computer, and only when it is limited", async () => {
+    const mark = (environmentId: string) => (
+      <AppAtomRegistryProvider>
+        <LocalVisibilityMark environmentId={environmentId as never} />
+      </AppAtomRegistryProvider>
+    );
+    {
+      using _bridge = setup({ status: visible("visible_to_all") });
+      await using screen = await render(mark("primary"), { router: false });
+      expect(screen.container.querySelector("svg")).toBeNull();
+    }
+    {
+      using _bridge = setup({ status: visible("hidden_from_all") });
+      await using screen = await render(mark("remote"), { router: false });
+      expect(screen.container.querySelector("svg")).toBeNull();
+    }
+    {
+      using _bridge = setup({ status: visible("hidden_from_all") });
+      await using _screen = await render(mark("primary"), { router: false });
+      await expect
+        .element(
+          page.getByRole("img", {
+            name: "Hidden from all devices, including ones that join later.",
+          }),
+        )
+        .toBeVisible();
+    }
+    {
+      using _bridge = setup({ desktop: false, status: visible("hidden_from_all") });
+      await using screen = await render(mark("primary"), { router: false });
+      expect(screen.container.querySelector("svg")).toBeNull();
+    }
   });
 
   it("lists the other devices for the two modes that name devices, and saves the pick", async () => {
@@ -423,7 +516,9 @@ describe("Your server settings, visibility", () => {
   it("sends no list for the modes that name nobody, and saves nothing when nothing changed", async () => {
     using _bridge = setup({ status: visible("hidden_from_selected", ["phone"]) });
     await using _screen = await render(ui(), { router: false });
-    await expect.element(page.getByText("Hidden from Pixel.")).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "Visibility Hidden from Pixel" }))
+      .toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Change" }));
     await expect.element(page.getByRole("button", { name: "Save" })).toBeDisabled();
     await userEvent.click(page.getByRole("radio", { name: /Hidden from all devices/ }));

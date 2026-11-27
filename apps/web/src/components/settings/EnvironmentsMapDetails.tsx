@@ -22,6 +22,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { formatAccessTimestamp } from "./ConnectionsSettings.logic";
 import { EnvironmentRow, EnvironmentTransportLabel } from "./EnvironmentRow";
+import { LocalVisibilityMark } from "../../fork/VisibilityMark"; // fork: hidden from some devices
 import {
   type FleetEnvironmentNode,
   type FleetFocus,
@@ -749,7 +750,9 @@ function NodeDetails({
                   : ""}
               </>
             }
-          />
+          >
+            <LocalVisibilityMark environmentId={environment.environmentId} />
+          </EnvironmentRow>
         ) : null)}
       <div className={cn(SECTION, "space-y-3 border-t border-border/60")}>
         {environment && saved !== null ? <Reconnect environment={environment} /> : null}
