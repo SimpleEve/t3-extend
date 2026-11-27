@@ -276,7 +276,7 @@ const make = Effect.gen(function* () {
           ? stored.value.registry
           : "pending";
       }),
-      Effect.catch(() => Effect.succeed(fallback)),
+      Effect.orElseSucceed(() => fallback),
     );
   const writeRegistryState = (
     registry: DeviceVisibilityRegistryState,
