@@ -540,6 +540,75 @@ describe("MessagesTimeline work rows", () => {
     });
     expect(followedNatively).toBe(false);
   });
+
+  // The latest tool call of a working turn renders as the live row (LiveWorkEntryTimelineRow), not
+  // WorkEntryLogRow.
+  it.each([
+    { toolLifecycleStatus: "inProgress", expected: "running" },
+    { toolLifecycleStatus: "completed", expected: "success" },
+  ] as const)("gives theme CSS a $expected state on the live tool row", async (row) => {
+    setup();
+    const runId = RunId.make("live-tool-run");
+    await using screen = await renderTimeline(
+      [
+        message("Run the tests", { role: "user" }, "prompt"),
+        work("live-tool", {
+          label: "Ran command",
+          tone: "tool",
+          itemType: "command_execution",
+          command: "npm test",
+          toolLifecycleStatus: row.toolLifecycleStatus,
+          runId,
+        }),
+      ],
+      {
+        isWorking: true,
+        activeTurnStartedAt: CREATED_AT,
+        latestRun: { runId, status: "running", startedAt: CREATED_AT, completedAt: null },
+      },
+    );
+    const elements = screen.container.querySelectorAll("[data-tool-status]");
+    expect(elements).toHaveLength(1);
+    expect(elements[0]?.getAttribute("data-tool-status")).toBe(row.expected);
+    expect(elements[0]?.getAttribute("data-tool-name")).toBe("command_execution");
+  });
+
+  it.each([
+    { toolLifecycleStatus: "completed", expected: "success" },
+    { toolLifecycleStatus: "failed", expected: "error" },
+    { toolLifecycleStatus: "declined", expected: "error" },
+    { toolLifecycleStatus: "stopped", expected: "stopped" },
+  ] as const)("gives theme CSS a $expected state on the tool row", async (row) => {
+    setup();
+    await using screen = await renderTimeline([
+      work("tool-row", {
+        label: "Ran command",
+        tone: "tool",
+        itemType: "command_execution",
+        command: "npm test",
+        toolLifecycleStatus: row.toolLifecycleStatus,
+      }),
+    ]);
+    const element = screen.container.querySelector('[data-work-entry-id="tool-row"]');
+    expect(element?.getAttribute("data-tool-status")).toBe(row.expected);
+    expect(element?.getAttribute("data-tool-name")).toBe("command_execution");
+  });
+
+  it("gives theme CSS no tool state on a thinking row", async () => {
+    setup();
+    await using screen = await renderTimeline([
+      work("thinking-row", {
+        label: "Thinking",
+        tone: "thinking",
+        itemType: "reasoning",
+        detail: "Pondering the change",
+      }),
+      message("Done", { role: "assistant" }, "final"),
+    ]);
+    const element = screen.container.querySelector('[data-work-entry-id="thinking-row"]');
+    expect(element).not.toBeNull();
+    expect(element?.hasAttribute("data-tool-status")).toBe(false);
+  });
 });
 
 describe("MessagesTimeline messages", () => {

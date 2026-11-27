@@ -15,7 +15,11 @@ import { observeVisibleAnimation } from "../../lib/visibleAnimation";
 import { T, useGT, useMessages } from "gt-react";
 import { memo, use, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
-import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
+import {
+  workEntryDisplayIndicatesToolFailure,
+  workEntryToolName, // fork: theme CSS hooks
+  workEntryToolStatus, // fork: theme CSS hooks
+} from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
 import { assetMediaActionsSource } from "./ChatMarkdownMedia";
 import { Minimize2Icon, XIcon } from "lucide-react";
@@ -498,6 +502,7 @@ function LiveActivityRow({
   failed = false,
   active = false,
   shimmer = false,
+  toolAttrs,
 }: {
   label: ReactNode;
   iconName?: WorkEntryIconName;
@@ -507,13 +512,18 @@ function LiveActivityRow({
   failed?: boolean;
   active?: boolean;
   shimmer?: boolean;
+  toolAttrs?: ToolRowAttrs | undefined;
 }) {
   const animated = active && !failed;
   const showShimmer = animated && shimmer;
   return (
     <div
       ref={animated ? observeVisibleAnimation : undefined}
-      className="relative min-h-6 w-fit max-w-full min-w-0 overflow-hidden rounded-md text-sm leading-relaxed"
+      className={cn(
+        "relative min-h-6 max-w-full min-w-0 rounded-md text-sm leading-relaxed",
+        // fork: theme CSS hooks. A tool card spans the row like the finished one, and may reach past it.
+        toolAttrs?.status ? "w-full" : "w-fit overflow-hidden",
+      )}
     >
       <LiveActivityContent
         label={label}
@@ -523,6 +533,7 @@ function LiveActivityRow({
         failed={failed}
         announceFailure={failed}
         active={animated && !shimmer}
+        toolAttrs={toolAttrs}
       />
       {showShimmer ? (
         <ActivityShimmerOverlay>
@@ -539,6 +550,12 @@ function LiveActivityRow({
   );
 }
 
+// fork: theme CSS hooks
+type ToolRowAttrs = {
+  readonly status: ReturnType<typeof workEntryToolStatus>;
+  readonly name: ReturnType<typeof workEntryToolName>;
+};
+
 function LiveActivityContent({
   label,
   iconName,
@@ -548,6 +565,7 @@ function LiveActivityContent({
   announceFailure = false,
   active = false,
   highlighted = false,
+  toolAttrs,
 }: {
   label: ReactNode;
   iconName: WorkEntryIconName | undefined;
@@ -557,6 +575,8 @@ function LiveActivityContent({
   announceFailure?: boolean;
   active?: boolean;
   highlighted?: boolean;
+  /** fork: theme CSS hooks. The state a theme sees on this tool row. */
+  toolAttrs?: ToolRowAttrs | undefined;
 }) {
   const gt = useGT();
   const showTrailingFailureMark =
@@ -564,6 +584,8 @@ function LiveActivityContent({
 
   return (
     <WorkLogRow
+      data-tool-status={toolAttrs?.status} // fork: theme CSS hooks
+      data-tool-name={toolAttrs?.name} // fork: theme CSS hooks
       icon={
         iconName ? (
           <span
@@ -712,6 +734,10 @@ export function LiveWorkEntryTimelineRow({
         toolIcon={row.entry.toolIcon ?? row.entry.toolSource?.icon}
         failed={failed}
         active={row.active}
+        toolAttrs={{
+          status: workEntryToolStatus(row.entry), // fork: theme CSS hooks
+          name: workEntryToolName(row.entry), // fork: theme CSS hooks
+        }}
       />
     </button>
   );

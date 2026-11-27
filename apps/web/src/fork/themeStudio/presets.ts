@@ -9,6 +9,7 @@ import { EDITOR_SEED } from "./presetStyles/editor";
 import { GITHUB_SEED } from "./presetStyles/github";
 import { MOCHI_SEED } from "./presetStyles/mochi";
 import { NORD_SEED } from "./presetStyles/nord";
+import { OMP_SEED } from "./presetStyles/omp";
 import { ONE_DARK_SEED } from "./presetStyles/onedark";
 import { SOLARIZED_SEED } from "./presetStyles/solarized";
 import { INKWASH_SEED } from "./presetStyles/inkwash";
@@ -215,4 +216,5 @@ export const THEME_PRESET_SEEDS: ReadonlyArray<ThemePresetSeed> = [
   GITHUB_SEED,
   NORD_SEED,
   MOCHI_SEED,
+  OMP_SEED,
 ];

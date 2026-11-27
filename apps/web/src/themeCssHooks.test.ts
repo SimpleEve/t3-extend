@@ -8,14 +8,22 @@ import { expect, it } from "vite-plus/test";
 const sourceDirectory = import.meta.dirname;
 const source = NodeFS.readdirSync(sourceDirectory, { recursive: true, encoding: "utf8" })
   .filter((file) => /\.(tsx?|css)$/.test(file) && !file.includes(".test."))
-  .map((file) => NodeFS.readFileSync(NodePath.join(sourceDirectory, file), "utf8"))
+  // Preset CSS is a consumer of the hooks, not where they are set: counting it would let a
+  // dropped `data-*` attribute pass on its own selector text. Comments name hooks too.
+  .filter((file) => !file.startsWith("fork/themeStudio/presetStyles"))
+  .map((file) =>
+    NodeFS.readFileSync(NodePath.join(sourceDirectory, file), "utf8").replace(
+      /\/\*[\s\S]*?\*\//g,
+      "",
+    ),
+  )
   .join("\n");
 
 /** How the selector's hook is written in source: an attribute with its value, a bare attribute, or a class name. */
 function sourcePattern(selector: string): RegExp {
-  const valued = /^\[(data-[a-z-]+)="([a-z-]+)"\]$/.exec(selector);
+  const valued = /^\[(data-[a-z0-9-]+)="([a-z-]+)"\]$/.exec(selector);
   if (valued) return new RegExp(`${valued[1]}["']?\\s*[:=]\\s*["']${valued[2]}["']`);
-  const attribute = /^\[(data-[a-z-]+)/.exec(selector)?.[1];
+  const attribute = /^\[(data-[a-z0-9-]+)/.exec(selector)?.[1];
   return new RegExp(`\\b${attribute ?? selector.slice(1)}\\b`);
 }
 

@@ -40,6 +40,7 @@ import {
   workEntryIndicatesToolFailure,
   workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolSuccess,
+  workEntryToolStatus,
 } from "./session-logic";
 import {
   makeStreamingTimelineFixture,
@@ -1334,7 +1335,67 @@ describe("native provider presentation in the v2 timeline", () => {
     expect(entry.entry.toolLifecycleStatus).toBe("completed");
     expect(workEntryDisplayIndicatesToolFailure(entry.entry)).toBe(true);
     expect(workEntryIndicatesToolSuccess(entry.entry)).toBe(false);
+    expect(workEntryToolStatus(entry.entry)).toBe("error");
   });
+
+  it("reads a completed command as success when only its command text looks like a failure", () => {
+    const entry = {
+      id: "row",
+      createdAt: "2026-09-04T12:00:00.000Z",
+      label: "Ran command",
+      tone: "tool",
+      itemType: "command_execution",
+      command: 'grep -r "no such file" src',
+      detail: "src/a.ts:3: handled",
+      toolLifecycleStatus: "completed",
+    } as const;
+    expect(workEntryIndicatesToolFailure(entry)).toBe(true);
+    expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
+    expect(workEntryToolStatus(entry)).toBe("success");
+  });
+
+  it.each([
+    { toolLifecycleStatus: "inProgress", tone: "tool", expected: "running" },
+    { toolLifecycleStatus: "idle", tone: "tool", expected: "stopped" },
+    { toolLifecycleStatus: "completed", tone: "tool", expected: "success" },
+    { toolLifecycleStatus: "failed", tone: "tool", expected: "error" },
+    { toolLifecycleStatus: "declined", tone: "tool", expected: "error" },
+    { toolLifecycleStatus: "stopped", tone: "tool", expected: "stopped" },
+    { toolLifecycleStatus: "completed", tone: "thinking", expected: undefined },
+    {
+      toolLifecycleStatus: "completed",
+      tone: "tool",
+      sourceActivityKind: "runtime.warning",
+      expected: undefined,
+    },
+  ] as const)("marks a $toolLifecycleStatus $tone row as $expected for theme CSS", (row) => {
+    const { expected, ...entry } = row;
+    expect(
+      workEntryToolStatus({
+        id: "row",
+        createdAt: "2026-09-04T12:00:00.000Z",
+        label: "Tool call",
+        ...entry,
+      }),
+    ).toBe(expected);
+  });
+
+  // Stop ends a tool the provider never closed: the server writes the item as interrupted or
+  // cancelled (Orchestrator.settleBackgroundWork), so the row must not stay "running" forever.
+  it.each(["interrupted", "cancelled"] as const)(
+    "shows a tool item the server ended as $status as stopped, not running",
+    (status) => {
+      const [entry] = deriveTimelineEntriesFromVisibleTurnItems({
+        visibleTurnItems: [
+          visible({ ...base, type: "command_execution", input: "npm test", status }),
+        ],
+        optimisticMessages: [],
+      });
+      if (entry?.kind !== "work") throw new Error("Expected a command work entry");
+      expect(entry.entry.toolLifecycleStatus).toBe("stopped");
+      expect(workEntryToolStatus(entry.entry)).toBe("stopped");
+    },
+  );
 });
 
 describe("HTML renders in the timeline", () => {
