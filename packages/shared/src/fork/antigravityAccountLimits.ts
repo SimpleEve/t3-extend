@@ -109,6 +109,19 @@ export function mergeAntigravityAccounts(input: {
   const saved = savedAccounts(provider);
   if (saved.length === 0) return false;
   const live = readable(provider.usageLimits);
+  // An instance that does not read quota lists its accounts with no reading, no refresh and no read
+  // failure: there is nothing of it to show in Usage, and the exhaustion marks alone are not limits.
+  if (
+    live === undefined &&
+    saved.every(
+      (account) =>
+        account.usageLimits === undefined &&
+        account.refreshable !== true &&
+        account.usageProbeFailure === undefined,
+    )
+  ) {
+    return true;
+  }
   const environments = [{ environmentId, label }];
   const lone = saved.length === 1;
   for (const account of saved) {

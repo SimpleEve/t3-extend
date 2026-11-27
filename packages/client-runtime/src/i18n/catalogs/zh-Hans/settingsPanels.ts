@@ -1948,6 +1948,9 @@ export default {
   "Separate sign-in": "独立登录",
   "For Google account sign-in. Automatic uses the agy CLI login on this machine for the default instance unless it signed in separately before. Choose Separate sign-in to use another account.":
     "用于 Google 账号登录。选「自动」时，默认实例沿用这台机器上 agy CLI 的登录，除非它之前已经单独登录过。要用另一个账号，请选「独立登录」。",
+  "Read quota from Google": "读取 Google 额度",
+  "Shows this instance's quota, and other saved accounts' quota, in Usage. Reading it calls Google's internal cloudcode-pa API, which Google says can get an account flagged. Use at your own risk. When off, T3 sends no quota requests; switching accounts still works from the errors a turn reports.":
+    "在「用量」里显示本实例和其他已保存账户的额度。读取额度会调用 Google 的内部接口（cloudcode-pa），Google 表示这可能导致账号被标记，风险自负。关闭时 T3 不发任何额度请求；切换账户仍按某一轮报出的错误工作。",
   "Switch accounts when quota runs out": "额度用完时切换账户",
   "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.":
     "用于独立登录且保存了多个 Google 账户的实例。某一轮碰到用量上限时，由下一个保存的账户接手，这一轮继续进行。轮换账户可能违反 Google 的服务条款，后果由你自己承担。",

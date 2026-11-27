@@ -27,6 +27,7 @@ const toggleOverlay =
     const mode = overlayModeForCommand(command);
     if (mode === null) return false;
     consume(event);
+    if (event.repeat) return;
     dispatchCommandPalette({ _tag: "ToggleMode", mode });
   };
 
@@ -91,10 +92,12 @@ export function installCommandPaletteCommands(
       },
       "themeEditor.toggle": (event) => {
         consume(event);
+        if (event.repeat) return;
         void router.navigate({ to: "/settings/theme" }); // fork: the theme studio is the editor
       },
       "usage.open": (event) => {
         consume(event);
+        if (event.repeat) return;
         dispatchCommandPalette({ _tag: "SetOpen", open: false });
         void router.navigate({ to: "/usage" });
       },

@@ -10,8 +10,8 @@ fork 的设计细节、身份表和合并规则都在 [FORK.md](../../FORK.md)�
 
 | 项                           | 值                                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| 最近一次合入的上游提交       | `ca81b7b97a1c4b91e5ac25768d0f6629f37732fd`（2026-11-24，上游正式版 `v0.1.12`）                      |
-| 在上游的位置                 | 正式版标签 `v0.1.12`                                                                                |
+| 最近一次合入的上游提交       | `bc0f04da94f64b5e487c598761a43b4cf06b2ac9`（2026-11-26，上游正式版 `v0.1.13`）                      |
+| 在上游的位置                 | 正式版标签 `v0.1.13`                                                                                |
 | T3 Extend 桌面版和 server    | 0.1.12-1.9                                                                                          |
 | T3 Extend Android 应用 (APK) | 2.3.0-1.9                                                                                           |
 | iOS                          | 不发布。用 Xcode 和自己的 Apple 账号构建，见 [install.md](../user/install.md#ios-build-it-yourself) |
@@ -61,6 +61,7 @@ fork 的设计细节、身份表和合并规则都在 [FORK.md](../../FORK.md)�
 - **omp provider。** omp（oh-my-pi，Pi 的分支）作为原生 provider，和上游的 Pi 并存。见 [omp provider](../../FORK.md#omp-provider)，用户说明在 [providers-omp.md](../user/providers-omp.md)。
 - **Codex 自定义端点下读订阅额度。** Codex 配了自定义 `openai_base_url` 时，上游会把额度显示成不支持；fork 加了一个可选开关，允许在这种配置下仍然读 ChatGPT 订阅额度。见 [Codex 自定义端点下读订阅额度](../../FORK.md#codex-自定义端点下读订阅额度)，用户说明在 [providers-codex.md](../user/providers-codex.md#read-limits-through-a-custom-endpoint)。
 - **Antigravity 沿用 agy CLI 的登录。** 默认实例直接用终端里 `agy` 的登录，不用在 T3 里再登录一次；需要多账号时可以改回独立登录。见 [Antigravity 沿用本机 agy CLI 的登录](../../FORK.md#antigravity-沿用本机-agy-cli-的登录)，用户说明在 [providers-antigravity.md](../user/providers-antigravity.md#use-your-agy-cli-sign-in)。
+- **Antigravity 读取额度是每个实例自己的开关，默认关闭。** 上游因为 Google 说调用它的内部接口 cloudcode-pa 可能让账号被标记，已经不再读取 Antigravity 的额度。T3 Extend 保留了这个读取，但实例要在设置里自己打开“读取 Google 额度”才会读，风险自负；账号切换不依赖它。见 [Antigravity 默认不读额度](../user/providers-antigravity.md#antigravity-quota-is-not-read-by-default) 和 FORK.md 的 [Antigravity 账号池、自动切换和网络代理](../../FORK.md#antigravity-账号池自动切换和网络代理)。
 
 ### 和官方 T3 Code 的关系
 

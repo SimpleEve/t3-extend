@@ -63,9 +63,11 @@ import {
 } from "../antigravityAuthSupport.ts";
 import {
   antigravityModelOptions,
+  antigravityServesT3Code,
   antigravitySessionMode,
   antigravityThinkingConfig,
   makeAntigravityAcpRuntime,
+  OPEN_MODEL_ACCESS_RELEASE,
   type AntigravityAcpRuntimeInput,
 } from "../acp/AntigravityAcpSupport.ts";
 import type * as AcpSessionRuntime from "@t3tools/provider-acp/server/AcpSessionRuntime";
@@ -430,7 +432,6 @@ export const AntigravityDriver: ProviderDriver<
       );
       const runtime = yield* makeAntigravityAcpRuntime({
         ...runtimeInput,
-        runtimeVersion: executable.version,
         authMethod: auth.authMethod,
         childProcessSpawner: spawner,
         spawn,
@@ -439,18 +440,20 @@ export const AntigravityDriver: ProviderDriver<
       const startCompatible = Effect.fn("AntigravityDriver.startCompatible")(function* () {
         const version = (yield* runtime.initialize()).agentInfo?.version;
         const advisory = version ? yield* installation.compatibility(version) : undefined;
-        const refused =
-          version &&
-          brokenRuntimeError({
-            instanceId,
-            name: "Antigravity",
-            version,
-            advisory,
-            action:
-              executable.source === "managed"
-                ? "Update it in Antigravity setup"
-                : `Update the Antigravity executable at ${executable.executablePath}`,
-          });
+        const action =
+          executable.source === "managed"
+            ? "Update it in Antigravity setup"
+            : `Update the Antigravity executable at ${executable.executablePath}`;
+        const refused = !version
+          ? undefined
+          : (brokenRuntimeError({ instanceId, name: "Antigravity", version, advisory, action }) ??
+            (antigravityServesT3Code(version)
+              ? undefined
+              : new ProviderSetupError({
+                  instanceId,
+                  operation: "runtime",
+                  detail: `Antigravity ${version} only serves allowlisted editors, not T3 Code. ${action} to ${OPEN_MODEL_ACCESS_RELEASE.join(".")} or newer, then retry.`,
+                })));
         if (refused) {
           return yield* new AcpErrors.AcpTransportError({ detail: refused.detail, cause: refused });
         }
@@ -620,7 +623,7 @@ export const AntigravityDriver: ProviderDriver<
           return Deferred.succeed(event.acknowledge, undefined).pipe(Effect.asVoid);
         }
         if (event._tag === "ConfigOptionsUpdated") {
-          return provider.onConfigOptionsUpdated(event.configOptions);
+          return provider.onConfigOptionsUpdated(event.configOptions, { fromCatalogProbe: true });
         }
         return event._tag === "AvailableCommandsUpdated"
           ? provider.onAvailableCommands(event.availableCommands)
@@ -673,7 +676,12 @@ export const AntigravityDriver: ProviderDriver<
               accountChange("selectMethod", accountPool.select(methodId)),
             removeMethod: (methodId: string) =>
               accountChange("removeMethod", accountPool.remove(methodId)),
-            // fork: reading another account never touches the one agy runs on, so nothing stops.
+          }
+        : {}),
+      // fork: reading another account never touches the one agy runs on, so nothing stops. Only
+      // with quota reading on; the prober exists only then.
+      ...(accountPool && settings.readUsageLimits
+        ? {
             refreshAccounts: (methodId?: string) =>
               Effect.suspend(() => accountProber!.refresh(methodId)),
           }
@@ -731,51 +739,62 @@ export const AntigravityDriver: ProviderDriver<
     }); // fork:
     // fork: T3's own Google requests leave through the same proxy as agy.
     const proxyDispatcher = yield* makeAntigravityProxyDispatcher(settings.networkProxy);
-    const usage = yield* makeAntigravityUsageProbe({
-      profileDirectory,
-      authMethod: auth.authMethod,
-      sharedLogin, // fork:
-      readCliLogin: cliLoginRead && cliLoginSource.share(cliLoginRead), // fork:
-      proxyDispatcher,
-    }).pipe(
-      Effect.provideService(FileSystem.FileSystem, fileSystem),
-      Effect.provideService(Path.Path, path),
-      Effect.provideService(Digest.Digest, digest),
-      Effect.provideService(HttpClient.HttpClient, httpClient),
-    );
-    // fork: the saved accounts that are not in use are read in the background, and on request.
-    const accountProber = accountPool
-      ? yield* makeAntigravityAccountProber({
-          instanceId,
-          pool: accountPool,
-          read: yield* makeAntigravityAccountReader({
-            // The lease a real session holds, so a reinstall cannot remove the binary in use.
-            acquireExecutable: installation.acquire(settings.binaryPath, processEnvironment),
-            baseEnv: processEnvironment,
-            auth,
-            userHome,
-            tempRoot: directories.runtimeTemp,
-            proxyDispatcher,
-          }).pipe(
-            Effect.provideService(FileSystem.FileSystem, fileSystem),
-            Effect.provideService(Path.Path, path),
-            Effect.provideService(Digest.Digest, digest),
-            Effect.provideService(SecureRandom.SecureRandom, random),
-            Effect.provideService(HttpClient.HttpClient, httpClient),
-            Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
-          ),
-          // The provider is made below; the account list is republished once per finished read.
-          onProbed: Effect.suspend(() => provider.onAccountsChanged),
-          // A manual refresh stops with the instance, so it never outlives its proxy or pool.
-          lifetime: yield* Effect.scope,
-        })
+    // fork: reading quota calls Google's cloudcode-pa API, which Google says can get an account
+    // flagged, so nothing below that reads it exists unless the instance turns it on. Account
+    // rotation does not need it: it works from the errors a turn reports.
+    const readUsageLimits = settings.readUsageLimits;
+    const usage = readUsageLimits
+      ? yield* makeAntigravityUsageProbe({
+          profileDirectory,
+          authMethod: auth.authMethod,
+          sharedLogin, // fork:
+          readCliLogin: cliLoginRead && cliLoginSource.share(cliLoginRead), // fork:
+          proxyDispatcher,
+        }).pipe(
+          Effect.provideService(FileSystem.FileSystem, fileSystem),
+          Effect.provideService(Path.Path, path),
+          Effect.provideService(Digest.Digest, digest),
+          Effect.provideService(HttpClient.HttpClient, httpClient),
+        )
       : undefined;
+    // fork: the saved accounts that are not in use are read in the background, and on request.
+    const accountProber =
+      accountPool && readUsageLimits
+        ? yield* makeAntigravityAccountProber({
+            instanceId,
+            pool: accountPool,
+            read: yield* makeAntigravityAccountReader({
+              // The lease a real session holds, so a reinstall cannot remove the binary in use.
+              acquireExecutable: installation.acquire(settings.binaryPath, processEnvironment),
+              baseEnv: processEnvironment,
+              auth,
+              userHome,
+              tempRoot: directories.runtimeTemp,
+              proxyDispatcher,
+            }).pipe(
+              Effect.provideService(FileSystem.FileSystem, fileSystem),
+              Effect.provideService(Path.Path, path),
+              Effect.provideService(Digest.Digest, digest),
+              Effect.provideService(SecureRandom.SecureRandom, random),
+              Effect.provideService(HttpClient.HttpClient, httpClient),
+              Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+            ),
+            // The provider is made below; the account list is republished once per finished read.
+            onProbed: Effect.suspend(() => provider.onAccountsChanged),
+            // A manual refresh stops with the instance, so it never outlives its proxy or pool.
+            lifetime: yield* Effect.scope,
+          })
+        : undefined;
     const provider = yield* makeAntigravityProvider(settings, {
       environment: processEnvironment,
       stampIdentity: classifyModels,
       probe,
-      probeUsage: accountPool ? accountPool.observeUsage(usage.probe) : usage.probe, // fork:
-      clearUsage: usage.clear,
+      ...(usage
+        ? {
+            probeUsage: accountPool ? accountPool.observeUsage(usage.probe) : usage.probe, // fork:
+            clearUsage: usage.clear,
+          }
+        : {}),
       // fork: the health check never spawns the agent, so the stored token is its only sign-in signal.
       // A shared CLI login has no token here, so the agent is asked now and then instead.
       ...(sharedLogin
@@ -790,7 +809,9 @@ export const AntigravityDriver: ProviderDriver<
           : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
       // fork: the saved Google accounts of a separate sign-in.
-      ...(accountPool ? { accounts: antigravityServerAccounts(accountPool) } : {}),
+      ...(accountPool
+        ? { accounts: antigravityServerAccounts(accountPool, { readUsageLimits }) }
+        : {}),
       ...(rememberedRuntimeModes ? { rememberedRuntimeModes } : {}),
       rememberRuntimeModes: (modes) =>
         writeFileStringAtomically({
@@ -837,8 +858,10 @@ export const AntigravityDriver: ProviderDriver<
       ...(accountPool && settings.accountRotation
         ? { recoverFromUsageLimit: makeAntigravityUsageLimitRecovery(accountPool) }
         : {}),
-      onSessionStarted: (started, cwd) =>
-        provider.onSessionStarted(started, cwd).pipe(Effect.andThen(authFlow.onSignedInElsewhere)),
+      onSessionStarted: (started, cwd, session) =>
+        provider
+          .onSessionStarted(started, cwd, session)
+          .pipe(Effect.andThen(authFlow.onSignedInElsewhere)),
       onSessionEvent: (event, cwd) => {
         if (event._tag === "ConfigOptionsUpdated") {
           return provider.onConfigOptionsUpdated(event.configOptions);

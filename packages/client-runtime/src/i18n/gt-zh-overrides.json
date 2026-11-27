@@ -91,7 +91,7 @@
     "All accounts": "所有账户",
     "No reading yet": "暂无读数",
     "Update other accounts' quota automatically": "自动更新其他账户的额度",
-    "For separate Google account sign-ins with more than one saved account. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.": "用于独立登录且保存了多个 Google 账户的实例。T3 大约每 45 分钟更新一次不在使用的已保存账户并读取它的额度，让记住的读数保持最新。这会短暂启动 agy，但不消耗额度。关闭后，只有「用量」里的刷新会读取其他账户。",
+    "For separate Google account sign-ins with more than one saved account, when Read quota from Google is on. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.": "用于独立登录且保存了多个 Google 账户的实例，需要先打开「读取 Google 额度」。T3 大约每 45 分钟更新一次不在使用的已保存账户并读取它的额度，让记住的读数保持最新。这会短暂启动 agy，但不消耗额度。关闭后，只有「用量」里的刷新会读取其他账户。",
     "Reading": "读数",
     "may be out of date": "可能已过时",
     "Remove bookmark": "移除书签",

@@ -2132,6 +2132,37 @@ describe("Antigravity instances with several accounts", () => {
     expect(accounts.filter((account) => account.snapshot !== true)).toHaveLength(1);
   });
 
+  it("lists nothing for an instance that reads no quota, whatever it knows of its accounts", () => {
+    // Quota reading off: the instance has no reading, and its accounts carry no reading, no refresh and no
+    // read failure. The exhaustion marks alone are not limits.
+    const exhaustedUntil = "2026-09-03T14:00:00.000Z";
+    expect(
+      accountsOf([
+        instance(
+          [
+            { id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true, exhaustedUntil },
+            { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: false },
+          ],
+          undefined,
+        ),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("lists accounts that can be read on request even before anything was read", () => {
+    const accounts = accountsOf([
+      instance(
+        [
+          { id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true },
+          { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: false, refreshable: true },
+        ],
+        undefined,
+      ),
+    ]);
+    expect(accounts.map((account) => account.email)).toEqual(["a@example.com", "b@example.com"]);
+    expect(accounts.find((account) => account.email === "b@example.com")?.refresh).toBeDefined();
+  });
+
   it("keeps one entry for an instance with a single account", () => {
     const accounts = accountsOf([
       instance([{ id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true }]),

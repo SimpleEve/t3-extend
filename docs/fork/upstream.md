@@ -10,8 +10,8 @@ The fork's design details, identity table, and merge rules are in [FORK.md](../.
 
 | Item                             | Value                                                                                                                              |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Latest upstream commit merged    | `ca81b7b97a1c4b91e5ac25768d0f6629f37732fd` (2026-11-24, upstream release `v0.1.12`)                                                |
-| Position in upstream             | Release tag `v0.1.12`                                                                                                              |
+| Latest upstream commit merged    | `bc0f04da94f64b5e487c598761a43b4cf06b2ac9` (2026-11-26, upstream release `v0.1.13`)                                                |
+| Position in upstream             | Release tag `v0.1.13`                                                                                                              |
 | T3 Extend desktop app and server | 0.1.12-1.9                                                                                                                         |
 | T3 Extend Android app (APK)      | 2.3.0-1.9                                                                                                                          |
 | iOS                              | Not published. Build it yourself with Xcode and your own Apple account; see [install.md](../user/install.md#ios-build-it-yourself) |
@@ -61,6 +61,7 @@ Upstream was also merged in before 2026-11-04, but those merges did not leave an
 - **omp provider.** omp (oh-my-pi, a fork of Pi) is a native provider. It sits next to upstream's Pi. See [omp provider](../../FORK.md#omp-provider) in FORK.md. For the user guide, see [providers-omp.md](../user/providers-omp.md).
 - **Reading subscription limits with a custom Codex endpoint.** When Codex is set up with a custom `openai_base_url`, upstream shows limits as unsupported. The fork adds an optional switch that still reads your ChatGPT subscription limits in that setup. See [Reading subscription limits with a custom Codex endpoint](../../FORK.md#codex-自定义端点下读订阅额度) in FORK.md. For the user guide, see [providers-codex.md](../user/providers-codex.md#read-limits-through-a-custom-endpoint).
 - **Antigravity reuses the agy CLI sign-in.** The default instance uses the `agy` sign-in from your terminal, so you do not sign in again in T3. If you need several accounts, you can switch back to a separate sign-in. See [Antigravity reuses the local agy CLI sign-in](../../FORK.md#antigravity-沿用本机-agy-cli-的登录) in FORK.md. For the user guide, see [providers-antigravity.md](../user/providers-antigravity.md#use-your-agy-cli-sign-in).
+- **Antigravity quota reading is a per-instance switch, off by default.** Upstream stopped reading Antigravity limits because Google says calling its internal cloudcode-pa API can get an account flagged. T3 Extend keeps the reading, but an instance only does it after you turn on **Read quota from Google** in its settings, at your own risk. Account switching does not need it. See [Antigravity quota is not read by default](../user/providers-antigravity.md#antigravity-quota-is-not-read-by-default) and FORK.md.
 
 ### Relationship with official T3 Code
 

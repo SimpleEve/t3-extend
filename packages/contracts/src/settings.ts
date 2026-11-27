@@ -737,6 +737,10 @@ export interface ProviderSettingsFormAnnotation {
   readonly clearWhenEmpty?: "omit" | "persist" | undefined;
 
   readonly options?: ReadonlyArray<ProviderSettingsFormOption> | undefined;
+  /** Shows the field only while the named select field holds one of these values. */
+  readonly visibleWhen?:
+    | { readonly field: string; readonly values: ReadonlyArray<string> }
+    | undefined;
 }
 
 export function secretSettingsFields(schema: {
@@ -972,6 +976,10 @@ export const AntigravityAuthMethod = Schema.Literals(
   ANTIGRAVITY_AUTH_METHODS.map((method) => method.value),
 );
 export type AntigravityAuthMethod = typeof AntigravityAuthMethod.Type;
+const antigravityGcpFieldVisibility = {
+  field: "authMethod",
+  values: ["oauth-business", "agent-platform"],
+} satisfies ProviderSettingsFormAnnotation["visibleWhen"];
 
 // fork: where a browser sign-in lives. "cli" is the agy CLI's own login in the system keyring.
 const ANTIGRAVITY_LOGIN_SOURCES = [
@@ -995,7 +1003,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       Schema.annotateKey({
         title: "Sign-in method",
         description:
-          "Google accounts use your subscription; API keys and Agent Platform bill usage.",
+          "Google account and Gemini Enterprise use your existing plan. Gemini API key and Agent Platform charge per use to your key or Google Cloud project.",
         providerSettingsForm: {
           control: "select",
           options: ANTIGRAVITY_AUTH_METHODS,
@@ -1027,6 +1035,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
           control: "password",
           placeholder: "Optional",
           clearWhenEmpty: "omit",
+          visibleWhen: { field: "authMethod", values: ["gemini-api-key", "agent-platform"] },
         },
       }),
     ),
@@ -1036,7 +1045,11 @@ export const AntigravitySettings = makeProviderSettingsSchema(
         title: "GCP project",
         description:
           "Required for Gemini Enterprise. Agent Platform uses it when no API key is set.",
-        providerSettingsForm: { placeholder: "my-project-id", clearWhenEmpty: "omit" },
+        providerSettingsForm: {
+          placeholder: "my-project-id",
+          clearWhenEmpty: "omit",
+          visibleWhen: antigravityGcpFieldVisibility,
+        },
       }),
     ),
     gcpLocation: TrimmedString.pipe(
@@ -1044,7 +1057,21 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       Schema.annotateKey({
         title: "GCP location",
         description: "Region for Gemini Enterprise or Agent Platform.",
-        providerSettingsForm: { placeholder: "us-central1", clearWhenEmpty: "omit" },
+        providerSettingsForm: {
+          placeholder: "us-central1",
+          clearWhenEmpty: "omit",
+          visibleWhen: antigravityGcpFieldVisibility,
+        },
+      }),
+    ),
+    // fork:
+    readUsageLimits: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({
+        title: "Read quota from Google",
+        description:
+          "Shows this instance's quota and other accounts' quota in Usage. Reading it calls Google's internal cloudcode-pa API, which Google says can get an account flagged. Use at your own risk. When off, T3 sends no quota requests; account switching still works from the errors a turn reports.",
+        providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
       }),
     ),
     // fork:
@@ -1063,7 +1090,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       Schema.annotateKey({
         title: "Update other accounts' quota automatically",
         description:
-          "For separate Google account sign-ins with more than one saved account. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.",
+          "For separate Google account sign-ins with more than one saved account, when Read quota from Google is on. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.",
         providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
       }),
     ),
@@ -1107,6 +1134,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       "apiKey",
       "gcpProject",
       "gcpLocation",
+      "readUsageLimits", // fork:
       "accountRotation", // fork:
       "backgroundAccountCheck", // fork:
       "networkProxy", // fork:

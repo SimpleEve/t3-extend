@@ -87,6 +87,42 @@ describe("Antigravity usage-limit recovery", () => {
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 
+  it.effect(
+    "moves to the next saved account by the failure alone, with no quota reading ever taken",
+    () =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(1_000_000);
+        const { pool, recover } = yield* fixture([
+          "alice@example.com",
+          "bob@example.com",
+          "carol@example.com",
+        ]);
+        // Quota reading is off: nothing observed a reading, so the pool holds none.
+        expect((yield* pool.list).map((account) => account.usageLimits)).toEqual([
+          null,
+          null,
+          null,
+        ]);
+        const first = yield* recover(quota(1_000_000 + 2 * HOUR));
+        expect(first && "notice" in first ? first.notice : "").toContain(
+          "Switched to b•••@example.com",
+        );
+        yield* pool.ensureAvailable({ rotate: true });
+        const second = yield* recover(quota(1_000_000 + 3 * HOUR));
+        expect(second && "notice" in second ? second.notice : "").toContain(
+          "b•••@example.com used its Antigravity quota",
+        );
+        expect(second && "notice" in second ? second.notice : "").toContain(
+          "Switched to c•••@example.com",
+        );
+        expect((yield* pool.list).map((account) => account.usageLimits)).toEqual([
+          null,
+          null,
+          null,
+        ]);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
   it.effect("leaves the plain failure alone when there is only one account", () =>
     Effect.gen(function* () {
       const { recover } = yield* fixture(["alice@example.com"]);
@@ -138,7 +174,7 @@ describe("the accounts a snapshot lists", () => {
         (yield* pool.list).find((entry) => !entry.current)!.id,
       ))!;
       yield* pool.finishProbe(lease, { _tag: "Failed", reason: "expired" });
-      const listed = yield* antigravityServerAccounts(pool);
+      const listed = yield* antigravityServerAccounts(pool, { readUsageLimits: true });
       expect(listed.find((account) => account.id === lease.id)?.usageProbeFailure).toEqual({
         at: DateTime.formatIso(DateTime.makeUnsafe(HOUR)),
         reason: "expired",
@@ -147,6 +183,38 @@ describe("the accounts a snapshot lists", () => {
       // Only an account that is not in use can be read on request; the client shows the button on that.
       expect(listed.find((account) => account.id === lease.id)?.refreshable).toBe(true);
       expect(listed.find((account) => account.current)?.refreshable).toBeUndefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("lists no reading, refresh or read failure when quota reading is off", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(1_000_000);
+      const { pool, recover } = yield* fixture(["a@example.com", "b@example.com"]);
+      const [current, other] = yield* pool.list;
+      // Earlier, while reading was on: a remembered reading and a failed background read.
+      yield* pool.observeUsage(
+        Effect.succeed({
+          checkedAt: "2026-01-01T00:00:00.000Z",
+          windows: [
+            { id: "gemini-5h", kind: "session" as const, label: "Gemini", usedPercent: 40 },
+          ],
+        }),
+      );
+      const lease = (yield* pool.beginProbe(other!.id))!;
+      yield* pool.finishProbe(lease, { _tag: "Failed", reason: "expired" });
+      yield* recover(quota(1_000_000 + 2 * HOUR));
+      const on = yield* antigravityServerAccounts(pool, { readUsageLimits: true });
+      expect(on.find((account) => account.id === current!.id)?.usageLimits).toBeDefined();
+      expect(on.find((account) => account.id === other!.id)?.usageProbeFailure).toBeDefined();
+      const off = yield* antigravityServerAccounts(pool, { readUsageLimits: false });
+      for (const account of off) {
+        expect(account.usageLimits).toBeUndefined();
+        expect(account.usageProbeFailure).toBeUndefined();
+        expect(account.refreshable).toBeUndefined();
+      }
+      // The account list itself, and which one ran out, stay: switching does not need a reading.
+      expect(off.map((account) => account.id)).toEqual(on.map((account) => account.id));
+      expect(off.find((account) => account.id === current!.id)?.exhaustedUntil).toBeDefined();
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 });

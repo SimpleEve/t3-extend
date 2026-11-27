@@ -119,6 +119,7 @@ import { installApnsPushRegistration } from "./fork/push/apnsPushRegistration"; 
 import { installUnifiedPushRegistration } from "./fork/push/unifiedPushRegistration"; // fork: UnifiedPush
 import { installDeviceKeysSync } from "./fork/deviceKeys/installDeviceKeysSync"; // fork: self-hosted devices
 import { deferInitialLinkSheet, splashScreenHidden } from "./fork/initialLinkSheet"; // fork
+import { perfProbe } from "./features/development/perf-probe-hooks";
 
 import "../global.css";
 
@@ -320,7 +321,12 @@ function AppContent() {
       <QuickActionsLanguage />
       <SubscriptionUsageCoordinator />
       <ConnectDeviceApprovalCoordinator />
-      <GestureHandlerRootView className="flex-1">
+      <GestureHandlerRootView
+        className="flex-1"
+        onTouchStartCapture={perfProbe?.touchStart}
+        onTouchEndCapture={perfProbe?.touchEnd}
+        onTouchCancelCapture={perfProbe?.touchEnd}
+      >
         <KeyboardProvider statusBarTranslucent>
           <SafeAreaProvider>
             <StatusBar barStyle={themeAppearance === "dark" ? "light-content" : "dark-content"} />

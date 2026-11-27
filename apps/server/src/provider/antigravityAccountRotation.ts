@@ -30,8 +30,15 @@ function resetLabel(epochMillis: number): string {
   }).format(epochMillis);
 }
 
-/** The accounts as a provider snapshot lists them; an instance with none lists nothing. */
-export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "list">) =>
+/**
+ * The accounts as a provider snapshot lists them; an instance with none lists nothing. Without
+ * `readUsageLimits` no reading, refresh or read failure is listed, even from an earlier time the
+ * setting was on: the instance then shows no quota, as one that cannot read it does.
+ */
+export const antigravityServerAccounts = (
+  pool: Pick<AntigravityAccountPool, "list">,
+  options: { readonly readUsageLimits: boolean },
+) =>
   pool.list.pipe(
     Effect.map((accounts): ReadonlyArray<ServerProviderAccount> =>
       accounts.map((account) => ({
@@ -42,9 +49,11 @@ export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "li
           ? {}
           : { exhaustedUntil: DateTime.formatIso(DateTime.makeUnsafe(account.exhaustedUntil)) }),
         // The account in use is read live; every other one can be read on request.
-        ...(account.current ? {} : { refreshable: true }),
-        ...(account.usageLimits === null ? {} : { usageLimits: account.usageLimits }),
-        ...(account.probe.failure === null
+        ...(account.current || !options.readUsageLimits ? {} : { refreshable: true }),
+        ...(account.usageLimits === null || !options.readUsageLimits
+          ? {}
+          : { usageLimits: account.usageLimits }),
+        ...(account.probe.failure === null || !options.readUsageLimits
           ? {}
           : {
               usageProbeFailure: {
