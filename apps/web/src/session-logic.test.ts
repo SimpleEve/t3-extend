@@ -1362,6 +1362,23 @@ describe("native provider presentation in the v2 timeline", () => {
       }),
     ).toBe(expected);
   });
+
+  // Stop ends a tool the provider never closed: the server writes the item as interrupted or
+  // cancelled (Orchestrator.settleBackgroundWork), so the row must not stay "running" forever.
+  it.each(["interrupted", "cancelled"] as const)(
+    "shows a tool item the server ended as $status as stopped, not running",
+    (status) => {
+      const [entry] = deriveTimelineEntriesFromVisibleTurnItems({
+        visibleTurnItems: [
+          visible({ ...base, type: "command_execution", input: "npm test", status }),
+        ],
+        optimisticMessages: [],
+      });
+      if (entry?.kind !== "work") throw new Error("Expected a command work entry");
+      expect(entry.entry.toolLifecycleStatus).toBe("stopped");
+      expect(workEntryToolStatus(entry.entry)).toBe("stopped");
+    },
+  );
 });
 
 describe("HTML renders in the timeline", () => {

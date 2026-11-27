@@ -477,6 +477,44 @@ describe("MessagesTimeline work rows", () => {
     expect(output!.closest('[role="button"]')).toBeNull();
     expect(document.getElementById(toggle.getAttribute("aria-controls") ?? "")).toContain(output);
   });
+
+  // A running tool call renders as the live row (LiveWorkEntryTimelineRow), which carries no
+  // data-tool-status; only a settled or stuck row reaches WorkEntryLogRow.
+  it.each([
+    { toolLifecycleStatus: "completed", expected: "success" },
+    { toolLifecycleStatus: "failed", expected: "error" },
+    { toolLifecycleStatus: "stopped", expected: "stopped" },
+  ] as const)("gives theme CSS a $expected state on the tool row", async (row) => {
+    setup();
+    await using screen = await renderTimeline([
+      work("tool-row", {
+        label: "Ran command",
+        tone: "tool",
+        itemType: "command_execution",
+        command: "npm test",
+        toolLifecycleStatus: row.toolLifecycleStatus,
+      }),
+    ]);
+    const element = screen.container.querySelector('[data-work-entry-id="tool-row"]');
+    expect(element?.getAttribute("data-tool-status")).toBe(row.expected);
+    expect(element?.getAttribute("data-tool-name")).toBe("command_execution");
+  });
+
+  it("gives theme CSS no tool state on a thinking row", async () => {
+    setup();
+    await using screen = await renderTimeline([
+      work("thinking-row", {
+        label: "Thinking",
+        tone: "thinking",
+        itemType: "reasoning",
+        detail: "Pondering the change",
+      }),
+      message("Done", { role: "assistant" }, "final"),
+    ]);
+    const element = screen.container.querySelector('[data-work-entry-id="thinking-row"]');
+    expect(element).not.toBeNull();
+    expect(element?.hasAttribute("data-tool-status")).toBe(false);
+  });
 });
 
 describe("MessagesTimeline messages", () => {

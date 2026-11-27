@@ -204,9 +204,66 @@ const CASES = getPresetThemes()
     })),
   );
 
+// A preset can paint a ground of its own, as omp's tool cards do, and the row keeps painting the
+// palette's text roles on it. Those have to stay readable on the preset's ground too.
+const TOOL_CARD_TEXT: ReadonlyArray<ThemeColorRole> = ["text", "textMuted", "secondaryLabel"];
+
+/** Custom properties of `:root` for one half, in cascade order. */
+function rootVariables(css: string | undefined, appearance: string): ReadonlyMap<string, string> {
+  const found = new Map<string, string>();
+  for (const rule of (css ?? "").replace(/\/\*[\s\S]*?\*\//g, "").split("}")) {
+    const open = rule.lastIndexOf("{");
+    if (open < 0) continue;
+    const selector = rule.slice(0, open).trim();
+    if (
+      selector !== ":root" &&
+      !(selector === ":root.dark" && appearance === "dark") &&
+      !(selector === ":root:not(.dark)" && appearance === "light")
+    ) {
+      continue;
+    }
+    for (const [, name, value] of rule.slice(open + 1).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+      found.set(name!, value!.trim());
+    }
+  }
+  return found;
+}
+
+/** The grounds a preset paints on its tool rows: the `background` of a `[data-tool-status]` rule. */
+function toolCardGrounds(css: string | undefined): ReadonlyArray<string> {
+  const grounds = new Set<string>();
+  for (const rule of (css ?? "").replace(/\/\*[\s\S]*?\*\//g, "").split("}")) {
+    const open = rule.lastIndexOf("{");
+    if (open < 0 || !rule.slice(0, open).includes("[data-tool-status")) continue;
+    const ground = /(?:^|[\s;])background(?:-color)?\s*:\s*var\((--[\w-]+)\)/.exec(
+      rule.slice(open + 1),
+    )?.[1];
+    if (ground !== undefined) grounds.add(ground);
+  }
+  return [...grounds];
+}
+
+const TOOL_CARD_CASES = CASES.flatMap(({ name, appearance, colors, css }) => {
+  const variables = rootVariables(css, appearance);
+  return toolCardGrounds(css).map((variable) => ({
+    name: `${name} on ${variable}`,
+    ground: variables.get(variable),
+    colors,
+  }));
+});
+
 describe("preset colors", () => {
   it.each(CASES)("$name keeps its text readable", ({ colors }) => {
     expect(failures(colors)).toEqual([]);
+  });
+
+  it.each(TOOL_CARD_CASES)("$name keeps the tool card's text readable", ({ colors, ground }) => {
+    expect(ground).toBeDefined();
+    const unreadable = TOOL_CARD_TEXT.flatMap((role) => {
+      const ratio = contrast(colors[role], ground!);
+      return ratio >= 4.5 ? [] : [`${role} on ${ground}: ${ratio.toFixed(2)}`];
+    });
+    expect(unreadable).toEqual([]);
   });
 
   it.each(CASES)(
