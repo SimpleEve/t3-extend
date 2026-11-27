@@ -138,6 +138,16 @@ jobs:
       - name: Build JS bundle
         run: vp run build:desktop:bundle
 
+      # fork: upload-artifact skips hidden files, so the web asset manifest travels under a plain name
+      # (same as upstream release.yml, #42806); the CLI job puts it back.
+      - name: Stage web asset manifest
+        shell: bash
+        run: |
+          manifest=apps/server/dist/client/.vite/manifest.json
+          if [[ -f "$manifest" ]]; then
+            cp "$manifest" apps/server/dist/client/vite-manifest.release.json
+          fi
+
       # Two paths under apps/ so the artifact root is apps/; consumers download into `apps`.
       - name: Upload JS bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -198,6 +208,15 @@ jobs:
         with:
           name: js-bundle
           path: apps
+
+      - name: Restore web asset manifest
+        shell: bash
+        run: |
+          client=apps/server/dist/client
+          if [[ -f "$client/vite-manifest.release.json" ]]; then
+            mkdir -p "$client/.vite"
+            mv "$client/vite-manifest.release.json" "$client/.vite/manifest.json"
+          fi
 
       - name: Apply web client branding
         run: node scripts/apply-web-brand-assets.ts production apps/server/dist/client
