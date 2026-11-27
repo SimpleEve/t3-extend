@@ -40,6 +40,7 @@ import {
   workEntryIndicatesToolFailure,
   workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolSuccess,
+  workEntryToolStatus,
 } from "./session-logic";
 import {
   makeStreamingTimelineFixture,
@@ -1334,6 +1335,32 @@ describe("native provider presentation in the v2 timeline", () => {
     expect(entry.entry.toolLifecycleStatus).toBe("completed");
     expect(workEntryDisplayIndicatesToolFailure(entry.entry)).toBe(true);
     expect(workEntryIndicatesToolSuccess(entry.entry)).toBe(false);
+    expect(workEntryToolStatus(entry.entry)).toBe("error");
+  });
+
+  it.each([
+    { toolLifecycleStatus: "inProgress", tone: "tool", expected: "running" },
+    { toolLifecycleStatus: "completed", tone: "tool", expected: "success" },
+    { toolLifecycleStatus: "failed", tone: "tool", expected: "error" },
+    { toolLifecycleStatus: "declined", tone: "tool", expected: "error" },
+    { toolLifecycleStatus: "stopped", tone: "tool", expected: "stopped" },
+    { toolLifecycleStatus: "completed", tone: "thinking", expected: undefined },
+    {
+      toolLifecycleStatus: "completed",
+      tone: "tool",
+      sourceActivityKind: "runtime.warning",
+      expected: undefined,
+    },
+  ] as const)("marks a $toolLifecycleStatus $tone row as $expected for theme CSS", (row) => {
+    const { expected, ...entry } = row;
+    expect(
+      workEntryToolStatus({
+        id: "row",
+        createdAt: "2026-09-04T12:00:00.000Z",
+        label: "Tool call",
+        ...entry,
+      }),
+    ).toBe(expected);
   });
 });
 

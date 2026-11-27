@@ -13,9 +13,9 @@ const source = NodeFS.readdirSync(sourceDirectory, { recursive: true, encoding: 
 
 /** How the selector's hook is written in source: an attribute with its value, a bare attribute, or a class name. */
 function sourcePattern(selector: string): RegExp {
-  const valued = /^\[(data-[a-z-]+)="([a-z-]+)"\]$/.exec(selector);
+  const valued = /^\[(data-[a-z0-9-]+)="([a-z-]+)"\]$/.exec(selector);
   if (valued) return new RegExp(`${valued[1]}["']?\\s*[:=]\\s*["']${valued[2]}["']`);
-  const attribute = /^\[(data-[a-z-]+)/.exec(selector)?.[1];
+  const attribute = /^\[(data-[a-z0-9-]+)/.exec(selector)?.[1];
   return new RegExp(`\\b${attribute ?? selector.slice(1)}\\b`);
 }
 

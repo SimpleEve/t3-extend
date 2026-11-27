@@ -30,6 +30,7 @@ import {
 } from "@t3tools/shared/toolOutput";
 import {
   contextCompactionLabel,
+  workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolFailure,
 } from "@t3tools/client-runtime/work-log/presentation";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
@@ -197,6 +198,16 @@ export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolea
     !workEntryIndicatesToolFailure(entry) &&
     !workEntryIndicatesToolSuccess(entry)
   );
+}
+
+/** The state theme CSS sees on a tool row as `data-tool-status`. Thinking, notices and warnings have none. */
+export function workEntryToolStatus(
+  entry: WorkLogEntry,
+): "running" | "success" | "error" | "stopped" | undefined {
+  if (entry.tone !== "tool" || entry.sourceActivityKind === "runtime.warning") return undefined;
+  if (workEntryDisplayIndicatesToolFailure(entry)) return "error";
+  if (entry.toolLifecycleStatus === "inProgress") return "running";
+  return workEntryIndicatesToolSuccess(entry) ? "success" : "stopped";
 }
 
 export function isLatestRunSettled(

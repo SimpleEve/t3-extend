@@ -115,6 +115,31 @@ export const THEME_CSS_HOOKS = [
   { selector: '[data-slot="select-item"]', styles: "select entry" },
   { selector: "[data-highlighted]", styles: "the menu or select entry under the pointer or keys" },
   { selector: '[data-slot="badge"]', styles: "badge" },
+  // fork: hooks for the tool call and thinking rows and the code block title bar.
+  {
+    selector: "[data-work-entry-id]",
+    styles: "row of a tool call, thinking or notice in the chat; a tool call's card",
+  },
+  {
+    selector: "[data-v2-item-type]",
+    styles:
+      'chat row by what it shows, such as ="reasoning" (thinking), ="command_execution", ="file_change", ="dynamic_tool" or ="error"',
+  },
+  {
+    selector: "[data-tool-status]",
+    styles:
+      'tool call row, by state: ="running", ="success", ="error", or ="stopped" (cancelled or idle)',
+  },
+  {
+    selector: "[data-tool-name]",
+    styles:
+      'tool call row, by tool: the tool\'s own name, or the kind of item such as ="command_execution"',
+  },
+  {
+    selector: "[data-work-log-details]",
+    styles: 'opened details under a work row; ="panel" holds a tool call\'s input and output',
+  },
+  { selector: ".chat-markdown-codeblock-header", styles: "code block title bar" },
 ] as const;
 
 /** What an agent needs to restyle the app. `t3_theme_read` returns it. */

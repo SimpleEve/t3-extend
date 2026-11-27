@@ -31,6 +31,7 @@ import { memo, use, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import {
   workEntryDisplayIndicatesToolFailure,
   workEntrySignalsSevereFailure,
+  workEntryToolStatus,
   workLogEntryIsToolLike,
 } from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
@@ -451,6 +452,14 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
       : null;
   const viewedImagePath = workEntryViewedImagePath(workEntry);
   const payload = workEntry.structuredPayload;
+  // fork: theme CSS hooks. Thinking and notices have no tool state.
+  const toolStatus = workEntryToolStatus(workEntry);
+  const toolName =
+    workEntry.tone !== "tool"
+      ? undefined
+      : payload?.type === "dynamic_tool"
+        ? (payload.toolName ?? workEntry.itemType)
+        : workEntry.itemType;
   const mcpSignIn =
     payload?.type === "system_notice" &&
     payload.mcpSignIn !== undefined &&
@@ -571,6 +580,8 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
   return (
     <WorkLogRow
       data-work-entry-id={workEntry.id}
+      data-tool-status={toolStatus}
+      data-tool-name={toolName}
       data-v2-item-type={workEntry.projectedItem?.item.type}
       data-v2-item-visibility={workEntry.projectedItem?.visibility}
       onClick={canExpandProjectedItem ? toggleExpanded : undefined}
