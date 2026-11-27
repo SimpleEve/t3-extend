@@ -192,6 +192,13 @@ function isPastedFolderPath(value: string): boolean {
  * the text already there, because `~/'/a b'` would create that nested folder.
  */
 export function resolvePastedPath(previous: string, next: string): string {
+  // fork: a box prefilled with `~/` and then given an absolute path holds `~//…`, which the server
+  // expands to a folder inside home; the user meant the absolute path.
+  const box = resolvePastedPathInBox(previous, next);
+  return box.startsWith("~//") ? box.slice(2) : box;
+}
+
+function resolvePastedPathInBox(previous: string, next: string): string {
   const isTyping = next.startsWith(previous)
     ? next.length === previous.length + 1
     : previous.startsWith(next);

@@ -86,7 +86,6 @@ describe("resolvePastedPath", () => {
 
   it.each([
     ["typing a separator", "/Users/me", "/Users/me/"],
-    ["typing a separator after a folder", "~/", "~//"],
     ["typing a trailing space", "/Users/My", "/Users/My "],
     ["deleting", "/Users/me/", "/Users/me"],
     ["pasting a relative folder", "~/", "~/Documents/code"],
@@ -104,6 +103,20 @@ describe("resolvePastedPath", () => {
     ["a backslash before a letter", "", "/Users/me/a\\b"],
   ])("keeps %s", (_case, previous, next) => {
     expect(resolvePastedPath(previous, next)).toBe(next);
+  });
+
+  // fork: an absolute path after the prefilled `~/` is that absolute path, not a folder in home.
+  it.each([
+    ["typing a separator after a folder", "~/", "~//", "/"],
+    ["typing past it", "/", "/t", "/t"],
+    ["typing a separator before a folder", "~/code", "~//code", "/code"],
+  ])("reads %s as an absolute path", (_case, previous, next, expected) => {
+    expect(resolvePastedPath(previous, next)).toBe(expected);
+  });
+
+  it("reads an absolute path typed after the prefilled home folder", () => {
+    const box = [..."/tmp/repo"].reduce((text, char) => resolvePastedPath(text, text + char), "~/");
+    expect(box).toBe("/tmp/repo");
   });
 
   it.each(["/Users/me/a\\ b", "~/code\\.vscode", "'/Users/me/My Code'"])(
