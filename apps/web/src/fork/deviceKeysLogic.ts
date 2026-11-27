@@ -179,8 +179,13 @@ export function visibilityToSend(draft: DeviceVisibility): DeviceVisibility {
   return { mode: draft.mode, deviceIds: names ? [...new Set(draft.deviceIds)].sort() : [] };
 }
 
+/** A device this computer cannot see is shown by the start of its id, like the CLI does. */
+export const shortDeviceId = (id: string): string => `${id.slice(0, 8)}…`;
+
 /** Whether `draft` is already what the server holds, so saving would change nothing. */
 export function visibilityUnchanged(draft: DeviceVisibility, saved: VisibilityState): boolean {
+  // An unreadable file is only repaired by saving, whatever the options look like.
+  if (saved.unreadable === true) return false;
   const next = visibilityToSend(draft);
   const current = visibilityToSend(saved);
   return next.mode === current.mode && next.deviceIds.join() === current.deviceIds.join();
@@ -192,8 +197,9 @@ export function describeVisibility(
   visibility: DeviceVisibility,
   devices: ReadonlyArray<Pick<DeviceListEntry, "id" | "name">>,
 ): string {
+  // An id that is not on the list is a computer that hides from this one: it still counts.
   const names = visibility.deviceIds
-    .flatMap((id) => devices.find((device) => device.id === id)?.name ?? [])
+    .map((id) => devices.find((device) => device.id === id)?.name ?? shortDeviceId(id))
     .join(", ");
   switch (visibility.mode) {
     case "visible_to_all":

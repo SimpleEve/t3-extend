@@ -9,7 +9,7 @@ import {
   type EnvironmentId,
 } from "@t3tools/contracts";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import { MonitorIcon, SmartphoneIcon } from "lucide-react";
+import { EyeOffIcon, MonitorIcon, SmartphoneIcon } from "lucide-react";
 import * as Schema from "effect/Schema";
 import { useState } from "react";
 
@@ -17,6 +17,7 @@ import {
   describeDevicesError,
   describeVisibility,
   describeVisibilityRegistry,
+  shortDeviceId,
   visibilityDraftReady,
   visibilityToSend,
   visibilityUnchanged,
@@ -65,7 +66,8 @@ export function VisibilityRow({
   const t = useT();
   const [open, setOpen] = useState(false);
   const visibility = status.visibility ?? DEFAULT_VISIBILITY;
-  const registryNote = describeVisibilityRegistry(t, visibility.registry);
+  const unreadable = visibility.unreadable === true;
+  const registryNote = unreadable ? null : describeVisibilityRegistry(t, visibility.registry);
   return (
     <>
       <SettingsRow
@@ -76,7 +78,15 @@ export function VisibilityRow({
         )}
         status={
           <span className="flex flex-col gap-1">
-            <span className="block">{describeVisibility(t, visibility, devices)}</span>
+            {unreadable ? (
+              <span className="block text-warning-foreground" role="status">
+                {t(
+                  "The saved setting could not be read. Other devices are refused until you save a new one.",
+                )}
+              </span>
+            ) : (
+              <span className="block">{describeVisibility(t, visibility, devices)}</span>
+            )}
             {registryNote === null || visibility.mode === "visible_to_all" ? null : (
               <span className="block text-warning-foreground" role="status">
                 {registryNote}
@@ -123,16 +133,19 @@ function VisibilityForm({
       (a, b) =>
         Number(a.kind === "phone") - Number(b.kind === "phone") || a.name.localeCompare(b.name),
     );
+  // Every saved id stays in the draft. One that is not on the list is a computer that hides from this
+  // one; dropping it here would quietly stop hiding from it when the dialog is saved.
   const [draft, setDraft] = useState<DeviceVisibility>({
     mode: visibility.mode,
-    // Only devices that are still on the list can be kept selected.
-    deviceIds: visibility.deviceIds.filter((id) => others.some((device) => device.id === id)),
+    deviceIds: visibility.deviceIds,
   });
+  const unseen = visibility.deviceIds.filter((id) => !devices.some((device) => device.id === id));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const namesDevices =
     draft.mode === "hidden_from_selected" || draft.mode === "visible_to_selected";
-  const registryNote = describeVisibilityRegistry(t, visibility.registry);
+  const unreadable = visibility.unreadable === true;
+  const registryNote = unreadable ? null : describeVisibilityRegistry(t, visibility.registry);
 
   const toggle = (id: string) =>
     setDraft((current) => ({
@@ -220,7 +233,7 @@ function VisibilityForm({
             ))}
           </RadioGroup>
           {namesDevices ? (
-            others.length === 0 ? (
+            others.length === 0 && unseen.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 {t("No other devices have joined your server yet.")}
               </p>
@@ -256,9 +269,42 @@ function VisibilityForm({
                     </label>
                   </li>
                 ))}
+                {unseen.map((id) => (
+                  <li key={id}>
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2.5 py-1.5 pr-3 pl-3">
+                      <Checkbox
+                        checked={draft.deviceIds.includes(id)}
+                        onCheckedChange={() => toggle(id)}
+                      />
+                      <EyeOffIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-sm text-foreground">
+                          {shortDeviceId(id)}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {t("Not on your list")}
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
               </ul>
             )
           ) : null}
+          {unreadable ? (
+            <p className="text-xs text-warning-foreground" role="status">
+              {t(
+                "The saved setting could not be read. Other devices are refused until you save a new one.",
+              )}
+            </p>
+          ) : null}
+          {draft.mode === "visible_to_all" ? null : (
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Update every computer you hide this one from. One that is still on an older version also stops this computer from connecting to it.",
+              )}
+            </p>
+          )}
           {registryNote === null ? null : (
             <p className="text-xs text-warning-foreground" role="status">
               {registryNote}

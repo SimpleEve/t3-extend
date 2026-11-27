@@ -103,6 +103,11 @@ export default {
   "Your server has not received this setting yet. This computer already applies it and keeps trying.":
     "你的服务器还没有收到这个设置。这台电脑已经在按它执行，并会继续重试。",
   "Pick other devices from your server's list.": "请从你的服务器列表里选其他设备。",
+  "The saved setting could not be read. Other devices are refused until you save a new one.":
+    "无法读取已保存的设置。在你保存新设置之前，其他设备都无法登录这台电脑。",
+  "Not on your list": "不在你的列表里",
+  "Update every computer you hide this one from. One that is still on an older version also stops this computer from connecting to it.":
+    "请把你对其隐藏这台电脑的每台电脑都更新到当前版本。仍是旧版本的电脑会让这台电脑也连不上它。",
   "That computer is not available to this device.": "那台电脑不对这台设备开放。",
 
   "Something went wrong. Try again.": "出了点问题。请重试。",

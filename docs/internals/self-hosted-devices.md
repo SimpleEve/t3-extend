@@ -85,7 +85,10 @@ What a session can do is bounded by scope, not by the operating system:
 A computer's visibility setting is judged twice, and only one of them is a security boundary.
 The computer refuses a pass from a device its own saved setting excludes (`device_hidden`),
 reading the file on every pass rather than trusting its in-memory copy, so a change made by the
-CLI in another process counts at once, and an unreadable file hides the computer from everyone.
+CLI in another process counts at once. An unreadable file refuses every pass, but that guess is
+not the user's setting: it is not stored as one, not pushed to the registry, and the status says
+`unreadable` (the last value that could be read stays on show) so the page does not claim "hidden
+from all".
 The registry filters `GET /v1/devices` per viewer, which only makes a hidden computer vanish from
 that device's list like a removed one. A registry that is old, unreachable or wrong cannot let a
 device in, and it cannot delete a key: the hidden device's own entry is always in its list, so
@@ -95,12 +98,33 @@ Hiding is one-way, and that is why the filtered list is not enough. A computer A
 B must still sign in to B, so B has to check A's pass against A's key. The registry therefore
 sends B A's identity (id, kind, public key, nothing else) in `hiddenPeers`. A hidden peer is not
 in `devices`, so it never becomes a listed device or an environment; B keeps its sessions, and
-treats its pass like any other. A computer that predates the field ignores it, so it also cannot
-sign in to a computer that hides from it, which is the old-client degradation.
+treats its pass like any other. Only computers get `hiddenPeers`: a phone never checks a pass.
+
+The failure to know about is the opposite of what one might guess. A computer X that predates
+the field does not know `hiddenPeers`: when A hides from X, X's next sync sees A missing from its
+list, revokes A's sessions and no longer finds A's key, so **A cannot connect to X** until X is
+updated. X still cannot see A, so "hidden must not see" holds. The registry does not detect old
+clients and send them the full list, because that would let exactly the device meant to be blind
+see the computer. The user guide tells people to update the computers they hide from, and the
+dialog says so.
+
+Names and subdomains are unique across the whole group, so a hidden device that renames itself (or
+joins) to a name that is taken learns by the 409 that some computer it cannot see has it. That
+cannot be closed without giving up uniqueness; it is accepted. Invite lists and invite cancels
+follow the same visibility as everything else (a hidden viewer neither sees nor cancels a hidden
+computer's invites, and gets the same 404 as for an invite that does not exist). The registry's `rev`
+counts the whole registry, so it still moves when a hidden computer changes; that is recorded, not hidden.
 
 The setting is pushed to the registry afterwards and compared on every sync (a computer's own
 entry carries it back). An answer without it means the registry is too old, and the page says so;
-the local setting still applies.
+the local setting still applies. Delivery is not under the gate, so a push that finishes after the
+setting changed is repeated rather than reported as synced. What the registry said is kept in a file
+beside the setting, stamped with the value it is about, so the CLI's next process can report it.
+
+The CLI never syncs from its own process: a second sync beside the running server has its own gate
+and could delete the device key (see below). So `visibility hide|only <name>` resolves names from
+the last synced list, and a device that joined after it has to be named by its id or wait for the
+running server's sync; the error says so.
 
 ## The tunnel listener and `X-T3x-Client-IP`
 

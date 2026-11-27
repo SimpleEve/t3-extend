@@ -216,7 +216,7 @@ describe("the Visibility setting", () => {
     );
   });
 
-  it("describes who can see this computer, naming only devices still on the list", () => {
+  it("describes who can see this computer, counting devices that are not on the list by their id", () => {
     expect(describeVisibility(t, { mode: "visible_to_all", deviceIds: [] }, devices)).toBe(
       "Visible to all devices.",
     );
@@ -227,8 +227,26 @@ describe("the Visibility setting", () => {
       "Visible only to Laptop.",
     );
     expect(
-      describeVisibility(t, { mode: "hidden_from_selected", deviceIds: ["gone"] }, devices),
-    ).toBe("Hidden from the devices you chose.");
+      describeVisibility(
+        t,
+        { mode: "hidden_from_selected", deviceIds: ["a", "unseen-0123456789"] },
+        devices,
+      ),
+    ).toBe("Hidden from Laptop, unseen-0….");
+    expect(describeVisibility(t, { mode: "hidden_from_selected", deviceIds: [] }, devices)).toBe(
+      "Hidden from the devices you chose.",
+    );
+  });
+
+  it("offers a save for a setting that could not be read, even when the options look the same", () => {
+    const saved = { mode: "hidden_from_all", deviceIds: [], registry: "synced" } as const;
+    expect(visibilityUnchanged({ mode: "hidden_from_all", deviceIds: [] }, saved)).toBe(true);
+    expect(
+      visibilityUnchanged(
+        { mode: "hidden_from_all", deviceIds: [] },
+        { ...saved, unreadable: true },
+      ),
+    ).toBe(false);
   });
 
   it("only speaks up about the server when it has not got the setting", () => {

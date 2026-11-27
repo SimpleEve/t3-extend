@@ -435,6 +435,80 @@ describe("Your server settings, visibility", () => {
     });
   });
 
+  describe("with a device this computer cannot see", () => {
+    // Hidden from Pixel and from a computer that hides from this one, so it is not on the list.
+    const UNSEEN = "unseen-0123456789abcdefghijklmnopqrstuvwxyzABC";
+
+    it("counts it in the row, keeps it selected in the dialog and does not offer a save that changes nothing", async () => {
+      using _bridge = setup({ status: visible("hidden_from_selected", ["phone", UNSEEN]) });
+      await using _screen = await render(ui(), { router: false });
+      await expect.element(page.getByText("Hidden from Pixel, unseen-0….")).toBeVisible();
+      await userEvent.click(page.getByRole("button", { name: "Change" }));
+      await userEvent.click(page.getByRole("radio", { name: /Hidden from selected devices/ }));
+      await expect.element(page.getByRole("button", { name: "Save" })).toBeDisabled();
+      const unseen = page.getByRole("checkbox", { name: /unseen-0/ });
+      await expect.element(unseen).toBeChecked();
+      await expect.element(page.getByText("Not on your list")).toBeVisible();
+    });
+
+    it("saves the id along with another change", async () => {
+      using _bridge = setup({ status: visible("hidden_from_selected", ["phone", UNSEEN]) });
+      await using _screen = await render(ui(), { router: false });
+      await userEvent.click(page.getByRole("button", { name: "Change" }));
+      const list = page.getByRole("list", { name: "Devices" });
+      await userEvent.click(list.getByRole("checkbox", { name: /Mac mini/ }));
+      await userEvent.click(page.getByRole("button", { name: "Save" }));
+      await vi.waitFor(() => expect(mocks.setVisibility).toHaveBeenCalledTimes(1));
+      expect(mocks.setVisibility.mock.calls[0]![0].input).toEqual({
+        mode: "hidden_from_selected",
+        deviceIds: ["mac-mini", "phone", UNSEEN].toSorted(),
+      });
+    });
+
+    it("drops the id only when the user unchecks it", async () => {
+      using _bridge = setup({ status: visible("hidden_from_selected", ["phone", UNSEEN]) });
+      await using _screen = await render(ui(), { router: false });
+      await userEvent.click(page.getByRole("button", { name: "Change" }));
+      await userEvent.click(
+        page.getByRole("list", { name: "Devices" }).getByRole("checkbox", { name: /unseen-0/ }),
+      );
+      await userEvent.click(page.getByRole("button", { name: "Save" }));
+      await vi.waitFor(() => expect(mocks.setVisibility).toHaveBeenCalledTimes(1));
+      expect(mocks.setVisibility.mock.calls[0]![0].input.deviceIds).toEqual(["phone"]);
+    });
+  });
+
+  it("says the saved setting could not be read, instead of showing a guess as the choice", async () => {
+    using _bridge = setup({
+      status: status({
+        visibility: {
+          mode: "hidden_from_all",
+          deviceIds: [],
+          registry: "synced",
+          unreadable: true,
+        },
+      }),
+    });
+    await using _screen = await render(ui(), { router: false });
+    await expect.element(page.getByText(/saved setting could not be read/).first()).toBeVisible();
+    expect(
+      page.getByText("Hidden from all devices, including ones that join later.").elements(),
+    ).toHaveLength(0);
+    await userEvent.click(page.getByRole("button", { name: "Change" }));
+    // Saving writes a readable file, so it is offered even though the options look unchanged.
+    await expect.element(page.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("tells the user a computer it hides from must be updated too", async () => {
+    using _bridge = setup({ status: visible("visible_to_all") });
+    await using _screen = await render(ui(), { router: false });
+    await userEvent.click(page.getByRole("button", { name: "Change" }));
+    const note = page.getByText(/Update every computer you hide this one from/);
+    expect(note.elements()).toHaveLength(0);
+    await userEvent.click(page.getByRole("radio", { name: /Hidden from all devices/ }));
+    await expect.element(note).toBeVisible();
+  });
+
   it("says plainly when the server is too old, in the row and in the dialog", async () => {
     using _bridge = setup({ status: visible("hidden_from_all", [], "unsupported") });
     await using _screen = await render(ui(), { router: false });

@@ -288,8 +288,8 @@ cut off once it reaches the server again. After that:
 
 #### Hiding a computer
 
-By default every device can see every computer. On a computer that has joined,
-choose **Visibility → Change** in **Settings → Sharing & access → Your server**
+By default every device can see every computer. In the desktop app on a computer
+that has joined, choose **Visibility → Change** in **Settings → Sharing & access → Your server**
 to decide who can see that computer:
 
 - **Visible to all devices** is the default.
@@ -308,9 +308,11 @@ the affected devices out of that computer at once. Turning it off brings the
 computer back within about a minute.
 
 It works one way and only on that computer: a hidden computer still sees and uses
-every other device on your server. It only covers your own server. Pairing
-links, a LAN or Tailscale address you paired by hand, browsers and T3 Connect are
-not affected. The setting is saved on the computer itself. If your server is an
+every other device on your server, provided those computers run this version. **Update
+every computer you hide a computer from**: one that is still on an older version
+can't see the hidden computer either, and it also makes the hidden computer unable
+to connect to it. It only covers your own server. Pairing links, a LAN or
+Tailscale address you paired by hand, browsers and T3 Connect are not affected. The setting is saved on the computer itself. If your server is an
 older version it cannot hide the computer from other devices' lists and the
 page says so, but the computer still refuses the devices you chose. Update the
 server (see its guide) to complete it.
@@ -321,7 +323,8 @@ either. Remove it with `./t3x revoke <name>` on the VPS, from a computer it is
 not hidden from, or have the computer **Leave this server**; `./t3x devices`
 lists every device and marks which computers hide from whom. On a computer
 without the desktop app, use `t3x devices visibility` (`show`, `all`, `none`,
-`hide <device…>` and `only <device…>`). A change made that way closes the
+`hide <device…>` and `only <device…>`; a device that joined in the last minute
+may need its id, which `./t3x devices` shows). A change made that way closes the
 open connections of the devices it excludes within about a minute, when the
 running server next syncs.
 
