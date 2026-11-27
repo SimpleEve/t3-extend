@@ -71,6 +71,45 @@ export default {
   "These computers have not reached your server since. They sign this device out once they do.":
     "这些电脑此后还没连上你的服务器。它们连上后会让这台设备退出登录。",
 
+  Visibility: "可见性",
+  "Choose which devices on your server can see this computer and sign in to it.":
+    "选择你的服务器上哪些设备可以看到这台电脑并登录它。",
+  Change: "更改",
+  "Who can see this computer": "谁能看到这台电脑",
+  "This only controls what other devices see. This computer still sees and uses every device on your server.":
+    "这只决定其他设备看到什么。这台电脑自己仍能看到并使用服务器上的所有设备。",
+  "Visible to all devices": "对所有设备可见",
+  "Every device on your server can see this computer. This is the default.":
+    "服务器上的所有设备都能看到这台电脑。这是默认设置。",
+  "Hidden from all devices": "对所有设备隐藏",
+  "No device can see or sign in to this computer, including ones that join later.":
+    "任何设备都看不到也登录不了这台电脑，之后新加入的设备也一样。",
+  "Hidden from selected devices": "对指定设备隐藏",
+  "The devices you pick cannot see or sign in to it. Devices that join later can.":
+    "你选的设备看不到也登录不了它；之后新加入的设备可以。",
+  "Visible only to selected devices": "仅对指定设备可见",
+  "Only the devices you pick can see or sign in to it. Devices that join later cannot.":
+    "只有你选的设备能看到并登录它；之后新加入的设备不行。",
+  "No other devices have joined your server yet.": "你的服务器上还没有其他设备。",
+  "Visible to all devices.": "对所有设备可见。",
+  "Hidden from all devices, including ones that join later.":
+    "对所有设备隐藏，之后新加入的设备也看不到。",
+  "Hidden from the devices you chose.": "对你选的设备隐藏。",
+  "Hidden from {names}.": "对 {names} 隐藏。",
+  "Visible only to the devices you chose.": "仅对你选的设备可见。",
+  "Visible only to {names}.": "仅对 {names} 可见。",
+  "Your server needs an update before it can hide this computer from other devices' lists. This computer already refuses the sign-ins this setting rules out.":
+    "你的服务器需要更新，才能让其他设备的列表里不再出现这台电脑。这台电脑已经按这个设置拒绝相应设备登录。",
+  "Your server has not received this setting yet. This computer already applies it and keeps trying.":
+    "你的服务器还没有收到这个设置。这台电脑已经在按它执行，并会继续重试。",
+  "Pick other devices from your server's list.": "请从你的服务器列表里选其他设备。",
+  "The saved setting could not be read. Other devices are refused until you save a new one.":
+    "无法读取已保存的设置。在你保存新设置之前，其他设备都无法登录这台电脑。",
+  "Not on your list": "不在你的列表里",
+  "Update every computer you hide this one from. One that is still on an older version also stops this computer from connecting to it.":
+    "请把你对其隐藏这台电脑的每台电脑都更新到当前版本。仍是旧版本的电脑会让这台电脑也连不上它。",
+  "That computer is not available to this device.": "那台电脑不对这台设备开放。",
+
   "Something went wrong. Try again.": "出了点问题。请重试。",
   "Only this computer's own app can manage devices.": "只有这台电脑自己的应用可以管理设备。",
   "This computer has not joined a server.": "这台电脑还没有加入服务器。",

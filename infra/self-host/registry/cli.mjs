@@ -41,6 +41,26 @@ function parseFlags(args, { valued = [], boolean = [] }) {
   return { flags, rest };
 }
 
+/** Every computer says who can see it; a phone has no such setting. */
+function visibilityNote(device, devices) {
+  const { mode, deviceIds } = device.visibility;
+  if (device.kind !== "computer") return "";
+  const names = deviceIds
+    .map((id) => devices.find((d) => d.id === id)?.name ?? `已移除的设备 ${id.slice(0, 8)}`)
+    .sort((a, b) => a.localeCompare(b))
+    .join("、");
+  switch (mode) {
+    case "visible_to_all":
+      return "可见性：对所有设备可见";
+    case "hidden_from_all":
+      return "可见性：对所有设备隐藏";
+    case "hidden_from_selected":
+      return `可见性：对 ${names === "" ? "（没有设备）" : names} 隐藏`;
+    default:
+      return `可见性：仅对 ${names === "" ? "（没有设备）" : names} 可见`;
+  }
+}
+
 function findDevice(store, ref) {
   const byName = store.getDeviceByName(ref);
   if (byName !== null) return byName;
@@ -53,7 +73,7 @@ function findDevice(store, ref) {
 
 const USAGE = `用法：./t3x <命令>
   invite [--kind computer|phone|any] [--no-qr]   生成一次性邀请（15 分钟内有效）
-  devices                                        列出设备
+  devices                                        列出所有设备，并标出电脑设置的可见性
   revoke <名字|id>                               移除设备
   invites                                        列出还没用掉的邀请
   rename <名字> <新名字>                         改显示名（子域名不变）
@@ -114,7 +134,10 @@ export function runCli(
               seen.subdomain ?? "-",
               `最近出现 ${when(seen.lastSeenAt ?? seen.createdAt)}`,
               seen.id,
-            ].join("  "),
+              visibilityNote(device, devices),
+            ]
+              .filter((part) => part !== "")
+              .join("  "),
           );
         }
         return 0;

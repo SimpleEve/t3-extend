@@ -917,3 +917,191 @@ describe("configuration", () => {
     assert.equal(normalizeHostForLog(undefined), "");
   });
 });
+
+describe("computer visibility", () => {
+  const listing = async (device) => (await device.send("GET", "/v1/devices")).json;
+  const ids = (body) => body.devices.map((d) => d.id);
+  const setVisibility = (device, mode, deviceIds = []) =>
+    device.send("PUT", "/v1/devices/self/visibility", { json: { mode, deviceIds } });
+
+  it("lists every device to everyone by default and shows a computer only its own setting", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
+    const asMac = await listing(mac);
+    assert.deepEqual(ids(asMac), [mac.id, laptop.id, phone.id]);
+    assert.equal(asMac.hiddenPeers, undefined);
+    assert.deepEqual(asMac.devices[0].visibility, { mode: "visible_to_all", deviceIds: [] });
+    assert.equal(asMac.devices[1].visibility, undefined);
+    assert.equal(asMac.devices[2].visibility, undefined);
+    assert.equal(
+      (await listing(phone)).devices.some((d) => "visibility" in d),
+      false,
+    );
+  });
+
+  it("answers the owner with the stored setting and moves the rev", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const rev = reg.store.rev;
+    const set = await setVisibility(mac, "hidden_from_selected", [laptop.id, laptop.id]);
+    assert.equal(set.status, 200, set.text);
+    assert.deepEqual(set.json, {
+      rev: rev + 1,
+      visibility: { mode: "hidden_from_selected", deviceIds: [laptop.id] },
+    });
+    assert.equal((await setVisibility(mac, "hidden_from_selected", [laptop.id])).json.rev, rev + 1);
+    assert.deepEqual((await listing(mac)).devices[0].visibility, set.json.visibility);
+  });
+
+  it("hides a computer from the devices it is hidden from, and from nobody else", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const studio = await enroll(reg, { name: "Studio" });
+    const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
+    await setVisibility(mac, "hidden_from_selected", [laptop.id, phone.id]);
+
+    for (const hidden of [laptop, phone]) {
+      const body = await listing(hidden);
+      assert.equal(ids(body).includes(mac.id), false);
+      assert.equal(ids(body).includes(hidden.id), true);
+    }
+    assert.equal(ids(await listing(studio)).includes(mac.id), true);
+    assert.deepEqual(ids(await listing(mac)), [mac.id, laptop.id, studio.id, phone.id]);
+  });
+
+  it("hands a hidden viewer only the identity of a hidden computer, so passes it signs can still be checked", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
+    await mac.send("PATCH", "/v1/devices/self", { json: { environmentId: "env_mac" } });
+    await setVisibility(mac, "hidden_from_all");
+    const body = await listing(laptop);
+    assert.deepEqual(body.hiddenPeers, [{ id: mac.id, kind: "computer", jwk: mac.jwk }]);
+    assert.equal(
+      body.devices.some((d) => d.id === mac.id),
+      false,
+    );
+    assert.equal(JSON.stringify(body).includes("env_mac"), false);
+    assert.equal(JSON.stringify(body).includes("https://mac."), false);
+    assert.equal((await listing(mac)).hiddenPeers, undefined);
+    // A phone never checks a pass, so it gets no identity for a computer hidden from it.
+    const forPhone = await listing(phone);
+    assert.equal(forPhone.hiddenPeers, undefined);
+    assert.equal(
+      forPhone.devices.some((d) => d.id === mac.id),
+      false,
+    );
+  });
+
+  it("hides a hidden computer's open invites from the devices it is hidden from, and refuses their cancel as not found", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const studio = await enroll(reg, { name: "Studio" });
+    await setVisibility(mac, "hidden_from_selected", [laptop.id]);
+    const macInvite = (await mac.send("POST", "/v1/invites", { json: { kind: "phone" } })).json;
+    const studioInvite = (await studio.send("POST", "/v1/invites", { json: { kind: "phone" } }))
+      .json;
+    const invitesFor = async (device) =>
+      (await device.send("GET", "/v1/invites")).json.invites.map((invite) => invite.id);
+
+    assert.deepEqual(await invitesFor(laptop), [studioInvite.id]);
+    assert.deepEqual((await invitesFor(studio)).sort(), [macInvite.id, studioInvite.id].sort());
+    assert.deepEqual((await invitesFor(mac)).sort(), [macInvite.id, studioInvite.id].sort());
+
+    const refused = await laptop.send("DELETE", `/v1/invites/${macInvite.id}`);
+    const unknown = await laptop.send("DELETE", `/v1/invites/${"a".repeat(11)}`);
+    expectError(refused, 404, "not_found");
+    assert.deepEqual(refused.json, unknown.json);
+    assert.deepEqual((await invitesFor(mac)).includes(macInvite.id), true);
+    assert.equal((await studio.send("DELETE", `/v1/invites/${macInvite.id}`)).status, 204);
+  });
+
+  it("applies the four modes, including to a device that joins afterwards", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const early = await enroll(reg, { name: "Early" });
+    const seesMac = async (viewer) => ids(await listing(viewer)).includes(mac.id);
+    const cases = [
+      ["visible_to_all", [], true, true],
+      ["hidden_from_all", [], false, false],
+      ["hidden_from_selected", [early.id], false, true],
+      ["visible_to_selected", [early.id], true, false],
+    ];
+    for (const [mode, selected, earlySees, lateSees] of cases) {
+      await setVisibility(mac, mode, selected);
+      const late = await enroll(reg, { name: `Late ${mode}` });
+      assert.equal(await seesMac(early), earlySees, `${mode}: early`);
+      assert.equal(await seesMac(late), lateSees, `${mode}: late`);
+    }
+  });
+
+  it("refuses to let a hidden device remove or rename the computer, as if it did not exist", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const studio = await enroll(reg, { name: "Studio" });
+    await setVisibility(mac, "hidden_from_selected", [laptop.id]);
+    expectError(await laptop.send("DELETE", `/v1/devices/${mac.id}`), 404, "not_found");
+    expectError(
+      await laptop.send("PATCH", `/v1/devices/${mac.id}`, { json: { name: "Mine" } }),
+      404,
+      "not_found",
+    );
+    assert.notEqual(reg.store.getDevice(mac.id), null);
+    assert.equal(reg.store.getDevice(mac.id).name, "Mac");
+    // A device it is not hidden from, and the computer itself, still can.
+    assert.equal(
+      (await studio.send("PATCH", `/v1/devices/${mac.id}`, { json: { name: "Mac2" } })).status,
+      200,
+    );
+    assert.equal((await mac.send("DELETE", `/v1/devices/${mac.id}`)).status, 200);
+  });
+
+  it("lets only a computer set its own visibility, with a valid body", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
+    expectError(await setVisibility(phone, "hidden_from_all"), 403, "forbidden");
+    const bad = [
+      { mode: "everyone", deviceIds: [] },
+      { mode: "hidden_from_all" },
+      { mode: "hidden_from_all", deviceIds: "x" },
+      { mode: "hidden_from_selected", deviceIds: ["short"] },
+      { mode: "hidden_from_selected", deviceIds: [mac.id] },
+      {
+        mode: "hidden_from_selected",
+        deviceIds: Array.from({ length: 65 }, (_, i) => `${String(i).padStart(43, "a")}`),
+      },
+      { mode: "hidden_from_all", deviceIds: [], extra: 1 },
+    ];
+    for (const json of bad) {
+      expectError(
+        await mac.send("PUT", "/v1/devices/self/visibility", { json }),
+        400,
+        "invalid_request",
+      );
+    }
+    assert.deepEqual(reg.store.getDevice(mac.id).visibility, {
+      mode: "visible_to_all",
+      deviceIds: [],
+    });
+    expectError(
+      await mac.send("PATCH", "/v1/devices/self/visibility", {
+        json: { mode: "hidden_from_all", deviceIds: [] },
+      }),
+      405,
+      "method_not_allowed",
+    );
+  });
+
+  it("stops listing a hidden device's entry only for the viewer, so the device is never told it was removed", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    await setVisibility(laptop, "hidden_from_all");
+    const asLaptop = await laptop.send("GET", "/v1/devices");
+    assert.equal(asLaptop.status, 200);
+    assert.equal(ids(asLaptop.json).includes(laptop.id), true);
+    assert.equal(
+      (await mac.send("GET", "/v1/devices")).json.devices.some((d) => d.id === laptop.id),
+      false,
+    );
+  });
+});

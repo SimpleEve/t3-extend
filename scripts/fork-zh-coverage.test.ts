@@ -18,6 +18,7 @@ const FEATURES: Readonly<Record<string, ReadonlyArray<string>>> = {
   ],
   "device keys": [
     "apps/web/src/fork/YourServerSettings.tsx",
+    "apps/web/src/fork/YourServerVisibility.tsx",
     "apps/web/src/fork/YourServerPaletteItems.tsx",
     "apps/mobile/src/fork/deviceKeys",
   ],

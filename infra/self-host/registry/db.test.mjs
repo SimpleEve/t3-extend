@@ -5,7 +5,14 @@ import * as NodePath from "node:path";
 import * as NodeTest from "node:test";
 import * as NodeWorkerThreads from "node:worker_threads";
 
-import { INVITE_TTL_SECONDS, MAX_OPEN_INVITES, Store, StoreError, hashSecret } from "./db.mjs";
+import {
+  INVITE_TTL_SECONDS,
+  MAX_OPEN_INVITES,
+  Store,
+  StoreError,
+  hashSecret,
+  isVisibleTo,
+} from "./db.mjs";
 import { generateDeviceKey } from "./proof.mjs";
 
 const assert = NodeAssert;
@@ -411,5 +418,148 @@ describe("opening the database", () => {
     store.close();
     assert.throws(() => Store.open(path), /schema 99/);
     store = Store.open(join(dir, "other.db"));
+  });
+});
+
+describe("computer visibility", () => {
+  const view = (owner, viewerId) => isVisibleTo(store.getDevice(owner.device.id), viewerId);
+
+  it("starts visible to everyone, and a phone is never hidden", () => {
+    const mac = enroll("computer", "Mac");
+    const phone = enroll("phone", "Pixel");
+    assert.deepEqual(store.getDevice(mac.device.id).visibility, {
+      mode: "visible_to_all",
+      deviceIds: [],
+    });
+    assert.equal(view(mac, phone.device.id), true);
+    assert.equal(
+      code(() => store.setVisibility(phone.device.id, "hidden_from_all", [])),
+      "invalid_request",
+    );
+  });
+
+  it("applies each of the four modes to a viewer, and the owner always sees itself", () => {
+    const mac = enroll("computer", "Mac");
+    const laptop = enroll("computer", "Laptop");
+    const phone = enroll("phone", "Pixel");
+    const selected = [laptop.device.id];
+
+    store.setVisibility(mac.device.id, "hidden_from_all", []);
+    assert.deepEqual(
+      [view(mac, laptop.device.id), view(mac, phone.device.id), view(mac, mac.device.id)],
+      [false, false, true],
+    );
+    store.setVisibility(mac.device.id, "hidden_from_selected", selected);
+    assert.deepEqual([view(mac, laptop.device.id), view(mac, phone.device.id)], [false, true]);
+    store.setVisibility(mac.device.id, "visible_to_selected", selected);
+    assert.deepEqual([view(mac, laptop.device.id), view(mac, phone.device.id)], [true, false]);
+    store.setVisibility(mac.device.id, "visible_to_all", selected);
+    assert.deepEqual([view(mac, laptop.device.id), view(mac, phone.device.id)], [true, true]);
+    // The two modes that name no devices drop whatever list came with them.
+    assert.deepEqual(store.getDevice(mac.device.id).visibility.deviceIds, []);
+  });
+
+  it("gives a device that joins later the default of each mode", () => {
+    const mac = enroll("computer", "Mac");
+    const early = enroll("computer", "Early");
+    const lateSees = (mode, ids) => {
+      store.setVisibility(mac.device.id, mode, ids);
+      const late = enroll("computer", `Late ${mode}`);
+      return view(mac, late.device.id);
+    };
+    assert.equal(lateSees("visible_to_all", []), true);
+    assert.equal(lateSees("hidden_from_all", []), false);
+    assert.equal(lateSees("hidden_from_selected", [early.device.id]), true);
+    assert.equal(lateSees("visible_to_selected", [early.device.id]), false);
+  });
+
+  it("bumps the rev only when the setting changes and refuses a list naming the device itself", () => {
+    const mac = enroll("computer", "Mac");
+    const other = enroll("computer", "Other");
+    const rev = store.rev;
+    const changed = store.setVisibility(mac.device.id, "hidden_from_selected", [other.device.id]);
+    assert.equal(changed, rev + 1);
+    assert.equal(
+      store.setVisibility(mac.device.id, "hidden_from_selected", [
+        other.device.id,
+        other.device.id,
+      ]),
+      rev + 1,
+    );
+    assert.equal(store.rev, rev + 1);
+    assert.equal(
+      code(() => store.setVisibility(mac.device.id, "hidden_from_selected", [mac.device.id])),
+      "invalid_request",
+    );
+    assert.equal(store.setVisibility("nobody", "hidden_from_all", []), null);
+  });
+
+  it("opens a version 1 database, keeps its devices and makes them visible to everyone", () => {
+    const path = join(dir, "v1.db");
+    const old = new store.db.constructor(path);
+    old.exec(`
+      CREATE TABLE meta (id INTEGER PRIMARY KEY CHECK (id = 1), registry_id TEXT NOT NULL, rev INTEGER NOT NULL);
+      CREATE TABLE devices (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('computer', 'phone')), jwk TEXT NOT NULL, subdomain TEXT,
+        environment_id TEXT, created_at INTEGER NOT NULL, last_seen_at INTEGER, last_sync_at INTEGER,
+        last_tunnel_at INTEGER, invited_by TEXT, invite_id TEXT,
+        CHECK (kind = 'computer' OR subdomain IS NULL)
+      );
+      INSERT INTO meta (id, registry_id, rev) VALUES (1, 'oldreg22', 7);
+      INSERT INTO devices (id, name, name_key, kind, jwk, subdomain, created_at)
+        VALUES ('old-mac', 'Old Mac', 'old mac', 'computer', '{}', 'old-mac', 1);
+      PRAGMA user_version = 1;
+    `);
+    old.close();
+    const upgraded = Store.open(path);
+    try {
+      assert.equal(upgraded.registryId, "oldreg22");
+      assert.equal(upgraded.rev, 7);
+      assert.deepEqual(upgraded.getDevice("old-mac").visibility, {
+        mode: "visible_to_all",
+        deviceIds: [],
+      });
+      assert.equal(upgraded.setVisibility("old-mac", "hidden_from_all", []), 8);
+      assert.equal(upgraded.db.prepare("PRAGMA user_version").get().user_version, 2);
+    } finally {
+      upgraded.close();
+    }
+    // Opening it again is a no-op.
+    const again = Store.open(path);
+    assert.equal(again.getDevice("old-mac").visibility.mode, "hidden_from_all");
+    again.close();
+  });
+
+  it("repairs a database whose migration stopped after the first column", () => {
+    const path = join(dir, "half.db");
+    const old = new store.db.constructor(path);
+    old.exec(`
+      CREATE TABLE meta (id INTEGER PRIMARY KEY CHECK (id = 1), registry_id TEXT NOT NULL, rev INTEGER NOT NULL);
+      CREATE TABLE devices (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('computer', 'phone')), jwk TEXT NOT NULL, subdomain TEXT,
+        environment_id TEXT, created_at INTEGER NOT NULL, last_seen_at INTEGER, last_sync_at INTEGER,
+        last_tunnel_at INTEGER, invited_by TEXT, invite_id TEXT,
+        visibility_mode TEXT NOT NULL DEFAULT 'visible_to_all'
+          CHECK (visibility_mode IN ('visible_to_all', 'hidden_from_all', 'hidden_from_selected', 'visible_to_selected')),
+        CHECK (kind = 'computer' OR subdomain IS NULL)
+      );
+      INSERT INTO meta (id, registry_id, rev) VALUES (1, 'halfreg2', 3);
+      INSERT INTO devices (id, name, name_key, kind, jwk, subdomain, created_at, visibility_mode)
+        VALUES ('half-mac', 'Half Mac', 'half mac', 'computer', '{}', 'half-mac', 1, 'hidden_from_all');
+      PRAGMA user_version = 1;
+    `);
+    old.close();
+    const repaired = Store.open(path);
+    try {
+      assert.deepEqual(repaired.getDevice("half-mac").visibility, {
+        mode: "hidden_from_all",
+        deviceIds: [],
+      });
+      assert.equal(repaired.db.prepare("PRAGMA user_version").get().user_version, 2);
+    } finally {
+      repaired.close();
+    }
   });
 });

@@ -181,6 +181,7 @@ describe("device authorization: the pass exchange", () => {
     readonly failureCause?: string;
   }> = [
     { reason: "device_revoked", tag: "ConnectionBlockedError", blockedReason: "authentication" },
+    { reason: "device_hidden", tag: "ConnectionBlockedError", blockedReason: "authentication" },
     {
       reason: "time_window",
       tag: "ConnectionBlockedError",
@@ -213,6 +214,20 @@ describe("device authorization: the pass exchange", () => {
       expect(rig.waits).toEqual([]);
       // Only a refusal that may mean "removed" is worth asking the registry about.
       expect(rig.refusals()).toBe(rejection.reason === "device_revoked" ? 1 : 0);
+    }),
+  );
+
+  it.effect("tells a computer's own choice not to be seen apart from a removal", () =>
+    Effect.gen(function* () {
+      const rig = yield* makeRig({ passReplies: [rejectedPass("device_hidden")] });
+      const error = yield* rig.authorization.prepare(route()).pipe(Effect.flip);
+      expect(error._tag).toBe("ConnectionBlockedError");
+      expect(error).toMatchObject({ detail: "That computer is not available to this device." });
+      expect(error).not.toMatchObject({ detail: expect.stringContaining("removed") });
+      // Neither retried nor reported as a suspected removal.
+      expect(rig.passRequests()).toHaveLength(1);
+      expect(rig.waits).toEqual([]);
+      expect(rig.refusals()).toBe(0);
     }),
   );
 

@@ -248,6 +248,7 @@ t3x devices tunnel status      # 看隧道客户端是否安装、是否已连�
 t3x devices list               # 只读本地保存的设备清单，不联网
 t3x devices invite             # 给别的设备生成邀请，默认给手机；--kind computer 给电脑
 t3x devices remove <名字>      # 移除一台设备
+t3x devices visibility show    # 谁能看到这台电脑。另有 all、none、hide <设备…>、only <设备…>
 t3x devices leave              # 这台电脑退出
 ```
 
@@ -281,6 +282,10 @@ t3x pair --base-url https://<名字>.t3.example.com
 约一分钟内生效。被移除的设备拿不到新的访问权限，它的隧道在下一次心跳（约 30 秒）被拒绝。**移除时离线的电脑**，要等它重新连上服务器才会被撤销。被移除的电脑显示"加入我的服务器"，需要新邀请才能回来；它的子域名默认不再分配给别人，要用 `./t3x release <子域名>` 才能收回。
 
 在某台电脑上用 `t3x devices remove` 或 `t3x auth session revoke` 这类从另一个进程发起的移除，运行中的 server 要到下一次同步（约 60 秒）才断开旧连接。
+
+### 对其他设备隐藏一台电脑
+
+电脑可以对指定设备隐藏自己：「设置 → 共享与访问 → 你的服务器 → 可见性」，或 `t3x devices visibility`。四种模式见用户文档（`docs/user/remote-access.md` 的 "Hiding a computer"）。registry 必须是带可见性的版本（数据库 schema 2，第一次启动自动迁移，迁移后不能回滚到旧镜像）。`./t3x devices` 列出所有设备并标出每台电脑隐藏了谁；`./t3x revoke` 对隐藏的电脑同样有效。
 
 ### 要知道的行为
 

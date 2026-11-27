@@ -249,6 +249,30 @@ describe("device environment sync", () => {
     }),
   );
 
+  it.effect(
+    "treats a computer that hid from this device as removed, and finds it again when it is shown",
+    () =>
+      Effect.gen(function* () {
+        const rig = yield* makeRig();
+        const me = computer({ deviceId: "me", self: true, environmentId: env("environment-me") });
+        const mac = computer({ deviceId: "mac", environmentId: env("environment-mac") });
+        yield* rig.run(view([me, mac]));
+        // The server's list for this device no longer carries the computer; this device is still in it.
+        yield* rig.run(view([me]));
+        expect(yield* rig.managed).toEqual([]);
+        expect(yield* Ref.get(rig.removed)).toEqual(["environment-mac"]);
+        expect(yield* Ref.get(rig.forgotten)).toEqual(["environment-mac"]);
+        expect(rig.index.get("environment-mac")).toBeUndefined();
+        expect((yield* SubscriptionRef.get(rig.entries)).has(env("environment-by-hand"))).toBe(
+          true,
+        );
+        // Shown again: the next sync registers it and a connection can start on its own.
+        yield* rig.run(view([me, mac]));
+        expect((yield* rig.managed).map((entry) => entry.deviceId)).toEqual(["mac"]);
+        expect(rig.index.get("environment-mac")).toBe("mac");
+      }),
+  );
+
   it.effect("keeps a listed computer whose address is missing for now", () =>
     Effect.gen(function* () {
       const rig = yield* makeRig();

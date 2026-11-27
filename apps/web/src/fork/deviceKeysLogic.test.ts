@@ -3,11 +3,16 @@ import { describe, expect, it } from "vite-plus/test";
 import type { DevicesSnapshot } from "@t3tools/contracts";
 
 import {
+  describeVisibility,
+  describeVisibilityRegistry,
   inviteDeadlineLabel,
   networkAccessNeedsRefresh,
   serverNotice,
   serverNoticeWindow,
   snapshotToView,
+  visibilityDraftReady,
+  visibilityToSend,
+  visibilityUnchanged,
 } from "./deviceKeysLogic";
 
 const NOW = Date.parse("2026-11-03T12:00:00.000Z");
@@ -165,5 +170,89 @@ describe("the list of computers the connection code reads", () => {
 
   it("is nothing while this computer has not joined", () => {
     expect(snapshotToView(snapshot("not_joined"))).toBeNull();
+  });
+});
+
+describe("the Visibility setting", () => {
+  const t = ((source: string, params?: Record<string, unknown>) =>
+    source.replace(/\{(\w+)\}/g, (_match, name) => String(params?.[name] ?? ""))) as never;
+  const devices = [
+    { id: "a", name: "Laptop" },
+    { id: "b", name: "Pixel" },
+  ];
+
+  it("needs a pick for the two modes that name devices, and only those", () => {
+    expect(visibilityDraftReady({ mode: "visible_to_all", deviceIds: [] })).toBe(true);
+    expect(visibilityDraftReady({ mode: "hidden_from_all", deviceIds: [] })).toBe(true);
+    expect(visibilityDraftReady({ mode: "hidden_from_selected", deviceIds: [] })).toBe(false);
+    expect(visibilityDraftReady({ mode: "visible_to_selected", deviceIds: ["a"] })).toBe(true);
+  });
+
+  it("sends no list for the modes that name nobody, and a sorted one for the rest", () => {
+    expect(visibilityToSend({ mode: "hidden_from_all", deviceIds: ["a"] })).toEqual({
+      mode: "hidden_from_all",
+      deviceIds: [],
+    });
+    expect(visibilityToSend({ mode: "hidden_from_selected", deviceIds: ["b", "a", "b"] })).toEqual({
+      mode: "hidden_from_selected",
+      deviceIds: ["a", "b"],
+    });
+  });
+
+  it("knows when the draft is what is already saved", () => {
+    const saved = {
+      mode: "hidden_from_selected" as const,
+      deviceIds: ["a", "b"],
+      registry: "synced" as const,
+    };
+    expect(
+      visibilityUnchanged({ mode: "hidden_from_selected", deviceIds: ["b", "a"] }, saved),
+    ).toBe(true);
+    expect(visibilityUnchanged({ mode: "hidden_from_selected", deviceIds: ["a"] }, saved)).toBe(
+      false,
+    );
+    expect(visibilityUnchanged({ mode: "visible_to_selected", deviceIds: ["a", "b"] }, saved)).toBe(
+      false,
+    );
+  });
+
+  it("describes who can see this computer, counting devices that are not on the list by their id", () => {
+    expect(describeVisibility(t, { mode: "visible_to_all", deviceIds: [] }, devices)).toBe(
+      "Visible to all devices.",
+    );
+    expect(
+      describeVisibility(t, { mode: "hidden_from_selected", deviceIds: ["a", "b"] }, devices),
+    ).toBe("Hidden from Laptop, Pixel.");
+    expect(describeVisibility(t, { mode: "visible_to_selected", deviceIds: ["a"] }, devices)).toBe(
+      "Visible only to Laptop.",
+    );
+    expect(
+      describeVisibility(
+        t,
+        { mode: "hidden_from_selected", deviceIds: ["a", "unseen-0123456789"] },
+        devices,
+      ),
+    ).toBe("Hidden from Laptop, unseen-0….");
+    expect(describeVisibility(t, { mode: "hidden_from_selected", deviceIds: [] }, devices)).toBe(
+      "Hidden from the devices you chose.",
+    );
+  });
+
+  it("offers a save for a setting that could not be read, even when the options look the same", () => {
+    const saved = { mode: "hidden_from_all", deviceIds: [], registry: "synced" } as const;
+    expect(visibilityUnchanged({ mode: "hidden_from_all", deviceIds: [] }, saved)).toBe(true);
+    expect(
+      visibilityUnchanged(
+        { mode: "hidden_from_all", deviceIds: [] },
+        { ...saved, unreadable: true },
+      ),
+    ).toBe(false);
+  });
+
+  it("only speaks up about the server when it has not got the setting", () => {
+    expect(describeVisibilityRegistry(t, "synced")).toBeNull();
+    expect(describeVisibilityRegistry(t, "unknown")).toBeNull();
+    expect(describeVisibilityRegistry(t, "unsupported")).toMatch(/needs an update/);
+    expect(describeVisibilityRegistry(t, "pending")).toMatch(/has not received/);
   });
 });

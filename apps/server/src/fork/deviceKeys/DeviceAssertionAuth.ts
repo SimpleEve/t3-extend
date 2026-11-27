@@ -47,6 +47,7 @@ import {
 import { verifyRequestDpopProof } from "../../auth/dpop.ts";
 import { deriveAuthClientMetadata } from "../../auth/utils.ts";
 import * as ServerEnvironment from "../../environment/ServerEnvironment.ts";
+import { isVisibleTo } from "@t3tools/shared/forkDeviceKeys/visibility";
 import * as DeviceDirectory from "./DeviceDirectory.ts";
 
 export const T3X_ASSERTION_MARKER_PREFIX = "t3x-assertion-";
@@ -65,6 +66,7 @@ export type AssertionRejection =
   | "replay"
   | "key_mismatch"
   | "device_revoked"
+  | "device_hidden"
   | "dpop_invalid";
 
 /** Phones never manage devices or relay tokens, whatever scope they ask for. */
@@ -188,7 +190,7 @@ const make = Effect.gen(function* () {
 
     // Step 2: who signed it, with which key.
     const claims = parsed.claims;
-    const signer = local.list.value.devices.find((device) => device.id === parsed.kid);
+    const signer = DeviceDirectory.findSigner(local.list.value, parsed.kid);
     if (signer === undefined) {
       // A device joined a moment ago may be on the registry's list already; the retry finds it.
       yield* directory.refreshSoon;
@@ -198,6 +200,9 @@ const make = Effect.gen(function* () {
       return yield* rejected("bad_assertion");
     }
     if (!verifyAssertionSignature(parsed, signer.jwk)) return yield* rejected("bad_signature");
+    // This computer's own choice, read from its file: the registry's list is not what decides it.
+    if (!isVisibleTo(yield* directory.visibility, parsed.kid))
+      return yield* rejected("device_hidden");
 
     // Step 3-4: meant for this computer, in this registry, right now.
     if (claims.aud !== environmentId) return yield* rejected("audience_mismatch");
@@ -242,10 +247,14 @@ const make = Effect.gen(function* () {
     const issued = yield* directory.withGate(
       Effect.gen(function* () {
         const current = yield* directory.state;
-        const device = Option.getOrUndefined(current.list)?.devices.find(
-          (entry) => entry.id === parsed.kid,
-        );
+        const device = Option.map(current.list, (list) =>
+          DeviceDirectory.findSigner(list, parsed.kid),
+        ).pipe(Option.getOrUndefined);
         if (device === undefined) return yield* rejected("device_revoked");
+        // Re-read under the gate: a setting saved while this pass waited for the gate still applies.
+        if (!isVisibleTo(yield* directory.visibility, parsed.kid)) {
+          return yield* rejected("device_hidden");
+        }
         const created = yield* secrets.create(marker, new Uint8Array()).pipe(
           Effect.as(true),
           Effect.catch((error) =>
@@ -273,7 +282,8 @@ const make = Effect.gen(function* () {
             client: deriveAuthClientMetadata({
               request,
               presented: {
-                label: device.name,
+                // A computer hidden from this one has no name here, only a key.
+                label: "name" in device ? device.name : "Computer",
                 deviceType: device.kind === "phone" ? "mobile" : "desktop",
               },
             }),

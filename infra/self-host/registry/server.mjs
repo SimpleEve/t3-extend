@@ -5,7 +5,14 @@ import * as NodeNet from "node:net";
 import * as NodeURL from "node:url";
 
 import { createAskServer } from "./ask.mjs";
-import { Store, StoreError, nowSeconds } from "./db.mjs";
+import {
+  MAX_VISIBILITY_DEVICES,
+  Store,
+  StoreError,
+  VISIBILITY_MODES,
+  isVisibleTo,
+  nowSeconds,
+} from "./db.mjs";
 import { encodeInvite, parseRedemption } from "./invites.mjs";
 import { createPluginServer } from "./plugin.mjs";
 import {
@@ -157,6 +164,7 @@ const ROUTES = [
   ["DELETE", /^\/v1\/invites\/([A-Za-z0-9_-]{11})$/, "deleteInvite"],
   ["DELETE", /^\/v1\/devices\/([A-Za-z0-9_-]{43})$/, "removeDevice"],
   ["PATCH", /^\/v1\/devices\/self$/, "patchSelf"],
+  ["PUT", /^\/v1\/devices\/self\/visibility$/, "setVisibility"],
   ["PATCH", /^\/v1\/devices\/([A-Za-z0-9_-]{43})$/, "renameDevice"],
 ];
 
@@ -250,7 +258,15 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     if (device.kind !== "computer") throw new HttpError("forbidden");
   };
 
-  const publicDevice = (device, at) => {
+  /** A device that is gone (null) hides nothing. */
+  const canSee = (viewer, target) => target === null || isVisibleTo(target, viewer.id);
+
+  /** Whether `viewer` may act on `target` by name or id: a device hidden from it does not exist for it. */
+  const requireVisible = (viewer, target) => {
+    if (!canSee(viewer, target)) throw new HttpError("not_found");
+  };
+
+  const publicDevice = (device, at, viewerId) => {
     const seen = store.withTouches(device);
     return {
       id: seen.id,
@@ -267,6 +283,8 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
       ...(seen.kind === "computer"
         ? { online: (seen.lastTunnelAt ?? 0) > at - ONLINE_WINDOW_SECONDS }
         : {}),
+      // Only a computer's own entry carries its setting, and only a registry that has the setting says so.
+      ...(seen.id === viewerId && seen.kind === "computer" ? { visibility: seen.visibility } : {}),
     };
   };
 
@@ -340,18 +358,32 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     },
 
     devices({ req, path, body }) {
-      const { deviceId } = authenticate(req, path, body, { forJoin: false });
+      const { deviceId, device } = authenticate(req, path, body, { forJoin: false });
       store.touch(deviceId, "sync", now());
       // Always the current body: `online` and the sync times change with the clock, not with `rev`,
       // so a validator keyed on `rev` would freeze them. Clients send no `If-None-Match`; one that
       // does is answered as if it had not.
       const at = now();
+      const all = store.listDevices();
+      // The list is per viewer: a computer hidden from the viewer is not in `devices`, so for the viewer
+      // it is as if it had been removed. Its identity (never its name or address) still goes along in
+      // `hiddenPeers`, because a computer that hides from this one may still sign in to it and needs its key
+      // checked. A phone never checks a pass, so it gets none.
+      const hiddenPeers =
+        device.kind === "computer"
+          ? all
+              .filter((d) => !isVisibleTo(d, deviceId))
+              .map((d) => ({ id: d.id, kind: d.kind, jwk: d.jwk }))
+          : [];
       return {
         status: 200,
         body: {
           registryId: store.registryId,
           rev: store.rev,
-          devices: store.listDevices().map((d) => publicDevice(d, at)),
+          devices: all
+            .filter((d) => isVisibleTo(d, deviceId))
+            .map((d) => publicDevice(d, at, deviceId)),
+          ...(hiddenPeers.length === 0 ? {} : { hiddenPeers }),
         },
       };
     },
@@ -389,12 +421,15 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
       return {
         status: 200,
         body: {
-          invites: store.listOpenInvites(now()).map((row) => ({
-            id: row.id,
-            kind: row.kind,
-            createdBy: row.created_by,
-            expiresAt: row.expires_at,
-          })),
+          invites: store
+            .listOpenInvites(now())
+            .filter((row) => canSee(device, store.getDevice(row.created_by)))
+            .map((row) => ({
+              id: row.id,
+              kind: row.kind,
+              createdBy: row.created_by,
+              expiresAt: row.expires_at,
+            })),
         },
       };
     },
@@ -402,6 +437,8 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     deleteInvite({ req, path, body, param }) {
       const { device } = authenticate(req, path, body, { forJoin: false });
       requireComputer(device);
+      const invite = store.getInvite(param);
+      if (invite !== null) requireVisible(device, store.getDevice(invite.created_by));
       if (!store.deleteInvite(param)) throw new HttpError("not_found");
       log({ event: "invite_cancelled", by: device.id, id: param });
       return { status: 204 };
@@ -410,6 +447,7 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     removeDevice({ req, path, body, param }) {
       const { device } = authenticate(req, path, body, { forJoin: false });
       if (device.kind !== "computer" && param !== device.id) throw new HttpError("forbidden");
+      requireVisible(device, store.getDevice(param));
       const removed = store.removeDevice(param, now());
       if (removed === null) throw new HttpError("not_found");
       log({ event: "device_removed", by: device.id, deviceId: param, name: removed.device.name });
@@ -422,6 +460,7 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
       const request = parseJsonObject(body, ["name"], ["name"]);
       const name = normalizeDeviceName(request.name);
       if (name === null) throw new HttpError("name_invalid");
+      requireVisible(device, store.getDevice(param));
       if (store.renameDevice(param, name) === null) throw new HttpError("not_found");
       return { status: 200, body: { id: param, name } };
     },
@@ -438,6 +477,29 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
       const rev = store.setEnvironmentId(device.id, request.environmentId);
       if (rev === null) throw new HttpError("not_found");
       return { status: 200, body: { rev } };
+    },
+
+    setVisibility({ req, path, body }) {
+      const { device } = authenticate(req, path, body, { forJoin: false });
+      requireComputer(device);
+      const request = parseJsonObject(body, ["mode", "deviceIds"], ["mode", "deviceIds"]);
+      if (
+        !VISIBILITY_MODES.includes(request.mode) ||
+        !Array.isArray(request.deviceIds) ||
+        request.deviceIds.length > MAX_VISIBILITY_DEVICES ||
+        !request.deviceIds.every((id) => typeof id === "string" && DEVICE_ID.test(id))
+      ) {
+        throw new HttpError("invalid_request");
+      }
+      const rev = store.setVisibility(device.id, request.mode, request.deviceIds);
+      if (rev === null) throw new HttpError("not_found");
+      log({
+        event: "visibility_set",
+        by: device.id,
+        mode: request.mode,
+        count: request.deviceIds.length,
+      });
+      return { status: 200, body: { rev, visibility: store.getDevice(device.id).visibility } };
     },
   };
 

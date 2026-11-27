@@ -1,6 +1,7 @@
 // fork: the computer's side of the registry API (design 3.3 / 3.4 / 3.12). Every request is signed
 // with the device key; the only origin ever contacted is the one pinned at join.
 import {
+  DeviceVisibility,
   RegistryDevicesResponse,
   RegistryInfo,
   RegistryJoinResponse,
@@ -100,6 +101,14 @@ export class RegistryClient extends Context.Service<
       target: RegistryTarget,
       environmentId: string,
     ) => Effect.Effect<void, RegistryClientError>;
+    /** A registry without the setting answers 404 `not_found`, because it has no such route. */
+    readonly setVisibility: (
+      target: RegistryTarget,
+      visibility: DeviceVisibility,
+    ) => Effect.Effect<
+      { readonly rev: number; readonly visibility: DeviceVisibility },
+      RegistryClientError
+    >;
   }
 >()("t3/fork/deviceKeys/RegistryClient") {}
 
@@ -108,7 +117,7 @@ const make = Effect.gen(function* () {
 
   const send = Effect.fn("RegistryClient.send")(function* (input: {
     readonly origin: string;
-    readonly method: "GET" | "POST" | "PATCH" | "DELETE";
+    readonly method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
     readonly path: string;
     readonly body?: unknown;
     readonly proof: Omit<Parameters<typeof signRequestProof>[0], "method" | "htu" | "body" | "iat">;
@@ -276,6 +285,19 @@ const make = Effect.gen(function* () {
         });
       },
     ),
+    setVisibility: Effect.fn("RegistryClient.setVisibility")(function* (target, visibility) {
+      const result = yield* send({
+        origin: target.origin,
+        method: "PUT",
+        path: "/v1/devices/self/visibility",
+        body: { mode: visibility.mode, deviceIds: visibility.deviceIds },
+        proof: proofOf(target),
+      });
+      return yield* decode(
+        Schema.Struct({ rev: Schema.Number, visibility: DeviceVisibility }),
+        result.json,
+      );
+    }),
   });
 });
 

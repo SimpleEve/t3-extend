@@ -271,7 +271,8 @@ To start:
    and expire after 15 minutes.
 
 Every computer that has joined then shows up as an environment on your other
-computers and phones, including ones that join later.
+computers and phones, including ones that join later. To keep a computer out of
+sight, see [Hiding a computer](#hiding-a-computer) below.
 
 To remove a device, choose **Remove** next to it in **Settings → Sharing &
 access → Your server** on a computer that has joined, or run `./t3x revoke
@@ -284,6 +285,48 @@ cut off once it reaches the server again. After that:
 - The removed computer's public address stops answering.
 - On your other computers, it leaves the device list and its environment
   disappears. Projects that were bound to it show as "Unavailable environment".
+
+#### Hiding a computer
+
+By default every device can see every computer. In the desktop app on a computer
+that has joined, choose **Visibility → Change** in **Settings → Sharing & access → Your server**
+to decide who can see that computer:
+
+- **Visible to all devices** is the default.
+- **Hidden from all devices** hides it from everyone, including devices that
+  join later.
+- **Hidden from selected devices** hides it from the computers and phones you
+  tick. Devices that join later can see it.
+- **Visible only to selected devices** shows it only to the ones you tick.
+  Devices that join later cannot see it.
+
+A device that is hidden from a computer can't see it and can't sign in to it:
+the computer disappears from that device's list as if it had been removed (its
+environment goes away, and projects bound to it show "Unavailable environment"),
+and the computer itself refuses that device's sign-ins. Turning hiding on signs
+the affected devices out of that computer at once. Turning it off brings the
+computer back within about a minute.
+
+It works one way and only on that computer: a hidden computer still sees and uses
+every other device on your server, provided those computers run this version. **Update
+every computer you hide a computer from**: one that is still on an older version
+can't see the hidden computer either, and it also makes the hidden computer unable
+to connect to it. It only covers your own server. Pairing links, a LAN or
+Tailscale address you paired by hand, browsers and T3 Connect are not affected. The setting is saved on the computer itself. If your server is an
+older version it cannot hide the computer from other devices' lists and the
+page says so, but the computer still refuses the devices you chose. Update the
+server (see its guide) to complete it.
+
+Phones are not environments and have no such setting; they can only be chosen as
+a device to hide from. A device that is hidden from a computer can't remove it
+either. Remove it with `./t3x revoke <name>` on the VPS, from a computer it is
+not hidden from, or have the computer **Leave this server**; `./t3x devices`
+lists every device and marks which computers hide from whom. On a computer
+without the desktop app, use `t3x devices visibility` (`show`, `all`, `none`,
+`hide <device…>` and `only <device…>`; a device that joined in the last minute
+may need its id, which `./t3x devices` shows). A change made that way closes the
+open connections of the devices it excludes within about a minute, when the
+running server next syncs.
 
 Things that may surprise you:
 

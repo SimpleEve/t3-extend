@@ -1,7 +1,12 @@
 // An in-memory stand-in for the registry, behind the same `RegistryClient` interface. Tests steer
 // reachability and membership through `FakeRegistry`; the real wire protocol is covered against the
 // real registry process in RegistryClient.live.test.ts.
-import type { DeviceKind, RegistryDevice } from "@t3tools/contracts";
+import type {
+  DeviceKind,
+  DeviceVisibility,
+  RegistryDevice,
+  RegistryHiddenPeer,
+} from "@t3tools/contracts";
 import {
   deviceIdOf,
   generateDeviceKey,
@@ -29,6 +34,14 @@ export interface FakeRegistryState {
   readonly calls: Array<{ readonly op: string; readonly detail?: unknown }>;
   /** The invite string `join` accepts. */
   invite: string | undefined;
+  /** Computers hidden from the asker: what the real registry sends in `hiddenPeers`. */
+  hiddenPeers: Array<RegistryHiddenPeer>;
+  /** False plays a registry from before visibility: no `visibility` on the entry, no such route. */
+  visibilitySupported: boolean;
+  /** What the registry holds for the asking computer. */
+  visibility: DeviceVisibility;
+  /** Runs inside every `setVisibility` call, before the registry applies it. */
+  onSetVisibility: Effect.Effect<void>;
 }
 
 export class FakeRegistry extends Context.Service<
@@ -61,6 +74,10 @@ export const layerFakeRegistry = Layer.unwrap(
       failWith: undefined,
       calls: [],
       invite: undefined,
+      hiddenPeers: [],
+      visibilitySupported: true,
+      visibility: { mode: "visible_to_all", deviceIds: [] },
+      onSetVisibility: Effect.void,
     };
     let counter = 0;
     const record = (op: string, detail?: unknown) => state.calls.push({ op, detail });
@@ -147,7 +164,12 @@ export const layerFakeRegistry = Layer.unwrap(
               return {
                 registryId: FAKE_REGISTRY_ID,
                 rev: state.rev,
-                devices: [...state.devices],
+                devices: state.devices.map((device) =>
+                  state.visibilitySupported && device.id === target.deviceId
+                    ? { ...device, visibility: state.visibility }
+                    : device,
+                ),
+                ...(state.hiddenPeers.length === 0 ? {} : { hiddenPeers: [...state.hiddenPeers] }),
               };
             }),
           ),
@@ -193,6 +215,24 @@ export const layerFakeRegistry = Layer.unwrap(
       reportEnvironment: (target, environmentId) =>
         gate(target).pipe(
           Effect.andThen(Effect.sync(() => void record("reportEnvironment", { environmentId }))),
+        ),
+      setVisibility: (target, visibility) =>
+        gate(target).pipe(
+          Effect.andThen(
+            Effect.suspend(() => {
+              record("setVisibility", visibility);
+              return state.onSetVisibility;
+            }).pipe(
+              Effect.andThen(
+                Effect.suspend(() => {
+                  if (!state.visibilitySupported) return rejected("not_found", 404);
+                  state.visibility = visibility;
+                  state.rev += 1;
+                  return Effect.succeed({ rev: state.rev, visibility });
+                }),
+              ),
+            ),
+          ),
         ),
     });
 

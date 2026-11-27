@@ -9,7 +9,16 @@ import { allocateSubdomain, nameCandidates, nameKey, randomBase32 } from "./subd
 const { createHash, randomBytes, timingSafeEqual } = NodeCrypto;
 const { DatabaseSync } = NodeSqlite;
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+export const VISIBILITY_MODES = [
+  "visible_to_all",
+  "hidden_from_all",
+  "hidden_from_selected",
+  "visible_to_selected",
+];
+export const DEFAULT_VISIBILITY = Object.freeze({ mode: "visible_to_all", deviceIds: [] });
+/** A request body is at most 4096 bytes and a device id is 43 characters. */
+export const MAX_VISIBILITY_DEVICES = 64;
 export const INVITE_TTL_SECONDS = 15 * 60;
 export const MAX_OPEN_INVITES = 20;
 const INVITE_RETENTION_SECONDS = 24 * 60 * 60;
@@ -34,6 +43,9 @@ CREATE TABLE IF NOT EXISTS devices (
   last_tunnel_at INTEGER,
   invited_by TEXT,
   invite_id TEXT,
+  visibility_mode TEXT NOT NULL DEFAULT 'visible_to_all'
+    CHECK (visibility_mode IN ('visible_to_all', 'hidden_from_all', 'hidden_from_selected', 'visible_to_selected')),
+  visibility_ids TEXT NOT NULL DEFAULT '[]',
   CHECK (kind = 'computer' OR subdomain IS NULL)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS devices_name_key ON devices (name_key);
@@ -94,6 +106,31 @@ export function constraintMessage(error) {
   return null;
 }
 
+/**
+ * Whether `viewerId` may see `owner`. A device always sees itself, and phones have no visibility
+ * setting (they are not environments), so only a computer's own choice can hide it.
+ */
+export function isVisibleTo(owner, viewerId) {
+  if (owner.id === viewerId || owner.kind !== "computer") return true;
+  const { mode, deviceIds } = owner.visibility;
+  switch (mode) {
+    case "hidden_from_all":
+      return false;
+    case "hidden_from_selected":
+      return !deviceIds.includes(viewerId);
+    case "visible_to_selected":
+      return deviceIds.includes(viewerId);
+    default:
+      return true;
+  }
+}
+
+/** Canonical form: unique, sorted, and empty for the two modes that do not name devices. */
+export function normalizeVisibility(mode, deviceIds) {
+  const selected = mode === "hidden_from_selected" || mode === "visible_to_selected";
+  return { mode, deviceIds: selected ? [...new Set(deviceIds)].sort() : [] };
+}
+
 function rowToDevice(row) {
   if (row === undefined) return null;
   return {
@@ -110,7 +147,40 @@ function rowToDevice(row) {
     lastTunnelAt: row.last_tunnel_at ?? null,
     invitedBy: row.invited_by ?? null,
     inviteId: row.invite_id ?? null,
+    visibility: normalizeVisibility(row.visibility_mode, JSON.parse(row.visibility_ids)),
   };
+}
+
+/**
+ * Adds what a version 1 database lacks, one column at a time inside one transaction, so a run that
+ * stopped half way is repaired instead of skipped. Safe to run on a database that already has it.
+ */
+function migrate(db) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const have = new Set(
+      db
+        .prepare("PRAGMA table_info(devices)")
+        .all()
+        .map((column) => column.name),
+    );
+    if (!have.has("visibility_mode")) {
+      db.exec(
+        "ALTER TABLE devices ADD COLUMN visibility_mode TEXT NOT NULL DEFAULT 'visible_to_all' CHECK (visibility_mode IN ('visible_to_all', 'hidden_from_all', 'hidden_from_selected', 'visible_to_selected'))",
+      );
+    }
+    if (!have.has("visibility_ids")) {
+      db.exec("ALTER TABLE devices ADD COLUMN visibility_ids TEXT NOT NULL DEFAULT '[]'");
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // SQLite already rolled the transaction back.
+    }
+    throw error;
+  }
 }
 
 export class Store {
@@ -134,6 +204,7 @@ export class Store {
       );
     }
     db.exec(SCHEMA);
+    migrate(db);
     const store = new Store(db);
     store.writeTx(() => {
       store
@@ -300,6 +371,10 @@ export class Store {
     return { id, secret, expiresAt };
   }
 
+  getInvite(id) {
+    return this.q("SELECT id, created_by FROM invites WHERE id = ?").get(id) ?? null;
+  }
+
   /** Cancels an unused invite. */
   deleteInvite(id) {
     return (
@@ -421,6 +496,33 @@ export class Store {
       if (device === null) return null;
       if (device.environmentId === environmentId) return this.rev;
       this.q("UPDATE devices SET environment_id = ? WHERE id = ?").run(environmentId, id);
+      return this.bumpRev();
+    });
+  }
+
+  /**
+   * Sets the visibility of a computer. Returns the new rev (bumped only when the value changes), or null
+   * for an unknown device. Throws StoreError("invalid_request") for a phone or a list naming the device itself.
+   */
+  setVisibility(id, mode, deviceIds) {
+    return this.writeTx(() => {
+      const device = this.getDevice(id);
+      if (device === null) return null;
+      if (device.kind !== "computer" || deviceIds.includes(id)) {
+        throw new StoreError("invalid_request");
+      }
+      const next = normalizeVisibility(mode, deviceIds);
+      if (
+        device.visibility.mode === next.mode &&
+        device.visibility.deviceIds.join() === next.deviceIds.join()
+      ) {
+        return this.rev;
+      }
+      this.q("UPDATE devices SET visibility_mode = ?, visibility_ids = ? WHERE id = ?").run(
+        next.mode,
+        JSON.stringify(next.deviceIds),
+        id,
+      );
       return this.bumpRev();
     });
   }

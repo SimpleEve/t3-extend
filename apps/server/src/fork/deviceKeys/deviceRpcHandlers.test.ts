@@ -32,6 +32,7 @@ const makeFake = () => {
     remove: () => note("remove", { removedAt: 1, rev: 1, pendingComputers: [] }),
     rename: () => note("rename", { id: "d", name: "n" }),
     signAssertion: () => note("signAssertion", { assertion: "a", expiresAt: 1 }),
+    setVisibility: () => note("setVisibility", status),
   });
   return { calls, layer: Layer.succeed(DeviceKeysService.DeviceKeysService, service) };
 };
@@ -59,6 +60,8 @@ const invoke = (handlers: Handlers, method: string) => {
       return handlers[M.rename]({ deviceId: "d", name: "n" });
     case M.refresh:
       return handlers[M.refresh]();
+    case M.setVisibility:
+      return handlers[M.setVisibility]({ mode: "hidden_from_all", deviceIds: [] });
     default:
       return handlers[M.signAssertion]({ audienceEnvironmentId: "e", dpopThumbprint: "j" });
   }
@@ -106,6 +109,7 @@ describe("devices.* handlers", () => {
         "remove",
         "rename",
         "signAssertion",
+        "setVisibility",
         "join",
       ]);
     }),

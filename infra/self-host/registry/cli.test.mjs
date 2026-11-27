@@ -115,6 +115,43 @@ describe("./t3x devices, revoke, rename, release, info", () => {
     assert.equal(cli(["revoke", "short"]).code, 1);
   });
 
+  it("lists every device and marks the computers that hide from others, by name", () => {
+    const mac = join_("computer", "Mac");
+    const laptop = join_("computer", "Laptop");
+    const studio = join_("computer", "Studio");
+    join_("phone", "Pixel");
+    const plain = cli(["devices"]).out.split("\n");
+    assert.equal(plain.filter((l) => /可见性：对所有设备可见$/.test(l)).length, 3);
+    assert.doesNotMatch(
+      plain.find((l) => l.startsWith("Pixel")),
+      /可见性/,
+    );
+
+    store.setVisibility(mac.id, "hidden_from_all", []);
+    store.setVisibility(laptop.id, "hidden_from_selected", [studio.id]);
+    store.setVisibility(studio.id, "visible_to_selected", [mac.id, laptop.id]);
+    const lines = cli(["devices"]).out.split("\n");
+    assert.equal(lines.length, 4);
+    assert.match(
+      lines.find((l) => l.startsWith("Mac")),
+      /可见性：对所有设备隐藏$/,
+    );
+    assert.match(
+      lines.find((l) => l.startsWith("Laptop")),
+      /可见性：对 Studio 隐藏$/,
+    );
+    assert.match(
+      lines.find((l) => l.startsWith("Studio")),
+      /可见性：仅对 Laptop、Mac 可见$/,
+    );
+    assert.doesNotMatch(
+      lines.find((l) => l.startsWith("Pixel")),
+      /可见性/,
+    );
+    // A hidden computer can still be revoked from the server.
+    assert.equal(cli(["revoke", "Mac"]).code, 0);
+  });
+
   it("warns about computers that have not synced the removal", () => {
     join_("computer", "Mac");
     const laptop = join_("computer", "Laptop");

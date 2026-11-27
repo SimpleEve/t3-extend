@@ -37,6 +37,7 @@ export const FORK_DEVICE_KEYS_WS_METHODS = {
   rename: "devices.rename",
   refresh: "devices.refresh",
   signAssertion: "devices.signAssertion",
+  setVisibility: "devices.setVisibility",
 } as const;
 
 export const DeviceKind = Schema.Literals(["computer", "phone"]);
@@ -54,6 +55,36 @@ export const DeviceJwkSchema = Schema.Struct({
 });
 export type DeviceJwkSchema = typeof DeviceJwkSchema.Type;
 
+/**
+ * Who may see a computer and sign in to it. The two modes that name devices default the rest of the
+ * group: a device that joins later is visible under `hidden_from_selected` and hidden under `visible_to_selected`.
+ */
+export const DeviceVisibilityMode = Schema.Literals([
+  "visible_to_all",
+  "hidden_from_all",
+  "hidden_from_selected",
+  "visible_to_selected",
+]);
+export type DeviceVisibilityMode = typeof DeviceVisibilityMode.Type;
+
+/** A request body to the registry is at most 4096 bytes, and a device id is 43 characters. */
+export const DEVICE_VISIBILITY_MAX_DEVICES = 64;
+
+export const DeviceVisibility = Schema.Struct({
+  mode: DeviceVisibilityMode,
+  deviceIds: Schema.Array(Schema.String).check(Schema.isMaxLength(DEVICE_VISIBILITY_MAX_DEVICES)),
+});
+export type DeviceVisibility = typeof DeviceVisibility.Type;
+
+/** Whether the registry has this computer's setting: confirmed, not yet delivered, or not supported by that registry. */
+export const DeviceVisibilityRegistryState = Schema.Literals([
+  "unknown",
+  "synced",
+  "pending",
+  "unsupported",
+]);
+export type DeviceVisibilityRegistryState = typeof DeviceVisibilityRegistryState.Type;
+
 // Registry wire format (3.3). Phones decode these directly.
 export const RegistryDevice = Schema.Struct({
   id: Schema.String,
@@ -67,13 +98,27 @@ export const RegistryDevice = Schema.Struct({
   lastSeenAt: Schema.Number,
   lastSyncAt: Schema.optionalKey(Schema.Number),
   online: Schema.optionalKey(Schema.Boolean),
+  /** Only on the asking computer's own entry, and only from a registry that has the setting. */
+  visibility: Schema.optionalKey(DeviceVisibility),
 });
 export type RegistryDevice = typeof RegistryDevice.Type;
+
+/**
+ * A computer that is hidden from the asker: its identity and nothing else, so a pass it signs can
+ * still be checked. It is not a device in the list and never becomes an environment.
+ */
+export const RegistryHiddenPeer = Schema.Struct({
+  id: Schema.String,
+  kind: Schema.Literal("computer"),
+  jwk: DeviceJwkSchema,
+});
+export type RegistryHiddenPeer = typeof RegistryHiddenPeer.Type;
 
 export const RegistryDevicesResponse = Schema.Struct({
   registryId: Schema.String,
   rev: Schema.Number,
   devices: Schema.Array(RegistryDevice),
+  hiddenPeers: Schema.optionalKey(Schema.Array(RegistryHiddenPeer)),
 });
 export type RegistryDevicesResponse = typeof RegistryDevicesResponse.Type;
 
@@ -128,6 +173,19 @@ export const DevicesStatus = Schema.Struct({
   /** Epoch seconds of the last successful sync. */
   fetchedAt: Schema.NullOr(Schema.Number),
   staleness: DeviceListStaleness,
+  /** This computer's visibility to the group's other devices. Absent from servers that predate it. */
+  visibility: Schema.optionalKey(
+    Schema.Struct({
+      mode: DeviceVisibilityMode,
+      deviceIds: Schema.Array(Schema.String),
+      registry: DeviceVisibilityRegistryState,
+      /**
+       * The saved setting could not be read. The mode and ids are the last ones that were read, so
+       * a client must not present them as the current choice; sign-in is refused meanwhile.
+       */
+      unreadable: Schema.optionalKey(Schema.Boolean),
+    }),
+  ),
 });
 export type DevicesStatus = typeof DevicesStatus.Type;
 
@@ -176,6 +234,9 @@ export type DevicesRenameInput = typeof DevicesRenameInput.Type;
 
 export const DevicesRenameResult = Schema.Struct({ id: Schema.String, name: Schema.String });
 export type DevicesRenameResult = typeof DevicesRenameResult.Type;
+
+export const DevicesSetVisibilityInput = DeviceVisibility;
+export type DevicesSetVisibilityInput = typeof DevicesSetVisibilityInput.Type;
 
 export const DevicesSignAssertionInput = Schema.Struct({
   audienceEnvironmentId: TrimmedNonEmptyString.check(Schema.isMaxLength(128)),
@@ -256,6 +317,11 @@ const WsDevicesRefreshRpc = Rpc.make(FORK_DEVICE_KEYS_WS_METHODS.refresh, {
   success: DevicesStatus,
   error: DeviceRpcError,
 });
+const WsDevicesSetVisibilityRpc = Rpc.make(FORK_DEVICE_KEYS_WS_METHODS.setVisibility, {
+  payload: DevicesSetVisibilityInput,
+  success: DevicesStatus,
+  error: DeviceRpcError,
+});
 const WsDevicesSignAssertionRpc = Rpc.make(FORK_DEVICE_KEYS_WS_METHODS.signAssertion, {
   payload: DevicesSignAssertionInput,
   success: DevicesSignAssertionResult,
@@ -273,6 +339,7 @@ export const FORK_DEVICE_KEYS_RPCS = [
   WsDevicesRenameRpc,
   WsDevicesRefreshRpc,
   WsDevicesSignAssertionRpc,
+  WsDevicesSetVisibilityRpc,
 ] as const;
 
 /**
@@ -289,6 +356,7 @@ export const FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES = {
   [FORK_DEVICE_KEYS_WS_METHODS.rename]: AuthAccessWriteScope,
   [FORK_DEVICE_KEYS_WS_METHODS.refresh]: AuthAccessWriteScope,
   [FORK_DEVICE_KEYS_WS_METHODS.signAssertion]: AuthAccessWriteScope,
+  [FORK_DEVICE_KEYS_WS_METHODS.setVisibility]: AuthAccessWriteScope,
 } as const;
 
 export const FORK_DEVICE_KEYS_READ_RPC_SCOPES = {

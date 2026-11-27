@@ -91,6 +91,11 @@ export const devicesCommands = {
     tag: FORK_DEVICE_KEYS_WS_METHODS.rename,
     concurrency: serial,
   }),
+  setVisibility: createEnvironmentRpcCommand(connectionAtomRuntime, {
+    label: "environment-data:devices:set-visibility",
+    tag: FORK_DEVICE_KEYS_WS_METHODS.setVisibility,
+    concurrency: serial,
+  }),
 };
 
 const signAssertion = createEnvironmentRpcCommand(connectionAtomRuntime, {

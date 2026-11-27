@@ -6,11 +6,20 @@ import {
   T3X_DEVICE_SUBJECT_PREFIX,
   type DeviceListEntry,
   type DeviceListStaleness,
+  type DeviceVisibilityRegistryState,
   type DevicesSnapshot,
   type DevicesStatus,
   type DeviceTunnelStatus,
+  DeviceVisibility,
   RegistryDevice,
+  RegistryHiddenPeer,
 } from "@t3tools/contracts";
+import {
+  DEFAULT_VISIBILITY,
+  isVisibleTo,
+  normalizeVisibility,
+  sameVisibility,
+} from "@t3tools/shared/forkDeviceKeys/visibility";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
@@ -31,6 +40,10 @@ import * as RegistryClient from "./RegistryClient.ts";
 
 export const MEMBERSHIP_SECRET = "fork-device-membership";
 export const LIST_SECRET = "fork-device-list";
+/** This computer's own choice of who may see it. Read from the file on every pass, so the CLI's change counts at once. */
+export const VISIBILITY_SECRET = "fork-device-visibility";
+/** What the registry last said about this computer's setting, kept so the CLI's next process can show it. */
+const VISIBILITY_SYNC_SECRET = "fork-device-visibility-sync";
 const SYNC_INTERVAL = Duration.seconds(60);
 /** Unknown device ids ask for a refresh; at most one is started per this long, whichever ids they are. */
 const UNKNOWN_DEVICE_REFRESH_GAP_MILLIS = 10_000;
@@ -58,8 +71,34 @@ const StoredList = Schema.Struct({
   fetchedAt: Schema.Number,
   registryId: Schema.String,
   devices: Schema.Array(RegistryDevice),
+  hiddenPeers: Schema.optionalKey(Schema.Array(RegistryHiddenPeer)),
 });
 export type StoredList = typeof StoredList.Type;
+
+const StoredVisibility = Schema.Struct({
+  v: Schema.Literal(1),
+  visibility: DeviceVisibility,
+});
+const StoredVisibilitySync = Schema.Struct({
+  v: Schema.Literal(1),
+  registry: Schema.Literals(["synced", "pending", "unsupported"]),
+  /** The setting the registry state is about. */
+  visibility: DeviceVisibility,
+});
+const decodeStoredVisibilitySync = Schema.decodeUnknownOption(
+  Schema.fromJsonString(StoredVisibilitySync),
+);
+const encodeStoredVisibilitySync = Schema.encodeSync(Schema.fromJsonString(StoredVisibilitySync));
+const decodeStoredVisibility = Schema.decodeUnknownOption(Schema.fromJsonString(StoredVisibility));
+const encodeStoredVisibility = Schema.encodeSync(Schema.fromJsonString(StoredVisibility));
+
+/** Everything this computer can check a pass from: the listed devices and the computers hidden from it. */
+export const findSigner = (list: StoredList, deviceId: string) =>
+  list.devices.find((device) => device.id === deviceId) ??
+  list.hiddenPeers?.find((peer) => peer.id === deviceId);
+
+const everyKnownId = (list: StoredList): ReadonlySet<string> =>
+  new Set([...list.devices.map((d) => d.id), ...(list.hiddenPeers ?? []).map((p) => p.id)]);
 
 const decodeMembership = Schema.decodeUnknownOption(Schema.fromJsonString(Membership));
 const encodeMembership = Schema.encodeSync(Schema.fromJsonString(Membership));
@@ -71,6 +110,12 @@ type LocalState = {
   readonly list: Option.Option<StoredList>;
   /** In memory only: the registry said this computer is no longer a member. */
   readonly removed: boolean;
+  /** The last value read from the file; `visibility` below re-reads it before anything decides on it. */
+  readonly visibility: DeviceVisibility;
+  /** The file could not be read; `visibility` is then the last value that could. Never pushed, never shown as the choice. */
+  readonly visibilityUnreadable: boolean;
+  /** In memory only: whether the registry holds `visibility`. */
+  readonly visibilityRegistry: DeviceVisibilityRegistryState;
 };
 
 /** `now < fetchedAt` (the clock went back past the last sync) counts as stale, never as fresh. */
@@ -116,8 +161,27 @@ export class DeviceDirectory extends Context.Service<
     readonly setTunnelStatus: (status: DeviceTunnelStatus) => Effect.Effect<void>;
     /** Re-reads the list file written by the CLI or another process into memory. */
     readonly reload: Effect.Effect<void>;
+    /**
+     * Who may see this computer and sign in to it, read from the saved file. A file that is there but
+     * cannot be read hides this computer from everyone: a pass is never accepted on a guess.
+     */
+    readonly visibility: Effect.Effect<DeviceVisibility>;
+    /**
+     * Saves the setting and revokes the sessions of the devices it now excludes, in one step under the
+     * gate. Telling the registry is the caller's next move (`sync` does it).
+     */
+    readonly setVisibility: (visibility: DeviceVisibility) => Effect.Effect<void, DeviceKeysError>;
   }
 >()("t3/fork/deviceKeys/DeviceDirectory") {}
+
+/** A setting that keeps changing while it is delivered stays pending after this many tries; the next sync goes on. */
+const MAX_DELIVERIES = 3;
+
+const HIDDEN_FROM_ALL: DeviceVisibility = { mode: "hidden_from_all", deviceIds: [] };
+
+type VisibilityRead =
+  | { readonly readable: true; readonly visibility: DeviceVisibility }
+  | { readonly readable: false };
 
 /** The cause goes to the log; the caller (and the wire) only learn that saving failed. */
 const storageFailure = <A, E, R>(self: Effect.Effect<A, E, R>) =>
@@ -169,11 +233,82 @@ const make = Effect.gen(function* () {
       ),
     );
 
+  /** A file that is there but cannot be read is `readable: false`: nothing may be guessed from it. */
+  const readVisibilityFile = Effect.suspend(() => secrets.get(VISIBILITY_SECRET)).pipe(
+    Effect.map((bytes): VisibilityRead =>
+      Option.match(bytes, {
+        onNone: () => ({ readable: true, visibility: DEFAULT_VISIBILITY }),
+        onSome: (value) =>
+          Option.match(decodeStoredVisibility(new TextDecoder().decode(value)), {
+            onNone: () => ({ readable: false }),
+            onSome: (stored) => ({
+              readable: true,
+              visibility: normalizeVisibility(stored.visibility),
+            }),
+          }),
+      }),
+    ),
+    Effect.catch((error) =>
+      Effect.logWarning("Could not read the device visibility; hiding this computer.", {
+        error: error.message,
+      }).pipe(Effect.as<VisibilityRead>({ readable: false })),
+    ),
+  );
+  /** What a pass is judged by: an unreadable file hides this computer from everyone. */
+  const readVisibility = readVisibilityFile.pipe(
+    Effect.map((read) => (read.readable ? read.visibility : HIDDEN_FROM_ALL)),
+  );
+
+  /** What the registry last said about `visibility`; `fallback` when nothing was saved. */
+  const readRegistryState = (
+    visibility: DeviceVisibility,
+    fallback: DeviceVisibilityRegistryState,
+  ) =>
+    Effect.suspend(() => secrets.get(VISIBILITY_SYNC_SECRET)).pipe(
+      Effect.map((bytes): DeviceVisibilityRegistryState => {
+        const stored = Option.flatMap(bytes, (value) =>
+          decodeStoredVisibilitySync(new TextDecoder().decode(value)),
+        );
+        if (Option.isNone(stored)) return fallback;
+        // Being too old to hold the setting is about the registry; a delivered value is only about that value.
+        if (stored.value.registry === "unsupported") return "unsupported";
+        return sameVisibility(stored.value.visibility, visibility)
+          ? stored.value.registry
+          : "pending";
+      }),
+      Effect.orElseSucceed(() => fallback),
+    );
+  const writeRegistryState = (
+    registry: DeviceVisibilityRegistryState,
+    visibility: DeviceVisibility,
+  ) =>
+    registry === "unknown"
+      ? Effect.void
+      : secrets
+          .set(
+            VISIBILITY_SYNC_SECRET,
+            new TextEncoder().encode(encodeStoredVisibilitySync({ v: 1, registry, visibility })),
+          )
+          .pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Could not save whether the server has the visibility setting.", {
+                error: error.message,
+              }),
+            ),
+          );
+
   const initialMembership = yield* readMembership;
+  const initialRead = yield* readVisibilityFile;
+  const initialVisibility = initialRead.readable ? initialRead.visibility : HIDDEN_FROM_ALL;
   const state = yield* Ref.make<LocalState>({
     membership: initialMembership,
     list: yield* readList(initialMembership),
     removed: false,
+    visibility: initialVisibility,
+    visibilityUnreadable: !initialRead.readable,
+    visibilityRegistry: initialRead.readable
+      ? yield* readRegistryState(initialVisibility, "unknown")
+      : "unknown",
   });
 
   const nowSeconds = Effect.map(Clock.currentTimeMillis, (millis) => Math.floor(millis / 1000));
@@ -194,6 +329,16 @@ const make = Effect.gen(function* () {
       tunnel: tunnelStatus,
       fetchedAt: Option.match(local.list, { onNone: () => null, onSome: (list) => list.fetchedAt }),
       staleness: stalenessOf(local.list, now),
+      ...(membership === undefined
+        ? {}
+        : {
+            visibility: {
+              mode: local.visibility.mode,
+              deviceIds: local.visibility.deviceIds,
+              registry: local.visibilityRegistry,
+              ...(local.visibilityUnreadable ? { unreadable: true } : {}),
+            },
+          }),
     };
   };
 
@@ -230,14 +375,19 @@ const make = Effect.gen(function* () {
   const persistList = (list: StoredList) =>
     secrets.set(LIST_SECRET, new TextEncoder().encode(encodeStoredList(list))).pipe(storageFailure);
 
-  /** Revokes the sessions of every device that is not in `keep`. Idempotent, so every sync runs it. */
-  const reconcile = (keep: ReadonlySet<string>) =>
+  /**
+   * Revokes the sessions of every device that is not in `keep` (`null` keeps everyone) or that
+   * `visibility` hides this computer from. Idempotent, so every sync runs it.
+   */
+  const reconcile = (keep: ReadonlySet<string> | null, visibility: DeviceVisibility) =>
     sessions.listActive().pipe(
       Effect.flatMap((rows) =>
         Effect.forEach(
           rows.filter((row) => {
             const id = deviceIdOfSubject(row.subject);
-            return id !== null && !keep.has(id);
+            return (
+              id !== null && ((keep !== null && !keep.has(id)) || !isVisibleTo(visibility, id))
+            );
           }),
           (row) => sessions.revoke(row.sessionId),
           { discard: true },
@@ -254,6 +404,8 @@ const make = Effect.gen(function* () {
         secrets.remove(MEMBERSHIP_SECRET).pipe(storageFailure),
         secrets.remove(LIST_SECRET).pipe(storageFailure),
         identity.remove.pipe(storageFailure),
+        secrets.remove(VISIBILITY_SECRET).pipe(storageFailure),
+        secrets.remove(VISIBILITY_SYNC_SECRET).pipe(storageFailure),
       ],
       { discard: true },
     );
@@ -261,8 +413,11 @@ const make = Effect.gen(function* () {
       membership: Option.none(),
       list: Option.none(),
       removed: reason === "removed",
+      visibility: DEFAULT_VISIBILITY,
+      visibilityUnreadable: false,
+      visibilityRegistry: "unknown",
     });
-    yield* reconcile(new Set());
+    yield* reconcile(new Set(), DEFAULT_VISIBILITY);
     yield* publish;
   });
 
@@ -275,12 +430,41 @@ const make = Effect.gen(function* () {
         Option.getOrUndefined(current.membership)?.deviceId &&
       Option.getOrUndefined(membership)?.registryId ===
         Option.getOrUndefined(current.membership)?.registryId;
-    if (sameDevice) return;
+    if (sameDevice) {
+      // The CLI may have changed the setting; the file is the truth.
+      const read = yield* readVisibilityFile;
+      if (!read.readable) {
+        // Keep the last value that could be read: the guess is for refusing passes, not for showing or delivering.
+        if (!current.visibilityUnreadable) {
+          yield* Ref.update(state, (latest) => ({ ...latest, visibilityUnreadable: true }));
+          yield* publish;
+        }
+        return;
+      }
+      const changed = !sameVisibility(read.visibility, current.visibility);
+      if (changed || current.visibilityUnreadable) {
+        const visibilityRegistry = changed
+          ? yield* readRegistryState(read.visibility, "pending")
+          : current.visibilityRegistry;
+        yield* Ref.update(state, (latest) => ({
+          ...latest,
+          visibility: read.visibility,
+          visibilityUnreadable: false,
+          visibilityRegistry,
+        }));
+        yield* publish;
+      }
+      return;
+    }
     // Another process (the CLI) joined or left: take its membership and whatever list it left.
+    const read = yield* readVisibilityFile;
     yield* Ref.set(state, {
       membership,
       list: yield* readList(membership),
       removed: Option.isNone(membership) && current.removed,
+      visibility: read.readable ? read.visibility : HIDDEN_FROM_ALL,
+      visibilityUnreadable: !read.readable,
+      visibilityRegistry: "unknown" as const,
     });
     yield* publish;
   });
@@ -297,6 +481,56 @@ const make = Effect.gen(function* () {
     Effect.asVoid,
     Effect.withSpan("DeviceDirectory.announceRevoked"),
   );
+
+  /**
+   * Tells whether the registry holds this computer's setting, and delivers it when it does not. The
+   * computer's own file is the truth: a registry that is unreachable, or too old to have the setting,
+   * never changes what this computer accepts.
+   */
+  const settleRegistryVisibility = Effect.fn("DeviceDirectory.settleRegistryVisibility")(function* (
+    target: RegistryClient.RegistryTarget,
+  ) {
+    const local = yield* Ref.get(state);
+    const mine = Option.getOrUndefined(local.list)?.devices.find(
+      (device) => device.id === target.deviceId,
+    );
+    // An unreadable file has no setting to compare or deliver.
+    if (mine === undefined || local.visibilityUnreadable) return;
+    const settle = Effect.fn("DeviceDirectory.settle")(function* (
+      visibilityRegistry: DeviceVisibilityRegistryState,
+    ) {
+      const current = yield* Ref.get(state);
+      if (current.visibilityRegistry === visibilityRegistry) return;
+      yield* Ref.set(state, { ...current, visibilityRegistry });
+      yield* writeRegistryState(visibilityRegistry, current.visibility);
+      yield* publish;
+    });
+    if (mine.visibility === undefined) return yield* settle("unsupported");
+    if (sameVisibility(mine.visibility, local.visibility)) return yield* settle("synced");
+    // Delivering is not under the gate, so the setting may change while a call is in flight: confirm
+    // the value that went out is still the current one, and deliver again when it is not.
+    for (let attempt = 0; attempt < MAX_DELIVERIES; attempt += 1) {
+      const sending = yield* Ref.get(state);
+      if (sending.visibilityUnreadable) return;
+      const pushed = yield* registry.setVisibility(target, sending.visibility).pipe(Effect.result);
+      if (pushed._tag === "Failure") {
+        yield* Effect.logWarning("Could not tell the server who may see this computer.", {
+          kind: pushed.failure.kind,
+          code: pushed.failure.code,
+        });
+        return yield* settle(
+          pushed.failure.kind === "rejected" && pushed.failure.status === 404
+            ? "unsupported"
+            : "pending",
+        );
+      }
+      const after = yield* Ref.get(state);
+      if (!after.visibilityUnreadable && sameVisibility(after.visibility, sending.visibility)) {
+        return yield* settle("synced");
+      }
+    }
+    return yield* settle("pending");
+  });
 
   const syncRegistry = Effect.fn("DeviceDirectory.sync")(function* () {
     yield* reload;
@@ -337,6 +571,7 @@ const make = Effect.gen(function* () {
           fetchedAt: now,
           registryId: body.registryId,
           devices: body.devices,
+          ...(body.hiddenPeers === undefined ? {} : { hiddenPeers: body.hiddenPeers }),
         };
         if (!next.devices.some((device) => device.id === membership.deviceId)) {
           // The registry answered with a list that does not contain this computer.
@@ -345,11 +580,13 @@ const make = Effect.gen(function* () {
         }
         yield* persistList(next);
         yield* Ref.update(state, (current) => ({ ...current, list: Option.some(next) }));
-        yield* reconcile(new Set(next.devices.map((device) => device.id)));
+        // A computer hidden from this one still signs in to it, so its sessions stay.
+        yield* reconcile(everyKnownId(next), (yield* Ref.get(state)).visibility);
         // Every successful answer moves `fetchedAt`, which clients show as the last sync.
         yield* publish;
       }),
     );
+    yield* settleRegistryVisibility(target);
     return yield* status;
   });
 
@@ -421,10 +658,16 @@ const make = Effect.gen(function* () {
             .set(MEMBERSHIP_SECRET, new TextEncoder().encode(encodeMembership(membership)))
             .pipe(storageFailure);
           yield* secrets.remove(LIST_SECRET).pipe(storageFailure);
+          // A computer that joins starts visible to everyone, whatever an earlier membership chose.
+          yield* secrets.remove(VISIBILITY_SECRET).pipe(storageFailure);
+          yield* secrets.remove(VISIBILITY_SYNC_SECRET).pipe(storageFailure);
           yield* Ref.set(state, {
             membership: Option.some(membership),
             list: Option.none(),
             removed: false,
+            visibility: DEFAULT_VISIBILITY,
+            visibilityUnreadable: false,
+            visibilityRegistry: "unknown",
           });
           yield* publish;
         }),
@@ -441,6 +684,35 @@ const make = Effect.gen(function* () {
       Ref.set(tunnel, next).pipe(Effect.andThen(publish)),
     ),
     reload,
+    visibility: readVisibility,
+    setVisibility: Effect.fn("DeviceDirectory.setVisibility")(function* (input) {
+      const next = normalizeVisibility(input);
+      yield* gate.withPermits(1)(
+        Effect.gen(function* () {
+          yield* secrets
+            .set(
+              VISIBILITY_SECRET,
+              new TextEncoder().encode(encodeStoredVisibility({ v: 1, visibility: next })),
+            )
+            .pipe(storageFailure);
+          const current = yield* Ref.get(state);
+          const changed = current.visibilityUnreadable || !sameVisibility(next, current.visibility);
+          yield* Ref.set(state, {
+            ...current,
+            visibility: next,
+            visibilityUnreadable: false,
+            visibilityRegistry: changed ? "pending" : current.visibilityRegistry,
+          });
+          if (changed) yield* writeRegistryState("pending", next);
+          // The devices the setting now excludes lose their sessions, and their sockets close, before this returns.
+          yield* reconcile(
+            Option.match(current.list, { onNone: () => null, onSome: everyKnownId }),
+            next,
+          );
+          yield* publish;
+        }),
+      );
+    }),
   });
 });
 
