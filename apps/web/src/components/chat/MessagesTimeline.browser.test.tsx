@@ -478,11 +478,42 @@ describe("MessagesTimeline work rows", () => {
     expect(document.getElementById(toggle.getAttribute("aria-controls") ?? "")).toContain(output);
   });
 
-  // A running tool call renders as the live row (LiveWorkEntryTimelineRow), which carries no
-  // data-tool-status; only a settled or stuck row reaches WorkEntryLogRow.
+  // The latest tool call of a working turn renders as the live row (LiveWorkEntryTimelineRow), not
+  // WorkEntryLogRow.
+  it.each([
+    { toolLifecycleStatus: "inProgress", expected: "running" },
+    { toolLifecycleStatus: "completed", expected: "success" },
+  ] as const)("gives theme CSS a $expected state on the live tool row", async (row) => {
+    setup();
+    const runId = RunId.make("live-tool-run");
+    await using screen = await renderTimeline(
+      [
+        message("Run the tests", { role: "user" }, "prompt"),
+        work("live-tool", {
+          label: "Ran command",
+          tone: "tool",
+          itemType: "command_execution",
+          command: "npm test",
+          toolLifecycleStatus: row.toolLifecycleStatus,
+          runId,
+        }),
+      ],
+      {
+        isWorking: true,
+        activeTurnStartedAt: CREATED_AT,
+        latestRun: { runId, status: "running", startedAt: CREATED_AT, completedAt: null },
+      },
+    );
+    const elements = screen.container.querySelectorAll("[data-tool-status]");
+    expect(elements).toHaveLength(1);
+    expect(elements[0]?.getAttribute("data-tool-status")).toBe(row.expected);
+    expect(elements[0]?.getAttribute("data-tool-name")).toBe("command_execution");
+  });
+
   it.each([
     { toolLifecycleStatus: "completed", expected: "success" },
     { toolLifecycleStatus: "failed", expected: "error" },
+    { toolLifecycleStatus: "declined", expected: "error" },
     { toolLifecycleStatus: "stopped", expected: "stopped" },
   ] as const)("gives theme CSS a $expected state on the tool row", async (row) => {
     setup();

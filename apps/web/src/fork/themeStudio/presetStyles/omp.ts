@@ -11,7 +11,6 @@ const CSS = `:root {
   --t3x-omp-widget: #1c2029;
   --t3x-omp-text: #e8ecf4;
   --t3x-omp-muted: #9ca3b0;
-  --t3x-omp-dim: #6b7280;
   --t3x-omp-border: #2a3038;
   --t3x-omp-border-muted: #1f252d;
   --t3x-omp-accent: #00b4ff;
@@ -27,14 +26,13 @@ const CSS = `:root {
   --t3x-omp-code: #00ff88;
   --t3x-omp-bullet: #00b4ff;
   --t3x-omp-quote: #9ca3b0;
-  --t3x-omp-card-border: #6b7280;
+  --t3x-omp-card-border: #3a424c;
 }
 :root:not(.dark) {
   --t3x-omp-bg: #f8f8f8;
   --t3x-omp-widget: #ffffff;
   --t3x-omp-text: #3b3b3b;
   --t3x-omp-muted: #676767;
-  --t3x-omp-dim: #767676;
   --t3x-omp-border: #547da7;
   --t3x-omp-border-muted: #b0b0b0;
   --t3x-omp-accent: #4d6d6d;
@@ -50,7 +48,7 @@ const CSS = `:root {
   --t3x-omp-code: #4d6d6d;
   --t3x-omp-bullet: #4b704b;
   --t3x-omp-quote: #676767;
-  --t3x-omp-card-border: #767676;
+  --t3x-omp-card-border: #b0b0b0;
 }
 
 :root { font-variant-ligatures: none; }
@@ -105,8 +103,11 @@ const CSS = `:root {
 [data-slot="composer-host"]:focus-within { border-color: var(--t3x-omp-accent) !important; }
 
 /* A tool call is a small card. Its ground and its border follow its state. */
+/* The card's padding and border push its icon right; the negative margin puts the icon back in line
+   with the thinking and task rows above and below, so the card hangs a little into the gutter. */
 [data-tool-status] {
-  margin-block: 3px;
+  margin: 3px -7px;
+  width: calc(100% + 14px) !important;
   padding: 3px 8px !important;
   background: var(--t3x-omp-tool-pending);
   border: 1px solid var(--t3x-omp-card-border);
@@ -116,7 +117,7 @@ const CSS = `:root {
 [data-tool-status="success"] { background: var(--t3x-omp-tool-success); }
 [data-tool-status="error"] { background: var(--t3x-omp-tool-error); border-color: var(--t3x-omp-error); }
 [data-tool-status] [data-work-log-details] {
-  border-top: 1px solid var(--t3x-omp-border-muted);
+  border-top: 1px solid var(--t3x-omp-card-border);
   margin-top: 4px;
   padding-top: 4px;
 }

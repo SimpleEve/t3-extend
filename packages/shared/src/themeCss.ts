@@ -118,7 +118,7 @@ export const THEME_CSS_HOOKS = [
   // fork: hooks for the tool call and thinking rows and the code block title bar.
   {
     selector: "[data-work-entry-id]",
-    styles: "row of a tool call, thinking or notice in the chat; a tool call's card",
+    styles: "row of a tool call, thinking or notice in the chat",
   },
   {
     selector: "[data-v2-item-type]",

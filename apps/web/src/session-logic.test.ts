@@ -1338,8 +1338,25 @@ describe("native provider presentation in the v2 timeline", () => {
     expect(workEntryToolStatus(entry.entry)).toBe("error");
   });
 
+  it("reads a completed command as success when only its command text looks like a failure", () => {
+    const entry = {
+      id: "row",
+      createdAt: "2026-09-04T12:00:00.000Z",
+      label: "Ran command",
+      tone: "tool",
+      itemType: "command_execution",
+      command: 'grep -r "no such file" src',
+      detail: "src/a.ts:3: handled",
+      toolLifecycleStatus: "completed",
+    } as const;
+    expect(workEntryIndicatesToolFailure(entry)).toBe(true);
+    expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
+    expect(workEntryToolStatus(entry)).toBe("success");
+  });
+
   it.each([
     { toolLifecycleStatus: "inProgress", tone: "tool", expected: "running" },
+    { toolLifecycleStatus: "idle", tone: "tool", expected: "stopped" },
     { toolLifecycleStatus: "completed", tone: "tool", expected: "success" },
     { toolLifecycleStatus: "failed", tone: "tool", expected: "error" },
     { toolLifecycleStatus: "declined", tone: "tool", expected: "error" },
