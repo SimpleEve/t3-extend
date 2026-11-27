@@ -40,7 +40,7 @@ Upstream was also merged in before 2026-11-04, but those merges did not leave an
 
 ### Language and appearance
 
-- **Chinese interface.** Choose **Settings → Appearance → Language** to use English, Simplified Chinese, or follow the system. It works on web, desktop, and Android. Chinese text has its own font and weight settings. See [Multi-language](../../FORK.md#多语言) in FORK.md. For the user guide, see [appearance.md](../user/appearance.md#language).
+- **Chinese interface.** Choose **Settings → General → Language** to use English, Simplified Chinese, or follow the system. It works on web, desktop, and Android. Chinese text has its own font and weight settings. See [Multi-language](../../FORK.md#多语言) in FORK.md. For the user guide, see [appearance.md](../user/appearance.md#language).
 - **Sidebar grouped by project.** The sidebar has two views, "By status" and "By project". By project is the default, and it groups threads by worktree under each project. The thread list on the phone has the same choice. See [Sidebar views](../../FORK.md#侧边栏视图) in FORK.md. For the user guide, see [thread-sidebar.md](../user/thread-sidebar.md#choose-a-sidebar-view).
 - **Sidebar status chips and keep awake.** The bottom of the sidebar always shows three chips: subscription usage limits, resource use, and the local service ports of the current project. The desktop app also has a "keep awake" switch that stops the computer from sleeping while tasks run. See [Sidebar footer status chips and desktop keep awake](../../FORK.md#侧边栏底部状态芯片与桌面保持唤醒) in FORK.md.
 

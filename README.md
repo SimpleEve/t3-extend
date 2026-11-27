@@ -18,7 +18,7 @@ A release is named after the upstream release it is built on, then the fork's ow
 
 ### Chinese interface
 
-Choose English, Simplified Chinese or the system language in **Settings → Appearance → Language**. It covers web, desktop and Android, with fonts and weights tuned for Chinese text.
+Choose English, Simplified Chinese or the system language in **Settings → General → Language**. It covers web, desktop and Android, with fonts and weights tuned for Chinese text.
 
 ![The language setting](./docs/fork/images/en/language.png)
 
