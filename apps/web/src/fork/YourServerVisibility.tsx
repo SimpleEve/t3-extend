@@ -21,6 +21,7 @@ import {
   describeVisibilityShort,
   shortDeviceId,
   visibilityDraftReady,
+  visibilityDetailAddsToLabel,
   visibilityLimited,
   visibilityToSend,
   visibilityUnchanged,
@@ -72,6 +73,7 @@ export function VisibilityRow({
   const visibility = status.visibility ?? DEFAULT_VISIBILITY;
   const unreadable = visibility.unreadable === true;
   const limited = visibilityLimited(visibility);
+  const showDetail = !unreadable && visibilityDetailAddsToLabel(visibility, devices);
   const registryNote = unreadable ? null : describeVisibilityRegistry(t, visibility.registry);
   return (
     <>
@@ -90,13 +92,13 @@ export function VisibilityRow({
           "Choose which devices on your server can see this computer and sign in to it.",
         )}
         status={
-          unreadable || limited || registryNote !== null ? (
+          unreadable || showDetail || (limited && registryNote !== null) ? (
             <span className="flex flex-col gap-1">
               {unreadable ? (
                 <span className="block text-warning-foreground" role="status">
                   {describeVisibilityDetail(t, visibility, devices)}
                 </span>
-              ) : limited ? (
+              ) : showDetail ? (
                 <span className="block">{describeVisibility(t, visibility, devices)}</span>
               ) : null}
               {registryNote === null || visibility.mode === "visible_to_all" ? null : (

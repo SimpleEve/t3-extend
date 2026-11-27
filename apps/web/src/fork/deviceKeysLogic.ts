@@ -259,6 +259,39 @@ const SHORT_LABEL_MAX_DEVICES = 2;
 const SHORT_LABEL_MAX_NAME_CHARS = 18;
 
 /** The active mode in a few words, for beside the Visibility title and in the device list. */
+function shortLabelNames(
+  deviceIds: ReadonlyArray<string>,
+  devices: ReadonlyArray<Pick<DeviceListEntry, "id" | "name">>,
+): string | null {
+  const known = deviceIds.flatMap((id) => {
+    const name = devices.find((device) => device.id === id)?.name;
+    return name === undefined ? [] : [name];
+  });
+  // An id that is not on the list has no name worth showing, so its mode falls back to the count.
+  return deviceIds.length > 0 &&
+    known.length === deviceIds.length &&
+    deviceIds.length <= SHORT_LABEL_MAX_DEVICES &&
+    known.join(", ").length <= SHORT_LABEL_MAX_NAME_CHARS
+    ? known.join(", ")
+    : null;
+}
+
+/** Whether `describeVisibility` says more than `describeVisibilityShort`, so the row should show it too. */
+export function visibilityDetailAddsToLabel(
+  visibility: Pick<VisibilityState, "mode" | "deviceIds">,
+  devices: ReadonlyArray<Pick<DeviceListEntry, "id" | "name">>,
+): boolean {
+  switch (visibility.mode) {
+    case "visible_to_all":
+      return false;
+    case "hidden_from_all":
+      return true;
+    case "hidden_from_selected":
+    case "visible_to_selected":
+      return shortLabelNames(visibility.deviceIds, devices) === null;
+  }
+}
+
 export function describeVisibilityShort(
   t: Translator,
   visibility: Pick<VisibilityState, "mode" | "deviceIds" | "unreadable">,
@@ -266,18 +299,7 @@ export function describeVisibilityShort(
 ): string {
   if (visibility.unreadable === true) return t("Setting unreadable");
   const count = visibility.deviceIds.length;
-  const known = visibility.deviceIds.flatMap((id) => {
-    const name = devices.find((device) => device.id === id)?.name;
-    return name === undefined ? [] : [name];
-  });
-  // An id that is not on the list has no name worth showing, so its mode falls back to the count.
-  const names =
-    count > 0 &&
-    known.length === count &&
-    count <= SHORT_LABEL_MAX_DEVICES &&
-    known.join(", ").length <= SHORT_LABEL_MAX_NAME_CHARS
-      ? known.join(", ")
-      : null;
+  const names = shortLabelNames(visibility.deviceIds, devices);
   switch (visibility.mode) {
     case "visible_to_all":
       return t("Visible to all devices");

@@ -410,7 +410,8 @@ describe("Your server settings, visibility", () => {
       using _bridge = setup({ status: visible("hidden_from_selected", ["mac-mini", "phone"]) });
       await using _screen = await render(ui(), { router: false });
       await expect.element(heading("Hidden from Mac mini, Pixel")).toBeVisible();
-      await expect.element(page.getByText("Hidden from Mac mini, Pixel.")).toBeVisible();
+      // The label already names them, so the sentence under it is not repeated.
+      expect(page.getByText("Hidden from Mac mini, Pixel.").elements()).toHaveLength(0);
     }
     {
       using _bridge = setup({ status: visible("visible_to_selected", ["phone"]) });
@@ -423,6 +424,7 @@ describe("Your server settings, visibility", () => {
       });
       await using _screen = await render(ui(), { router: false });
       await expect.element(heading("Hidden from 3 devices")).toBeVisible();
+      await expect.element(page.getByText(/^Hidden from Mac mini, Pixel, .+\.$/)).toBeVisible();
     }
   });
 
@@ -514,7 +516,9 @@ describe("Your server settings, visibility", () => {
   it("sends no list for the modes that name nobody, and saves nothing when nothing changed", async () => {
     using _bridge = setup({ status: visible("hidden_from_selected", ["phone"]) });
     await using _screen = await render(ui(), { router: false });
-    await expect.element(page.getByText("Hidden from Pixel.")).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "Visibility Hidden from Pixel" }))
+      .toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Change" }));
     await expect.element(page.getByRole("button", { name: "Save" })).toBeDisabled();
     await userEvent.click(page.getByRole("radio", { name: /Hidden from all devices/ }));

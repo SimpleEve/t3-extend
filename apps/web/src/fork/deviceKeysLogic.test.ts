@@ -13,6 +13,7 @@ import {
   serverNotice,
   serverNoticeWindow,
   snapshotToView,
+  visibilityDetailAddsToLabel,
   visibilityDraftReady,
   visibilityLimited,
   visibilityToSend,
@@ -277,6 +278,17 @@ describe("the Visibility setting", () => {
         devices,
       ),
     ).toBe("Setting unreadable");
+  });
+
+  it("repeats the sentence under the label only when it says more than the label", () => {
+    const adds = (mode: Parameters<typeof visibilityDetailAddsToLabel>[0]["mode"], ids: string[]) =>
+      visibilityDetailAddsToLabel({ mode, deviceIds: ids }, devices);
+    expect(adds("visible_to_all", [])).toBe(false);
+    expect(adds("hidden_from_all", [])).toBe(true);
+    expect(adds("hidden_from_selected", ["a"])).toBe(false);
+    expect(adds("visible_to_selected", ["a", "b"])).toBe(false);
+    expect(adds("hidden_from_selected", ["a", "unseen-0123456789"])).toBe(true);
+    expect(adds("visible_to_selected", [])).toBe(true);
   });
 
   it("marks only the settings that keep this computer from someone", () => {
