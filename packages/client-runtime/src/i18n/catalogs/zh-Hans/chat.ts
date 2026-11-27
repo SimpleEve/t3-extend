@@ -248,7 +248,6 @@ export default {
   "Stashed prompt will not survive a reload": "刷新后暂存的提示词将会丢失",
   "Browser storage is unavailable, so this stash is kept in memory only for this session.":
     "浏览器存储不可用，这次暂存只保存在内存中，关闭页面后就会丢失。",
-  "Oldest stashed prompt discarded": "已丢弃最早的暂存提示词",
   "The stash holds {count} prompts; the oldest was removed to make room.":
     "暂存区最多保存 {count} 条提示词，已移除最早的一条。",
   "Stashed images were not saved": "暂存的图片未能保存",

@@ -9,7 +9,6 @@ import {
   useCommandPaletteMount,
   useCommandPaletteStore,
 } from "../commandPaletteStore";
-import { useThemeEditorStore } from "../components/settings/themeEditorStore";
 import { installCommandPaletteCommands } from "./commandPaletteCommands";
 
 const keybindings = compileResolvedKeybindingsConfig([
@@ -25,7 +24,6 @@ function MountedPalette() {
 
 function setup() {
   useCommandPaletteStore.setState(useCommandPaletteStore.getInitialState(), true);
-  useThemeEditorStore.setState(useThemeEditorStore.getInitialState(), true);
 }
 
 describe("command palette shortcuts", () => {
@@ -153,7 +151,7 @@ describe("command palette shortcuts", () => {
     expect(useCommandPaletteStore.getState()).toMatchObject({ open: true, mode: "command" });
   });
 
-  it("ignore held theme editor and Usage shortcuts", async () => {
+  it("ignore held theme studio and Usage shortcuts", async () => {
     setup();
     using _platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
     await using screen = await render(<MountedPalette />, { router: "/" });
@@ -176,7 +174,6 @@ describe("command palette shortcuts", () => {
       document.body.dispatchEvent(event);
       expect(event.defaultPrevented, keys.key).toBe(true);
     }
-    expect(useThemeEditorStore.getState().session).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
   });
 });

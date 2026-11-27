@@ -259,7 +259,7 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
 
     // Starts agy on the private copy and lets it renew the token there. Needs the scope it runs in.
     const renew = Effect.fn("AntigravityAccountReader.renew")(function* (home: string) {
-      const { executablePath, version } = yield* input.acquireExecutable.pipe(
+      const { executablePath } = yield* input.acquireExecutable.pipe(
         Effect.mapError((): AntigravityProbeFailureReason => "unavailable"),
       );
       const profile = yield* prepareAntigravityProfile({
@@ -287,7 +287,6 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
       // Leaving this scope stops agy, whether the answer came or the read was cut short.
       yield* Effect.gen(function* () {
         const runtime = yield* makeAntigravityAcpRuntime({
-          runtimeVersion: version ?? null,
           cwd: home,
           mcpServers: [],
           childProcessSpawner: spawner,

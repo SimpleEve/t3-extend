@@ -138,7 +138,6 @@ export default {
   "Asked in a thread": "已在对话中提问",
   "The task is in the composer. Read it over, then send.": "任务已在输入框中。请检查后发送。",
   "Could not open a thread for the checkout": "无法为工作副本打开对话",
-  "Checked out, but the thread stayed where it was": "已检出，但对话仍在原处",
   "The checkout is ready on {branch}. Point a thread at it from the branch picker, then ask again.":
     "已在 {branch} 上准备好检出。请在分支选择器中让对话指向它，然后再问一次。",
   "Checked out here": "已在此检出",

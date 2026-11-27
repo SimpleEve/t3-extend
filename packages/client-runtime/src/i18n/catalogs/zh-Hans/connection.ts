@@ -414,7 +414,6 @@ export default {
     "将其添加到 Agent，例如 claude mcp add --transport http t3 {url}",
   "Could not copy MCP URL": "无法复制 MCP URL",
   Routes: "路由",
-  "{routeCount} routes": "{routeCount} 条路由",
   Update: "更新",
   "Switch off": "关闭",
   "Switch on": "开启",

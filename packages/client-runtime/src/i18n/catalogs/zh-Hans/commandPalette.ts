@@ -66,7 +66,6 @@ export default {
   "Connect an environment": "连接环境",
   "No connected environment can add a project": "没有可添加项目的已连接环境",
   "Agent session will restart": "Agent 会话将重启",
-  "Your next message starts a fresh session.": "你的下一条消息将以全新上下文开始。",
   "Failed to add project": "添加项目失败",
   "Windows-style paths are only supported on Windows.": "仅 Windows 支持 Windows 风格路径。",
   "Relative paths require an active project.": "相对路径需要先有活动项目。",

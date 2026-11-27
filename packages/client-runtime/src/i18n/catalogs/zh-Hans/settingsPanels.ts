@@ -1661,7 +1661,6 @@ export default {
   Cleanup: "清理",
   "Artifacts and logs": "产物与日志",
   "OpenTelemetry export": "OpenTelemetry 导出",
-  "No hubs configured.": "尚未配置中转站。",
   "new worktrees start from remote": "新 worktree 从远程创建",
   Creation: "创建",
   Branches: "分支",
