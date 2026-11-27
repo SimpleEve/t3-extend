@@ -22,9 +22,13 @@ import {
   describeDevicesError,
   describeInviteProblem,
   describeServerNotice,
+  describeVisibilityDetail,
+  describeVisibilityShort,
+  deviceSeesThisComputer,
   inviteDeadlineLabel,
   serverNotice,
   serverNoticeWindow,
+  visibilityLimited,
 } from "~/fork/deviceKeysLogic";
 import { deviceEnvironmentIndex, peerWait } from "~/fork/deviceKeysRuntime";
 import {
@@ -67,6 +71,7 @@ import { Toggle, ToggleGroup } from "../components/ui/toggle-group";
 import { SelfHostSettings } from "../components/settings/SelfHostSettings";
 import { useSearchableSetting } from "../components/settings/settingsSearch";
 import { SettingsRow } from "../components/settings/settingsLayout";
+import { VisibilityMark } from "./VisibilityMark";
 import { VisibilityRow } from "./YourServerVisibility";
 
 const isDeviceKeysError = Schema.is(DeviceKeysError);
@@ -256,6 +261,8 @@ function JoinedRows({
                 key={device.id}
                 device={device}
                 waiting={waiting.has(device.id)}
+                visibility={current.visibility}
+                devices={listed}
                 onRemove={() => setRemoving(device)}
               />
             ))}
@@ -373,10 +380,14 @@ function TunnelLine({ tunnel }: { readonly tunnel: DevicesStatus["tunnel"] }) {
 function DeviceItem({
   device,
   waiting,
+  visibility,
+  devices,
   onRemove,
 }: {
   readonly device: DeviceListEntry;
   readonly waiting: boolean;
+  readonly visibility: DevicesStatus["visibility"];
+  readonly devices: ReadonlyArray<DeviceListEntry>;
   readonly onRemove: () => void;
 }) {
   const t = useT();
@@ -403,6 +414,20 @@ function DeviceItem({
           )}
         </span>
       </span>
+      {visibility === undefined || !visibilityLimited(visibility) ? null : device.self ? (
+        <VisibilityMark
+          label={describeVisibilityShort(t, visibility, devices)}
+          tooltip={describeVisibilityDetail(t, visibility, devices)}
+          className="min-w-0 max-w-[45%]"
+        />
+      ) : deviceSeesThisComputer(visibility, device.id) ? null : (
+        <VisibilityMark
+          label={t("Can't see this computer")}
+          tooltip={t("Your Visibility setting hides this computer from {name}.", {
+            name: device.name,
+          })}
+        />
+      )}
       {device.kind === "computer" && !device.self && device.online !== undefined ? (
         <Badge variant={device.online ? "success" : "outline"} size="sm" data-t3x-han-text>
           {device.online ? t("Online") : t("Offline")}
