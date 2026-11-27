@@ -151,14 +151,35 @@ function rowToDevice(row) {
   };
 }
 
-/** Adds what a version 1 database lacks. Safe to run on a database that already has it. */
+/**
+ * Adds what a version 1 database lacks, one column at a time inside one transaction, so a run that
+ * stopped half way is repaired instead of skipped. Safe to run on a database that already has it.
+ */
 function migrate(db) {
-  const columns = db.prepare("PRAGMA table_info(devices)").all();
-  if (!columns.some((column) => column.name === "visibility_mode")) {
-    db.exec(
-      "ALTER TABLE devices ADD COLUMN visibility_mode TEXT NOT NULL DEFAULT 'visible_to_all' CHECK (visibility_mode IN ('visible_to_all', 'hidden_from_all', 'hidden_from_selected', 'visible_to_selected'))",
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const have = new Set(
+      db
+        .prepare("PRAGMA table_info(devices)")
+        .all()
+        .map((column) => column.name),
     );
-    db.exec("ALTER TABLE devices ADD COLUMN visibility_ids TEXT NOT NULL DEFAULT '[]'");
+    if (!have.has("visibility_mode")) {
+      db.exec(
+        "ALTER TABLE devices ADD COLUMN visibility_mode TEXT NOT NULL DEFAULT 'visible_to_all' CHECK (visibility_mode IN ('visible_to_all', 'hidden_from_all', 'hidden_from_selected', 'visible_to_selected'))",
+      );
+    }
+    if (!have.has("visibility_ids")) {
+      db.exec("ALTER TABLE devices ADD COLUMN visibility_ids TEXT NOT NULL DEFAULT '[]'");
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // SQLite already rolled the transaction back.
+    }
+    throw error;
   }
 }
 
@@ -348,6 +369,10 @@ export class Store {
       ).run(id, hashSecret(secret), kind, createdBy, now, expiresAt);
     });
     return { id, secret, expiresAt };
+  }
+
+  getInvite(id) {
+    return this.q("SELECT id, created_by FROM invites WHERE id = ?").get(id) ?? null;
   }
 
   /** Cancels an unused invite. */

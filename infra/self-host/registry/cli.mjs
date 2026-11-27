@@ -47,6 +47,7 @@ function visibilityNote(device, devices) {
   if (device.kind !== "computer") return "";
   const names = deviceIds
     .map((id) => devices.find((d) => d.id === id)?.name ?? `已移除的设备 ${id.slice(0, 8)}`)
+    .sort((a, b) => a.localeCompare(b))
     .join("、");
   switch (mode) {
     case "visible_to_all":

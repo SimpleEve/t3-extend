@@ -530,4 +530,36 @@ describe("computer visibility", () => {
     assert.equal(again.getDevice("old-mac").visibility.mode, "hidden_from_all");
     again.close();
   });
+
+  it("repairs a database whose migration stopped after the first column", () => {
+    const path = join(dir, "half.db");
+    const old = new store.db.constructor(path);
+    old.exec(`
+      CREATE TABLE meta (id INTEGER PRIMARY KEY CHECK (id = 1), registry_id TEXT NOT NULL, rev INTEGER NOT NULL);
+      CREATE TABLE devices (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('computer', 'phone')), jwk TEXT NOT NULL, subdomain TEXT,
+        environment_id TEXT, created_at INTEGER NOT NULL, last_seen_at INTEGER, last_sync_at INTEGER,
+        last_tunnel_at INTEGER, invited_by TEXT, invite_id TEXT,
+        visibility_mode TEXT NOT NULL DEFAULT 'visible_to_all'
+          CHECK (visibility_mode IN ('visible_to_all', 'hidden_from_all', 'hidden_from_selected', 'visible_to_selected')),
+        CHECK (kind = 'computer' OR subdomain IS NULL)
+      );
+      INSERT INTO meta (id, registry_id, rev) VALUES (1, 'halfreg2', 3);
+      INSERT INTO devices (id, name, name_key, kind, jwk, subdomain, created_at, visibility_mode)
+        VALUES ('half-mac', 'Half Mac', 'half mac', 'computer', '{}', 'half-mac', 1, 'hidden_from_all');
+      PRAGMA user_version = 1;
+    `);
+    old.close();
+    const repaired = Store.open(path);
+    try {
+      assert.deepEqual(repaired.getDevice("half-mac").visibility, {
+        mode: "hidden_from_all",
+        deviceIds: [],
+      });
+      assert.equal(repaired.db.prepare("PRAGMA user_version").get().user_version, 2);
+    } finally {
+      repaired.close();
+    }
+  });
 });

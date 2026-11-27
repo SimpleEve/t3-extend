@@ -258,9 +258,12 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     if (device.kind !== "computer") throw new HttpError("forbidden");
   };
 
+  /** A device that is gone (null) hides nothing. */
+  const canSee = (viewer, target) => target === null || isVisibleTo(target, viewer.id);
+
   /** Whether `viewer` may act on `target` by name or id: a device hidden from it does not exist for it. */
   const requireVisible = (viewer, target) => {
-    if (target !== null && !isVisibleTo(target, viewer.id)) throw new HttpError("not_found");
+    if (!canSee(viewer, target)) throw new HttpError("not_found");
   };
 
   const publicDevice = (device, at, viewerId) => {
@@ -355,7 +358,7 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     },
 
     devices({ req, path, body }) {
-      const { deviceId } = authenticate(req, path, body, { forJoin: false });
+      const { deviceId, device } = authenticate(req, path, body, { forJoin: false });
       store.touch(deviceId, "sync", now());
       // Always the current body: `online` and the sync times change with the clock, not with `rev`,
       // so a validator keyed on `rev` would freeze them. Clients send no `If-None-Match`; one that
@@ -364,10 +367,14 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
       const all = store.listDevices();
       // The list is per viewer: a computer hidden from the viewer is not in `devices`, so for the viewer
       // it is as if it had been removed. Its identity (never its name or address) still goes along in
-      // `hiddenPeers`, because a computer that hides from this one may still sign in to it and needs its key checked.
-      const hiddenPeers = all
-        .filter((d) => !isVisibleTo(d, deviceId))
-        .map((d) => ({ id: d.id, kind: d.kind, jwk: d.jwk }));
+      // `hiddenPeers`, because a computer that hides from this one may still sign in to it and needs its key
+      // checked. A phone never checks a pass, so it gets none.
+      const hiddenPeers =
+        device.kind === "computer"
+          ? all
+              .filter((d) => !isVisibleTo(d, deviceId))
+              .map((d) => ({ id: d.id, kind: d.kind, jwk: d.jwk }))
+          : [];
       return {
         status: 200,
         body: {
@@ -414,12 +421,15 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
       return {
         status: 200,
         body: {
-          invites: store.listOpenInvites(now()).map((row) => ({
-            id: row.id,
-            kind: row.kind,
-            createdBy: row.created_by,
-            expiresAt: row.expires_at,
-          })),
+          invites: store
+            .listOpenInvites(now())
+            .filter((row) => canSee(device, store.getDevice(row.created_by)))
+            .map((row) => ({
+              id: row.id,
+              kind: row.kind,
+              createdBy: row.created_by,
+              expiresAt: row.expires_at,
+            })),
         },
       };
     },
@@ -427,6 +437,8 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     deleteInvite({ req, path, body, param }) {
       const { device } = authenticate(req, path, body, { forJoin: false });
       requireComputer(device);
+      const invite = store.getInvite(param);
+      if (invite !== null) requireVisible(device, store.getDevice(invite.created_by));
       if (!store.deleteInvite(param)) throw new HttpError("not_found");
       log({ event: "invite_cancelled", by: device.id, id: param });
       return { status: 204 };

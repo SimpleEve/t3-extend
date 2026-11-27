@@ -142,7 +142,7 @@ describe("./t3x devices, revoke, rename, release, info", () => {
     );
     assert.match(
       lines.find((l) => l.startsWith("Studio")),
-      /可见性：仅对 Mac、Laptop 可见$/,
+      /可见性：仅对 Laptop、Mac 可见$/,
     );
     assert.doesNotMatch(
       lines.find((l) => l.startsWith("Pixel")),

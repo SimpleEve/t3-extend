@@ -976,17 +976,45 @@ describe("computer visibility", () => {
     const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
     await mac.send("PATCH", "/v1/devices/self", { json: { environmentId: "env_mac" } });
     await setVisibility(mac, "hidden_from_all");
-    for (const viewer of [laptop, phone]) {
-      const body = await listing(viewer);
-      assert.deepEqual(body.hiddenPeers, [{ id: mac.id, kind: "computer", jwk: mac.jwk }]);
-      assert.equal(
-        body.devices.some((d) => d.id === mac.id),
-        false,
-      );
-      assert.equal(JSON.stringify(body).includes("env_mac"), false);
-      assert.equal(JSON.stringify(body).includes("https://mac."), false);
-    }
+    const body = await listing(laptop);
+    assert.deepEqual(body.hiddenPeers, [{ id: mac.id, kind: "computer", jwk: mac.jwk }]);
+    assert.equal(
+      body.devices.some((d) => d.id === mac.id),
+      false,
+    );
+    assert.equal(JSON.stringify(body).includes("env_mac"), false);
+    assert.equal(JSON.stringify(body).includes("https://mac."), false);
     assert.equal((await listing(mac)).hiddenPeers, undefined);
+    // A phone never checks a pass, so it gets no identity for a computer hidden from it.
+    const forPhone = await listing(phone);
+    assert.equal(forPhone.hiddenPeers, undefined);
+    assert.equal(
+      forPhone.devices.some((d) => d.id === mac.id),
+      false,
+    );
+  });
+
+  it("hides a hidden computer's open invites from the devices it is hidden from, and refuses their cancel as not found", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const laptop = await enroll(reg, { name: "Laptop" });
+    const studio = await enroll(reg, { name: "Studio" });
+    await setVisibility(mac, "hidden_from_selected", [laptop.id]);
+    const macInvite = (await mac.send("POST", "/v1/invites", { json: { kind: "phone" } })).json;
+    const studioInvite = (await studio.send("POST", "/v1/invites", { json: { kind: "phone" } }))
+      .json;
+    const invitesFor = async (device) =>
+      (await device.send("GET", "/v1/invites")).json.invites.map((invite) => invite.id);
+
+    assert.deepEqual(await invitesFor(laptop), [studioInvite.id]);
+    assert.deepEqual((await invitesFor(studio)).sort(), [macInvite.id, studioInvite.id].sort());
+    assert.deepEqual((await invitesFor(mac)).sort(), [macInvite.id, studioInvite.id].sort());
+
+    const refused = await laptop.send("DELETE", `/v1/invites/${macInvite.id}`);
+    const unknown = await laptop.send("DELETE", `/v1/invites/${"a".repeat(11)}`);
+    expectError(refused, 404, "not_found");
+    assert.deepEqual(refused.json, unknown.json);
+    assert.deepEqual((await invitesFor(mac)).includes(macInvite.id), true);
+    assert.equal((await studio.send("DELETE", `/v1/invites/${macInvite.id}`)).status, 204);
   });
 
   it("applies the four modes, including to a device that joins afterwards", async () => {
